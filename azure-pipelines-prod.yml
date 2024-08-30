@@ -1,0 +1,27 @@
+trigger:
+  - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - task: SSH@0
+    displayName: "Deploy to prod"
+    inputs:
+      sshEndpoint: "DesignFlix Prod"
+      runOptions: "inline"
+      inline: |
+        sudo yum update -y
+        pm2 stop main
+        pm2 del main
+        pm2 save --force
+        cd api
+        git clean -d -f
+        git pull
+        rm .env
+        cp .env.prod .env
+        npm install
+        npm run migrate
+        pm2 start src/main.js
+        pm2 save --force
+      failOnStdErr: false
