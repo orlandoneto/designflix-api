@@ -85,9 +85,6 @@ require("./controller/product-manual.controller")(app);
 require("./controller/product-video.controller")(app);
 require("./controller/product-faq.controller")(app);
 
-// installer
-require("./controller/installer.controller")(app);
-
 // admin
 require("./controller/admin.controller")(app);
 require("./controller/problems.controller")(app);
@@ -97,9 +94,6 @@ require("./controller/upload.controller")(app);
 
 // temas
 require("./controller/tema.controller")(app);
-
-// treinamentos
-require("./controller/treinamento.controller")(app);
 
 // google
 require("./controller/google-api.controller")(app);
