@@ -69,7 +69,7 @@ app.get('/favicon.ico', (req, res) => {
 });
 
 // otp
-require("./controller/otp.controller")(app);
+require("./controller/otps.controller")(app);
 
 // system
 require("./controller/system.controller")(app);

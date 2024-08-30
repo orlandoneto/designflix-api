@@ -1,4 +1,4 @@
-const { Otp } = require("../models");
+const { Otps } = require("../models");
 const randomstring = require("randomstring");
 const { sendEmail } = require("../utils/emailService");
 
@@ -14,7 +14,7 @@ module.exports = class {
     try {
       const { email } = req.query;
       const otp = generateOTP();
-      await Otp.create({
+      await Otps.create({
         email: email,
         otp: otp,
       });
@@ -51,7 +51,7 @@ module.exports = class {
   verifyOTP = async (req, res) => {
     try {
       const { email, otp } = req.query;
-      const existingOTP = await Otp.findOne({
+      const existingOTP = await Otps.findOne({
         where: {
           email: email,
           otp: otp,
@@ -60,7 +60,7 @@ module.exports = class {
 
       if (existingOTP) {
         const where = { email: email };
-        await Otp.destroy({ where });
+        await Otps.destroy({ where });
 
         res
           .status(200)
