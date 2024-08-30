@@ -1,0 +1,8 @@
+const OTPS = require("../services/otps.service");
+
+module.exports = (app) => {
+  const OTPService = new OTPS();
+
+  app.get("/otps/send", (req, res) => OTPService.sendOTP(req, res));
+  app.get("/otps/verify", (req, res) => OTPService.verifyOTP(req, res));
+};
