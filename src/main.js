@@ -30,8 +30,8 @@ const swaggerOptions = {
       title: "Design Flix API",
       description: "Design Flix API documentation",
       contact: {
-        name: "Orlando Neto",
-        email: "orlandoneto23@gmail.com"
+        name: "DesignFlix", 
+        email:  process.env.EMAIL_HOST_SMTP
       },
       version: "1.0.0"
     },
