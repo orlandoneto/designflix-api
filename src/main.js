@@ -68,6 +68,10 @@ app.get('/favicon.ico', (req, res) => {
   res.sendStatus(204);
 });
 
+
+// user main grid
+require("./controller/user-main-grid.controller")(app);
+
 // otp
 require("./controller/otps.controller")(app);
 
