@@ -121,8 +121,8 @@ module.exports = class {
       userData.token = getTokenData.token;
 
       const paramsEmail = {
-        email: "orlandoneto23@gmail.com",
-        name: "Orlando Neto",
+        email: email,
+        name: name,
         title: "DesignFlix - Usuário criado",
         description: "Sua conta foi criada com sucesso!",
       };

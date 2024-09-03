@@ -20,9 +20,9 @@ module.exports = class {
       });
 
       const paramsEmail = {
-        email: "orlandoneto23@gmail.com",
-        name: "Orlando Neto",
-        title: "DesignFlix - Usuário criado",
+        email: email,
+        name: "DesignFlix",   
+        title: "DesignFlix - Código de Verificação",
         description: `<p>Your OTP is: <strong>${otp}</strong></p>`,
       };
 
