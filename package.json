@@ -1,7 +1,8 @@
 {
   "name": "designflix-api",
+  "private": true,
   "version": "1.0.0",
-  "description": "API Design Flix feito em Node.js",
+  "description": "API Design Flix make on Node.js",
   "main": "src/main.js",
   "scripts": {
     "dev": "NODE_ENV=development && nodemon src/main.js",
