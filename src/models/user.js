@@ -105,12 +105,9 @@ module.exports = (sequelize, DataTypes) => {
     User.hasMany(models.UserAddress, {
       foreignKey: "user_id",
     }),
-      User.hasMany(models.UserCreditCard, {
-        foreignKey: "user_id",
-      }),
-      User.hasMany(models.UserInvoice, {
-        foreignKey: "user_id",
-      });
+    User.hasMany(models.UserCreditCard, {
+      foreignKey: "user_id",
+    }) 
   };
 
   return User;

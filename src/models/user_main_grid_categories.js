@@ -1,21 +1,17 @@
 module.exports = (sequelize, DataTypes) => {
-  const UserInvoiceProduct = sequelize.define(
-    "UserInvoiceProduct",
+  const UserMainGridCategories = sequelize.define(
+    "UserMainGridCategories",
     {
       id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
       },
-      product_id: {
+      user_main_grid_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      user_invoice_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      quantity: {
+      category_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
@@ -33,18 +29,18 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
     {
-      tableName: "user_invoice_product",
+      tableName: "user_main_grid_categories",
     }
   );
 
-  UserInvoiceProduct.associate = function(models) {
-    UserInvoiceProduct.belongsTo(models.ProductCategory, {
-      foreignKey: 'product_id'
+  UserMainGridCategories.associate = function (models) {
+    UserMainGridCategories.hasMany(models.UserMainGrid, {
+      foreignKey: "user_main_grid_id",
     }),
-    UserInvoiceProduct.belongsTo(models.UserInvoice, {
-      foreignKey: 'user_invoice_id'
-    })
+      UserMainGridCategories.hasMany(models.Category, {
+        foreignKey: "category_id",
+      });
   };
 
-  return UserInvoiceProduct;
+  return UserMainGridCategories;
 };

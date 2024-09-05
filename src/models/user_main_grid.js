@@ -6,11 +6,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
-      },   
+      },
       admin_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
-      },  
+      },
       user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -21,6 +21,18 @@ module.exports = (sequelize, DataTypes) => {
       },
       url: {
         type: DataTypes.STRING,
+        allowNull: false,
+      },
+      favorite: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      follow_design: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      count_download: {
+        type: DataTypes.INTEGER,
         allowNull: false,
       },
       createdAt: {
@@ -41,13 +53,16 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
-  UserMainGrid.associate = function(models) {
+  UserMainGrid.associate = function (models) {
     UserMainGrid.belongsTo(models.User, {
-      foreignKey: 'user_id'
+      foreignKey: "user_id",
     }),
-    UserMainGrid.belongsTo(models.Admin, {
-      foreignKey: 'admin_id'
-    })
+      UserMainGrid.belongsTo(models.Admin, {
+        foreignKey: "admin_id",
+      });
+    UserMainGrid.belongsTo(models.Category, {
+      foreignKey: "category_id",
+    });
   };
 
   return UserMainGrid;

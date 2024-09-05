@@ -82,22 +82,12 @@ require("./controller/system.controller")(app);
 require("./controller/user.controller")(app);
 require("./controller/user-credit-card.controller")(app);
 require("./controller/user-address.controller")(app);
-require("./controller/user-invoice.controller")(app);
-require("./controller/product-categories.controller")(app);
-require("./controller/product.controller")(app);
-require("./controller/product-manual.controller")(app);
-require("./controller/product-video.controller")(app);
-require("./controller/product-faq.controller")(app);
 
 // admin
 require("./controller/admin.controller")(app);
-require("./controller/problems.controller")(app);
 
 // serviços
 require("./controller/upload.controller")(app);
-
-// temas
-require("./controller/tema.controller")(app);
 
 // google
 require("./controller/google-api.controller")(app);

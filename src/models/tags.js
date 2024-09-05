@@ -1,37 +1,31 @@
 module.exports = (sequelize, DataTypes) => {
-  const ProductFaq = sequelize.define(
-    "ProductFaq",
+  const Tags = sequelize.define(
+    "Tags",
     {
       id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
       },
-      question: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      answer: {
+      name: {
         type: DataTypes.STRING,
         allowNull: false,
       },
       createdAt: {
         type: DataTypes.DATE,
-        field: "created_at",
         allowNull: false,
         defaultValue: DataTypes.NOW,
       },
       updatedAt: {
         type: DataTypes.DATE,
-        field: "updated_at",
         allowNull: false,
         defaultValue: DataTypes.NOW,
       },
     },
     {
-      tableName: "product_faq",
+      tableName: "tags",
     }
   );
 
-  return ProductFaq;
+  return Tags;
 };

@@ -2,52 +2,32 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable("user_main_grid", {
+    await queryInterface.createTable("user_main_grid_categories", {
       id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
         autoIncrement: true,
         allowNull: false,
       },
-      admin_id: {
+      user_main_grid_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: "admin",
+          model: "user_main_grid",
           key: "id",
         },
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-      user_id: {
+      category_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: "user",
+          model: "tags",
           key: "id",
         },
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
-      },
-      name: {
-        type: Sequelize.STRING,
-        allowNull: false,
-      },
-      url: {
-        type: Sequelize.STRING,
-        allowNull: false,
-      },
-      favorite: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-      },
-      follow_design: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-      },
-      count_download: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
       },
       created_at: {
         type: Sequelize.DATE,
@@ -63,6 +43,6 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    await queryInterface.dropTable("user_main_grid");
+    await queryInterface.dropTable("user_main_grid_categories");
   },
 };

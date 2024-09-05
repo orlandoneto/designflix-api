@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
-  const Product = sequelize.define(
-    "Product",
+  const Category = sequelize.define(
+    "Category",
     {
       id: {
         type: DataTypes.INTEGER,
@@ -11,31 +11,25 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      description: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      serie: {
-        type: DataTypes.STRING,
+      active: {
+        type: DataTypes.INTEGER,
         allowNull: false,
       },
       createdAt: {
         type: DataTypes.DATE,
-        field: "created_at",
         allowNull: false,
         defaultValue: DataTypes.NOW,
       },
       updatedAt: {
         type: DataTypes.DATE,
-        field: "updated_at",
         allowNull: false,
         defaultValue: DataTypes.NOW,
       },
     },
     {
-      tableName: "product",
+      tableName: "categories",
     }
   );
 
-  return Product;
+  return Category;
 };

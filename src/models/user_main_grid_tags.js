@@ -1,18 +1,18 @@
 module.exports = (sequelize, DataTypes) => {
-  const ProductCategory = sequelize.define(
-    "ProductCategory",
+  const UserMainGridTags = sequelize.define(
+    "UserMainGridTags",
     {
       id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
       },
-      name: {
-        type: DataTypes.STRING,
+      user_main_grid_id: {
+        type: DataTypes.INTEGER,
         allowNull: false,
       },
-      url_icon: {
-        type: DataTypes.STRING,
+      tag_id: {
+        type: DataTypes.INTEGER,
         allowNull: false,
       },
       createdAt: {
@@ -29,23 +29,18 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
     {
-      tableName: "product_category",
+      tableName: "user_main_grid_tags",
     }
   );
 
-  
-  ProductCategory.associate = function(models) {
-    ProductCategory.hasMany(models.ProductManual, {
-      foreignKey: 'product_id'
+  UserMainGridTags.associate = function (models) {
+    UserMainGridTags.hasMany(models.UserMainGrid, {
+      foreignKey: "user_main_grid_id",
     }),
-    ProductCategory.hasMany(models.ProductVideo, {
-      foreignKey: 'product_id'
-    }),
-    ProductCategory.hasOne(models.UserInvoiceProduct, {
-      foreignKey: 'product_id'
-    })
+      UserMainGridTags.hasMany(models.Tags, {
+        foreignKey: "tag_id",
+      });
   };
 
-
-  return ProductCategory;
+  return UserMainGridTags;
 };
