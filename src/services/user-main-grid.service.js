@@ -1,65 +1,250 @@
-const { UserMainGrid } = require("../models");
+const {
+  UserMainGrid,
+  UserMainGridCategories,
+  UserMainGridTags,
+  Category,
+  Tags,
+  sequelize,
+} = require("../models");
 
-module.exports = class {
+module.exports = class UserMainGridController {
   async create(req, res) {
+    const transaction = await sequelize.transaction();
+
     try {
-      const userMainGrid = await UserMainGrid.create(req.body);
-      res.status(200).send({ data: userMainGrid });
+      const { admin_id, name, categories, tags } = req.body;
+      const userMainGrid = await UserMainGrid.create(
+        {
+          admin_id,
+          name,
+        },
+        { transaction }
+      );
+
+      if (categories && categories.length > 0) {
+        for (const category of categories) {
+          await UserMainGridCategories.create(
+            {
+              user_main_grid_id: userMainGrid.id,
+              category_id: category.value,
+            },
+            { transaction }
+          );
+        }
+      }
+
+      if (tags && tags.length > 0) {
+        for (const t of tags) {
+          const tag = await Tags.create(
+            {
+              name,
+            },
+            { transaction }
+          );
+
+          await UserMainGridTags.create(
+            {
+              user_main_grid_id: userMainGrid.id,
+              tag_id: tag.id,
+            },
+            { transaction }
+          );
+        }
+      }
+
+      await transaction.commit();
+
+      res.status(200).send({ data: { ...userMainGrid } });
     } catch (err) {
+      await transaction.rollback();
+
       console.log(err);
       res.status(400).send({ message: err.message });
     }
   }
 
   async getAll(req, res) {
-    const userMainGrids = await UserMainGrid.findAll();
-
-    return res.status(200).send({ data: userMainGrids });
-  }
-
-  
-  async getOne(req, res) {
-    try{
-      const userMainGrids = await UserMainGrid.findOne({
-        where: { id: req.params.id },
+    try {
+      const userMainGrids = await UserMainGrid.findAll({
+        include: [
+          {
+            model: UserMainGridCategories,
+            as: "user_main_grid_categories",
+            include: [
+              {
+                model: Category,
+                as: "category",
+                attributes: ["id", "name", "active"],
+              },
+            ],
+          },
+          {
+            model: UserMainGridTags,
+            as: "user_main_grid_tags",
+            include: [
+              {
+                model: Tags,
+                as: "tag",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+        ],
       });
   
-      return res.status(200).send({ data: userMainGrids });
+      // Transformando os dados para eliminar as camadas intermediárias
+      const result = userMainGrids.map((grid) => ({
+        id: grid.id,
+        name: grid.name, 
+        url: grid.url, 
+        categories: grid.user_main_grid_categories.map((item) => ({
+          id: item.category.id,
+          name: item.category.name,
+          active: item.category.active,
+        })),
+        tags: grid.user_main_grid_tags.map((item) => ({
+          id: item.tag.id,
+          name: item.tag.name,
+        })),
+      }));
+  
+      res.status(200).send({ data: result });
+    } catch (err) {
+      console.log(err);
+      res.status(500).send({ message: err.message });
     }
-    catch(err){
-      return res.status(500).send({ data: err.message });
+  }
+  
+  
+
+  async getOne(req, res) {
+    try {
+      const userMainGrid = await UserMainGrid.findOne({
+        where: { id: req.params.id },
+        include: [
+          {
+            model: UserMainGridCategories,
+            as: "user_main_grid_categories",
+            include: [
+              {
+                model: Category,
+                as: "category",
+                attributes: ["id", "name", "active"],
+              },
+            ],
+          },
+          {
+            model: UserMainGridTags,
+            as: "user_main_grid_tags",
+            include: [
+              {
+                model: Tags,
+                as: "tag",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+        ],
+      });
+
+      if (!userMainGrid) {
+        return res.status(404).send({ message: "Registro não encontrado" });
+      }
+
+      res.status(200).send({ data: userMainGrid });
+    } catch (err) {
+      console.log(err);
+      res.status(500).send({ message: err.message });
     }
   }
 
   async updateById(req, res) {
-    const where = { id: Number(req.params.id) };
+    try {
+      const where = { id: Number(req.params.id) };
 
-    const userMainGrid = await UserMainGrid.findOne({ where });
+      const [updated] = await UserMainGrid.update(req.body, { where });
 
-    if (!userMainGrid || Number(userMainGrid.id) !== Number(req.params.id)) {
-      res.status(400).send({ message: "Problema não encontrado" });
-      return;
+      if (updated === 0) {
+        return res.status(404).send({ message: "Registro não encontrado" });
+      }
+
+      const updatedUserMainGrid = await UserMainGrid.findOne({
+        where,
+        include: [
+          {
+            model: UserMainGridCategories,
+            as: "user_main_grid_categories",
+            include: [
+              {
+                model: Category,
+                as: "category",
+                attributes: ["id", "name", "active"],
+              },
+            ],
+          },
+          {
+            model: UserMainGridTags,
+            as: "user_main_grid_tags",
+            include: [
+              {
+                model: Tags,
+                as: "tag",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+        ],
+      });
+
+      res.status(200).send({ status: "ok", data: updatedUserMainGrid });
+    } catch (err) {
+      console.log(err);
+      res.status(500).send({ message: err.message });
     }
-
-    await UserMainGrid.update(req.body, { where });
-
-    const resData = await UserMainGrid.findOne({ where });
-
-    res.status(200).send({ status: "ok", data: resData });
   }
 
   async deleteById(req, res) {
-    const where = { id: req.params.id };
+    try {
+      const where = { id: req.params.id };
 
-    const userMainGrid = await UserMainGrid.findOne({ where });
+      const userMainGrid = await UserMainGrid.findOne({
+        where,
+        include: [
+          {
+            model: UserMainGridCategories,
+            as: "user_main_grid_categories",
+            include: [
+              {
+                model: Category,
+                as: "category",
+                attributes: ["id", "name", "active"],
+              },
+            ],
+          },
+          {
+            model: UserMainGridTags,
+            as: "user_main_grid_tags",
+            include: [
+              {
+                model: Tags,
+                as: "tag",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+        ],
+      });
 
-    if (!userMainGrid || Number(userMainGrid.id) !== Number(req.params.id)) {
-      res.status(400).send({ message: "Problema não encontrado" });
-      return;
+      if (!userMainGrid) {
+        return res.status(404).send({ message: "Registro não encontrado" });
+      }
+
+      await UserMainGrid.destroy({ where });
+
+      res.status(200).send({ status: "ok", data: userMainGrid });
+    } catch (err) {
+      console.log(err);
+      res.status(500).send({ message: err.message });
     }
-
-    await UserMainGrid.destroy({ where });
-
-    res.status(200).send({ status: "ok" });
   }
 };

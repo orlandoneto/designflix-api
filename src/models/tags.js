@@ -27,5 +27,12 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
+  Tags.associate = function (models) {
+    Tags.hasMany(models.UserMainGridTags, {
+      foreignKey: "tag_id",
+      as: 'tag',
+    });
+  };
+
   return Tags;
 };

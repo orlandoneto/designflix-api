@@ -12,7 +12,6 @@ const privateKey = fs.readFileSync(DIR_key);
 
 module.exports = class {
   async get(req, res) {
-    
     const admin = await Admin.findOne({
       where: { id: req.params.adminId },
       attributes: { exclude: ["password"] },
@@ -30,8 +29,7 @@ module.exports = class {
   }
 
   async create(req, res) {
-    res.status(400).send({ message: 'Criação desabilitada!' });
-    /*try {
+    try {
       const { email, password, name } = req.body;
 
       const hasAdminEmail = await this.getByEmail(email);
@@ -49,10 +47,14 @@ module.exports = class {
         name,
       });
 
+      const adminData = admin.dataValues;
+
+      delete adminData.password;
+
       res.status(200).send({ data: admin });
     } catch (err) {
       res.status(400).send({ message: err.message });
-    }*/
+    }
   }
 
   async authenticate(req, res) {
@@ -75,24 +77,20 @@ module.exports = class {
         return;
       }
 
-      let adminData = admin.dataValues;      
+      let adminData = admin.dataValues;
 
-      if(adminData.super_admin){
-        adminData.userType = 'super_admin';
-      }
-      else{
-        adminData.userType = 'admin';
+      if (adminData.super_admin) {
+        adminData.userType = "super_admin";
+      } else {
+        adminData.userType = "admin";
       }
 
       delete adminData.password;
 
-      var token = jwt.sign(
-        adminData,
-        privateKey,
-        { algorithm: "RS256",
-          expiresIn: 60 * 60 * 24 * 7 * 2 
-        }
-      );
+      var token = jwt.sign(adminData, privateKey, {
+        algorithm: "RS256",
+        expiresIn: 60 * 60 * 24 * 7 * 2,
+      });
 
       res.status(200).send({ data: adminData, token: token });
       return;
@@ -102,19 +100,18 @@ module.exports = class {
   }
 
   async resetPassword(req, res) {
+    const scramble = (string) => {
+      let a = string.split(""),
+        n = a.length;
 
-    const scramble = (string) =>  {
-        let a = string.split(""),
-            n = a.length;
-    
-        for(let i = n - 1; i > 0; i--) {
-            let j = Math.floor(Math.random() * (i + 1));
-            let tmp = a[i];
-            a[i] = a[j];
-            a[j] = tmp;
-        }
-        return a.join("");
-    }
+      for (let i = n - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        let tmp = a[i];
+        a[i] = a[j];
+        a[j] = tmp;
+      }
+      return a.join("");
+    };
 
     if (!req.body.email) {
       res.status(400).send({ message: "email é um parâmetro obrigatório" });
@@ -122,12 +119,9 @@ module.exports = class {
     }
 
     const time = scramble(String(new Date().getTime()).slice(2, 10));
-    
-    const encrypted = await bcrypt.hashSync(
-      time,
-      bcrypt.genSaltSync(10)
-    );
-    
+
+    const encrypted = await bcrypt.hashSync(time, bcrypt.genSaltSync(10));
+
     const admin = await this.getByEmail(req.body.email);
 
     if (!admin) {
@@ -149,8 +143,8 @@ module.exports = class {
       secure: true,
       auth: {
         user: process.env.EMAIL_USER_SMTP,
-        pass: process.env.EMAIL_PASS_SMTP
-      }      
+        pass: process.env.EMAIL_PASS_SMTP,
+      },
     });
 
     transporter.use(
@@ -166,7 +160,7 @@ module.exports = class {
       })
     );
 
-    try{
+    try {
       const mailOptions = {
         from: process.env.EMAIL_TO_SEND,
         to: admin.email,
@@ -178,14 +172,17 @@ module.exports = class {
           name: admin.name,
         },
       };
-  
+
       let sent = await transporter.sendMail(mailOptions);
-  
-      res.status(200).send({ data: { message: "E-mail enviado com sucesso!", sent: sent } });
+
+      res
+        .status(200)
+        .send({ data: { message: "E-mail enviado com sucesso!", sent: sent } });
+    } catch (err) {
+      res
+        .status(500)
+        .send({ data: { message: "E-mail não enviado!", sent: err } });
     }
-    catch(err){
-      res.status(500).send({ data: { message: "E-mail não enviado!", sent: err } });
-    };
   }
 
   async update(req, res) {

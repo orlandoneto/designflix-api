@@ -3,6 +3,7 @@ const Upload = require("../services/upload.service");
 const AuthenticateRoute = require("../middleware/authentication");
 const multerConfig = require("../config/multer");
 const multerConfigFile = require("../config/multerFile");
+const upload = require("../config/multerLocal");
 
 module.exports = (app) => {
   const UploadService = new Upload();
@@ -29,9 +30,9 @@ module.exports = (app) => {
  *      '200':
  *        description: Arquivo enviado com sucesso.
  */
-  app.post("/upload/imagem", multer(multerConfig).single("file"), (req, res) =>
-    UploadService.imagem(req, res)
-  );
+  // app.post("/upload/imagem", multer(multerConfigFileLocal).single("file"), (req, res) =>
+  //   UploadService.imagem(req, res)
+  // );
 /**
  * @openapi
  * /upload/file:
@@ -55,7 +56,7 @@ module.exports = (app) => {
  *      '200':
  *        description: Arquivo enviado com sucesso.
  */
-  app.post("/upload/file", multer(multerConfigFile).single("file"), (req, res) => 
+  app.post("/upload/file", upload.single("file"), (req, res) => 
     UploadService.file(req, res)
   );
 };

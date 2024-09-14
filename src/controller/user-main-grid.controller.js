@@ -1,21 +1,30 @@
 const UserMainGrid = require("../services/user-main-grid.service");
+const AuthenticateRoute = require("../middleware/authentication");
 
 module.exports = (app) => {
   const UserMainGridService = new UserMainGrid();
 
-  app.post("/user-main-grid", (req, res) =>
-    UserMainGridService.create(req, res)
+  app.post(
+    "/user-main-grid",
+    AuthenticateRoute(["admin", "user"]),
+    (req, res) => UserMainGridService.create(req, res)
   );
-  app.get("/user-main-grid", (req, res) =>
+  app.get("/user-main-grid", AuthenticateRoute(["admin", "user"]), (req, res) =>
     UserMainGridService.getAll(req, res)
   );
-  app.get("/user-main-grid/:id", (req, res) =>
-    UserMainGridService.getOne(req, res)
+  app.get(
+    "/user-main-grid/:id",
+    AuthenticateRoute(["admin", "user"]),
+    (req, res) => UserMainGridService.getOne(req, res)
   );
-  app.put("/user-main-grid/:id", (req, res) =>
-    UserMainGridService.updateById(req, res)
+  app.put(
+    "/user-main-grid/:id",
+    AuthenticateRoute(["admin", "user"]),
+    (req, res) => UserMainGridService.updateById(req, res)
   );
-  app.delete("/user-main-grid/:id", (req, res) =>
-    UserMainGridService.deleteById(req, res)
+  app.delete(
+    "/user-main-grid/:id",
+    AuthenticateRoute(["admin", "user"]),
+    (req, res) => UserMainGridService.deleteById(req, res)
   );
 };

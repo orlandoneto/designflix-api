@@ -11,7 +11,7 @@ module.exports = {
       },
       admin_id: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
           model: "admin",
           key: "id",
@@ -21,7 +21,7 @@ module.exports = {
       },
       user_id: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
           model: "user",
           key: "id",
@@ -35,19 +35,19 @@ module.exports = {
       },
       url: {
         type: Sequelize.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       favorite: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
       follow_design: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
       count_download: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
       created_at: {
         type: Sequelize.DATE,
