@@ -14,7 +14,7 @@ const storageTypes = {
         if (err) cb(err);
 
         file.key =
-        process.env.FILE_ENV_PATH + "/" + req.body.path + "/" + `${hash.toString("hex")}-${file.originalname}`;
+        process.env.FOLDER_NAME_IMAGES_PATH + "/" + req.body.path + "/" + `${hash.toString("hex")}-${file.originalname}`;
 
         cb(null, file.key);
       });

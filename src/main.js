@@ -103,3 +103,6 @@ require("./controller/upload.controller")(app);
 require("./controller/google-api.controller")(app);
 
 module.exports = { app };
+
+// Implementar pagamento com stripe
+

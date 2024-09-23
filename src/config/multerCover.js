@@ -33,7 +33,7 @@ const storageTypes = {
         if (err) cb(err);
 
         const fileName =
-          process.env.FOLDER_NAME_IMAGES_PATH +
+          process.env.FOLDER_NAME_COVERS_PATH +
           "/" +
           req.body.path +
           "/" +

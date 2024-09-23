@@ -19,6 +19,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      format: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      url_cover: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       url: {
         type: DataTypes.STRING,
         allowNull: true,
@@ -33,6 +41,10 @@ module.exports = (sequelize, DataTypes) => {
       },
       count_download: {
         type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      terms: {
+        type: DataTypes.TEXT,
         allowNull: true,
       },
       createdAt: {
@@ -56,11 +68,11 @@ module.exports = (sequelize, DataTypes) => {
   UserMainGrid.associate = function (models) {
     UserMainGrid.hasMany(models.UserMainGridCategories, {
       foreignKey: "user_main_grid_id",
-      as: 'user_main_grid_categories',
+      as: "user_main_grid_categories",
     }),
       UserMainGrid.hasMany(models.UserMainGridTags, {
         foreignKey: "user_main_grid_id",
-        as: 'user_main_grid_tags',
+        as: "user_main_grid_tags",
       });
   };
 

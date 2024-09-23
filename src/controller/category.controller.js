@@ -12,6 +12,10 @@ module.exports = (app) => {
     categoryService.getAll(req, res)
   );
 
+  app.get("/categories/grouped", (req, res) =>
+    categoryService.getCategoriesInGroups(req, res)
+  );
+
   app.get("/categories/:id", AuthenticateRoute(["admin", "user"]), (req, res) =>
     categoryService.getById(req, res)
   );

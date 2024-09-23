@@ -27,7 +27,6 @@ class TagsController {
 
   // Excluir uma tag
   async delete(req, res) {
-    console.log("-------------------", req.params.id);
     try {
       const tag = await Tags.findByPk(req.params.id);
       if (!tag) {

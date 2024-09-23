@@ -34,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
   Category.associate = function (models) {
     Category.hasMany(models.UserMainGridCategories, {
       foreignKey: "category_id",
-      as: 'category',
+      as: "user_main_grid_categories",
     });
   };
 

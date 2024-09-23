@@ -36,8 +36,12 @@ module.exports = (sequelize, DataTypes) => {
   UserMainGridCategories.associate = function (models) {
     UserMainGridCategories.belongsTo(models.Category, {
       foreignKey: "category_id",
-      as: 'category',
-    });
+      as: "category",
+    }),
+      UserMainGridCategories.belongsTo(models.UserMainGrid, {
+        foreignKey: "user_main_grid_id",
+        as: "user_main_grid",
+      });
   };
 
   return UserMainGridCategories;

@@ -33,6 +33,14 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
+      format: {
+        type: Sequelize.STRING,
+        allowNull: false,
+      },
+      url_cover: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
       url: {
         type: Sequelize.STRING,
         allowNull: true,
@@ -47,6 +55,10 @@ module.exports = {
       },
       count_download: {
         type: Sequelize.INTEGER,
+        allowNull: true,
+      },
+      terms: {
+        type: Sequelize.TEXT,
         allowNull: true,
       },
       created_at: {
