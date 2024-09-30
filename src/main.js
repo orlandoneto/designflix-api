@@ -24,6 +24,7 @@ app.use(
   })
 );
 
+console.log(8080);
 app.listen(8080);
 
 const swaggerOptions = {
@@ -102,7 +103,6 @@ require("./controller/upload.controller")(app);
 // google
 require("./controller/google-api.controller")(app);
 
+// Payment
+require("./controller/payment.controller")(app);
 module.exports = { app };
-
-// Implementar pagamento com stripe
-

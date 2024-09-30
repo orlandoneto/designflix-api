@@ -1,3 +1,4 @@
+const { where } = require("sequelize");
 const { Category, UserMainGrid, UserMainGridCategories } = require("../models");
 
 module.exports = class {
@@ -30,13 +31,14 @@ module.exports = class {
       const page = parseInt(req.query.page) || 1;
       const limit = 4; // Número de categorias por grupo
 
-      // Obter todas as categorias com UserMainGrid associado
+      // Obter todas as categorias com UserMainGrid associado, apenas quando "user_main_grid_categories" estiver preenchido
       const categoriesWithGrids = await Category.findAll({
         include: [
           {
             model: UserMainGridCategories,
             as: "user_main_grid_categories",
-           include: [
+            required: true, // Garante que só traga categorias que têm registros em "user_main_grid_categories"
+            include: [
               {
                 model: UserMainGrid,
                 as: "user_main_grid",
@@ -45,7 +47,69 @@ module.exports = class {
             ],
           },
         ],
+        order: [["createdAt", "DESC"]], // Ordenar pelas categorias mais recentes
       });
+
+      // Agrupar categorias de 4 em 4
+      const categoriesInGroups = [];
+      for (let i = 0; i < categoriesWithGrids.length; i += limit) {
+        categoriesInGroups.push(categoriesWithGrids.slice(i, i + limit));
+      }
+
+      // Se a página solicitada for maior que o número de grupos, retornar erro
+      if (page > categoriesInGroups.length) {
+        return res.status(404).send({ message: "Página não encontrada" });
+      }
+
+      res.status(200).json({
+        data: categoriesInGroups,
+        totalGroups: categoriesInGroups.length,
+        currentPage: page,
+        hasMore: page < categoriesInGroups.length,
+      });
+    } catch (err) {
+      res.status(400).send({ message: err.message });
+    }
+  }
+
+  async getCategoriesInGroupsFilter(req, res) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = 4; // Número de categorias por grupo
+      console.log(req.query.categoryName);
+      const categoryName = req.query.categoryName; // Parâmetro opcional de nome da categoria
+
+      const whereCondition = categoryName ? { name: categoryName } : {}; // Condição para filtrar pelo nome da categoria
+      console.log(whereCondition);
+      // Obter todas as categorias com UserMainGrid associado, apenas quando "user_main_grid_categories" estiver preenchido
+      const categoriesWithGrids = await Category.findAll({
+        where: whereCondition, // Filtra se o nome da categoria for passado
+        include: [
+          {
+            model: UserMainGridCategories,
+            as: "user_main_grid_categories",
+            required: true, // Garante que só traga categorias que têm registros em "user_main_grid_categories"
+            include: [
+              {
+                model: UserMainGrid,
+                as: "user_main_grid",
+                attributes: ["name", "format", "url"], // Campos que você quer trazer
+              },
+            ],
+          },
+        ],
+        order: [["createdAt", "DESC"]], // Ordenar pelas categorias mais recentes
+      });
+
+      if (categoriesWithGrids.length === 0) {
+        // Se não houver categorias com "user_main_grid_categories", retorna um array vazio
+        return res.status(200).json({
+          data: [],
+          totalGroups: 0,
+          currentPage: page,
+          hasMore: false,
+        });
+      }
 
       // Agrupar categorias de 4 em 4
       const categoriesInGroups = [];

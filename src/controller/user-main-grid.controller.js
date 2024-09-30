@@ -9,8 +9,11 @@ module.exports = (app) => {
     AuthenticateRoute(["admin", "user"]),
     (req, res) => UserMainGridService.create(req, res)
   );
-  app.get("/user-main-grid", (req, res) =>
+  app.get("/user-main-grid/flter", (req, res) =>
     UserMainGridService.getAll(req, res)
+  );
+  app.get("/user-main-grid/categories/filter", (req, res) =>
+    UserMainGridService.getAllByCategory(req, res)
   );
   app.get(
     "/user-main-grid/:id",

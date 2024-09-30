@@ -14,9 +14,17 @@ module.exports = class UserMainGridController {
     const transaction = await sequelize.transaction();
 
     try {
-      const { admin_id, name, format, url_cover, url, categories, tags, terms } =
-        req.body;
-        console.log(req.body)
+      const {
+        admin_id,
+        name,
+        format,
+        url_cover,
+        url,
+        categories,
+        tags,
+        terms,
+      } = req.body;
+      console.log(req.body);
       const userMainGrid = await UserMainGrid.create(
         {
           admin_id,
@@ -71,42 +79,24 @@ module.exports = class UserMainGridController {
     }
   }
 
-  async filter(req, res) {
+  async getAll(req, res) {
     try {
-      const { name, url, favorite, follow_design, category, tag } = req.query;
+      const { searchTerm, format } = req.query;
 
-      // Condições dinâmicas para filtrar UserMainGrid
-      const whereConditions = {};
-      const categoryConditions = {};
-      const tagConditions = {};
+      const whereCondition = {};
 
-      // Filtros para UserMainGrid
-      if (name) {
-        whereConditions.name = { [Op.like]: `%${name}%` };
-      }
-      if (url) {
-        whereConditions.url = { [Op.like]: `%${url}%` };
-      }
-      if (favorite) {
-        whereConditions.favorite = favorite;
-      }
-      if (follow_design) {
-        whereConditions.follow_design = follow_design;
+      if (searchTerm) {
+        whereCondition.terms = {
+          [Sequelize.Op.like]: `%${searchTerm}%`,
+        };
       }
 
-      // Filtros para Category
-      if (category) {
-        categoryConditions.name = { [Op.like]: `%${category}%` };
+      if (format) {
+        whereCondition.format = format;
       }
 
-      // Filtros para Tags
-      if (tag) {
-        tagConditions.name = { [Op.like]: `%${tag}%` };
-      }
-
-      // Busca no banco de dados com os filtros
       const userMainGrids = await UserMainGrid.findAll({
-        where: whereConditions,
+        where: whereCondition,
         include: [
           {
             model: UserMainGridCategories,
@@ -116,9 +106,6 @@ module.exports = class UserMainGridController {
                 model: Category,
                 as: "category",
                 attributes: ["id", "name", "active"],
-                where: Object.keys(categoryConditions).length
-                  ? categoryConditions
-                  : undefined,
               },
             ],
           },
@@ -130,23 +117,22 @@ module.exports = class UserMainGridController {
                 model: Tags,
                 as: "tag",
                 attributes: ["id", "name"],
-                where: Object.keys(tagConditions).length
-                  ? tagConditions
-                  : undefined,
               },
             ],
           },
         ],
+        order: [
+          ["createdAt", "DESC"],
+          ["updatedAt", "DESC"],
+        ],
       });
 
-      // Transformando os dados para eliminar as camadas intermediárias
       const result = userMainGrids.map((grid) => ({
         id: grid.id,
         name: grid.name,
+        format: grid.format,
         url_cover: grid.url_cover,
         url: grid.url,
-        favorite: grid.favorite,
-        follow_design: grid.follow_design,
         categories: grid.user_main_grid_categories.map((item) => ({
           id: item.category.id,
           name: item.category.name,
@@ -165,14 +151,23 @@ module.exports = class UserMainGridController {
     }
   }
 
-  async getAll(req, res) {
+  async getAllByCategory(req, res) {
     try {
       const searchTerm = req.query.searchTerm;
+      const categoryId = req.query.categoryId; // Captura o id da categoria, se enviado
+
       const whereCondition = searchTerm
         ? {
             terms: {
               [Sequelize.Op.like]: `%${searchTerm}%`,
             },
+          }
+        : {};
+
+      // Condição para filtrar pelas categorias, se categoryId for enviado
+      const categoryCondition = categoryId
+        ? {
+            id: categoryId,
           }
         : {};
 
@@ -187,6 +182,7 @@ module.exports = class UserMainGridController {
                 model: Category,
                 as: "category",
                 attributes: ["id", "name", "active"],
+                where: categoryCondition, // Adiciona a condição de categoria aqui
               },
             ],
           },
