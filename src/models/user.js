@@ -51,12 +51,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      planType: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0,
-        field: "plan_type",
-        allowNull: false,
-      },
       isResetPassword: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
@@ -109,6 +103,9 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "user_id",
       }),
       User.hasMany(models.UserMainGrid, {
+        foreignKey: "user_id",
+      }),
+      User.hasMany(models.UserPlans, {
         foreignKey: "user_id",
       });
   };
