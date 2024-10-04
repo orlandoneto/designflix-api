@@ -8,7 +8,6 @@ module.exports = class {
         name: req.body.name,
         active: req.body.active || 0,
       });
-      console.log(category);
 
       res.status(201).send({ data: category });
     } catch (err) {
@@ -76,11 +75,9 @@ module.exports = class {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = 4; // Número de categorias por grupo
-      console.log(req.query.categoryName);
       const categoryName = req.query.categoryName; // Parâmetro opcional de nome da categoria
 
       const whereCondition = categoryName ? { name: categoryName } : {}; // Condição para filtrar pelo nome da categoria
-      console.log(whereCondition);
       // Obter todas as categorias com UserMainGrid associado, apenas quando "user_main_grid_categories" estiver preenchido
       const categoriesWithGrids = await Category.findAll({
         where: whereCondition, // Filtra se o nome da categoria for passado

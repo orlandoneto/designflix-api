@@ -1,7 +1,6 @@
 const getRawBody = require("raw-body");
 
 const verifyWebhook = (req, res, next) => {
-  console.log(req.body);
   getRawBody(
     req,
     {

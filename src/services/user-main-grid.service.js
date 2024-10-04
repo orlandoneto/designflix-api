@@ -24,7 +24,6 @@ module.exports = class UserMainGridController {
         tags,
         terms,
       } = req.body;
-      console.log(req.body);
       const userMainGrid = await UserMainGrid.create(
         {
           admin_id,

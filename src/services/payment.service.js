@@ -1,11 +1,11 @@
 const stripe = require("../config/stripe");
 const { sendEmail } = require("../utils/emailService");
+const { UserPlans, Plans } = require("../models");
 
 module.exports = class {
   async createSubscription(req, res) {
     try {
-      const { userId, planId, planName, email, paymentMethodId } = req.body;
-      console.log("paymentMethodId", paymentMethodId);
+      const { userId, planId, email, paymentMethodId } = req.body;
       const customer = await stripe.customers.create({
         email,
         payment_method: paymentMethodId,
@@ -13,6 +13,7 @@ module.exports = class {
           default_payment_method: paymentMethodId,
         },
       });
+
       await stripe.paymentMethods.attach(paymentMethodId, {
         customer: customer.id,
       });
@@ -22,6 +23,20 @@ module.exports = class {
         items: [{ plan: planId }],
         expand: ["latest_invoice.payment_intent"],
       });
+
+      const plan = await Plans.findOne({
+        where: { stripe_plan_id: planId },
+      });
+
+      const userPlan = await UserPlans.create({
+        user_id: userId,
+        plan_id: plan.id,
+      });
+
+      if (!userPlan) {
+        res.status(400).send({ message: "Plan not created" });
+        return;
+      }
 
       this.handleSendEmail(email);
       res.status(200).json(subscription);
@@ -33,9 +48,29 @@ module.exports = class {
     }
   }
 
-  handleWebhook(req, res) {
-    console.log(req.body);
+  async retrievePlans(req, res) {
+    const { planId } = req.params;
+    try {
+      const plan = await stripe.plans.retrieve(planId);
+      res.json(plan);
+    } catch (error) {
+      console.error("Erro ao recuperar plano:", error);
+      res.status(500).send({ error: "Falha ao recuperar o plano" });
+    }
+  }
 
+  async userPlans(req, res) {
+    const { userId } = req.params;
+    try {
+      const plan = await stripe.plans.retrieve(userId);
+      res.json(plan);
+    } catch (error) {
+      console.error("Erro ao recuperar plano:", error);
+      res.status(500).send({ error: "Falha ao recuperar o plano" });
+    }
+  }
+
+  handleWebhook(req, res) {
     const sig = req.headers["stripe-signature"];
 
     let event;
