@@ -40,10 +40,8 @@ module.exports = (app) => {
    *      '401':
    *        description: Não autorizado, token inválido ou expirado.
    */
-  app.get(
-    "/user",
-    AuthenticateRoute(["admin", "super_admin", "installer", "user"]),
-    (req, res) => UserService.get(req, res)
+  app.get("/user", AuthenticateRoute(["admin", "user"]), (req, res) =>
+    UserService.get(req, res)
   );
 
   /**
@@ -222,9 +220,7 @@ module.exports = (app) => {
    *      '500':
    *        description: Erro.
    */
-  app.put(
-    "/user",
-    AuthenticateRoute(["user", "admin", "super_admin"]),
-    (req, res) => UserService.update(req, res)
+  app.put("/user", AuthenticateRoute(["user", "admin"]), (req, res) =>
+    UserService.update(req, res)
   );
 };

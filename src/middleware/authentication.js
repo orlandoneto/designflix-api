@@ -8,12 +8,15 @@ const privateKey = fs.readFileSync(DIR_key);
 
 const authenticateResource = (resources) => {
   return async (req, res, next) => {
+
     if (!req.headers.authorization) {
       return res.status(401).json({
         data: null,
         message: "Precisa enviar o token via header",
       });
     }
+
+
 
     try {
       const { authorization } = req.headers;
@@ -51,17 +54,6 @@ const authenticateResource = (resources) => {
               if (admin && admin.id) {
                 req.params.adminId = admin.id;
                 req.params.superAdminId = admin.id;
-                valid = true;
-              }
-            }
-          }
-          if (resources.includes(ROLES.INSTALLER)) {
-            if (decoded.userType === ROLES.INSTALLER) {
-              const installer = await Installer.findOne({
-                where: { id: decoded.id, email: decoded.email },
-              });
-              if (installer && installer.id) {
-                req.params.installerId = installer.id;
                 valid = true;
               }
             }

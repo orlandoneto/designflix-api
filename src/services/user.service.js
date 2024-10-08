@@ -33,7 +33,7 @@ module.exports = class {
     const userId = req.params.userId;
     const user = await User.findOne({
       where: { id: userId },
-      attributes: { exclude: ["password"] },
+      // attributes: { exclude: ["password"] },
       // include: [
       //   {
       //     model: UserAddress,
@@ -93,14 +93,6 @@ module.exports = class {
           .send({ message: "Já existe um usuário com o e-mail informado" });
         return;
       }
-
-      // const hasUserCPF = await User.findOne({ where: { cpf } });
-      // if (hasUserCPF) {
-      //   res
-      //     .status(400)
-      //     .send({ message: "Já existe um usuário com o cpf informado" });
-      //   return;
-      // }
 
       const status = "CACTIVE";
 
@@ -366,15 +358,8 @@ module.exports = class {
       let idToUpdate;
       let self = false;
 
-      if (req.params.userType === "installer") {
-        shouldUpdate = false;
-      }
-
-      if (
-        req.params.userType === "admin" ||
-        req.params.userType === "super_admin"
-      ) {
-        idToUpdate = req.query.userId;
+      if (req.params.userType === "admin") {
+        idToUpdate = req.params.userId;
       }
 
       if (req.params.userType === "user") {
@@ -389,18 +374,25 @@ module.exports = class {
 
         let updatedUser = { ...oldUser, ...req.body };
 
+        let codeUpdate = 1;
+
         if (req.body.password) {
           updatedUser.password = await bcrypt.hashSync(
             req.body.password,
             bcrypt.genSaltSync(10)
           );
+          codeUpdate = 2;
         }
 
         await User.update(updatedUser, { where });
 
         const user = await User.findOne({ where });
 
-        res.status(200).send({ data: user });
+        res.status(200).send({
+          data: user,
+          statusUpdate: codeUpdate,
+          message: "Atualização concluída!",
+        });
       } else {
         res.status(401).send({ message: "Você não pode fazer isto!" });
       }

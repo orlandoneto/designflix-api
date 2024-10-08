@@ -34,7 +34,7 @@ module.exports = class {
   }
 
   async updateById(req, res) {
-    try{
+    try {
       let shouldUpdate = true;
       let self = false;
 
@@ -43,45 +43,43 @@ module.exports = class {
       const userCreditCard = await UserCreditCard.findOne({ where });
 
       if (!userCreditCard) {
-        return res.status(400).send({ message: "Cartão não encontrado" });;
-      }
-      else{
-        if(req.params.userType === 'installer'){
-          shouldUpdate = false;
-        }
-  
-        if(req.params.userType === 'user'){
+        return res.status(400).send({ message: "Cartão não encontrado" });
+      } else {
+        if (req.params.userType === "user") {
           self = true;
         }
-  
-        if(shouldUpdate){
 
-          if(self && Number(userCreditCard.user_id) !== Number(req.params.userId)){
-            return res.status(401).send({ message: 'Você não pode fazer isto!' });
-          }
-          else{
-            if(!req.body.hasOwnProperty('user_id') || Number(req.body.user_id) === Number(userCreditCard.user_id)){
+        if (shouldUpdate) {
+          if (
+            self &&
+            Number(userCreditCard.user_id) !== Number(req.params.userId)
+          ) {
+            return res
+              .status(401)
+              .send({ message: "Você não pode fazer isto!" });
+          } else {
+            if (
+              !req.body.hasOwnProperty("user_id") ||
+              Number(req.body.user_id) === Number(userCreditCard.user_id)
+            ) {
               await UserCreditCard.update(req.body, { where });
 
-              const newCard = await UserCreditCard.findOne({where});
-    
+              const newCard = await UserCreditCard.findOne({ where });
+
               return res.status(200).send({ status: "ok", data: newCard });
-            }
-            else{
-              return res.status(401).send({ message: 'Você não pode fazer isto!' });
+            } else {
+              return res
+                .status(401)
+                .send({ message: "Você não pode fazer isto!" });
             }
           }
-        }
-        else{
-          return res.status(401).send({ message: 'Você não pode fazer isto!' });
+        } else {
+          return res.status(401).send({ message: "Você não pode fazer isto!" });
         }
       }
-      
-    }
-    catch(err){
+    } catch (err) {
       return res.status(500).send({ message: err.message });
     }
-    
   }
 
   async deleteById(req, res) {
