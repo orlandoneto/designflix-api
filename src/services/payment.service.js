@@ -1,6 +1,6 @@
 const stripe = require("../config/stripe");
 const { sendEmail } = require("../utils/emailService");
-const { UserPlans, Plans } = require("../models");
+const { UserPlans, Plans, User } = require("../models");
 
 module.exports = class {
   async createSubscription(req, res) {
@@ -28,13 +28,13 @@ module.exports = class {
         where: { stripe_plan_id: planId },
       });
 
-      const userPlan = await UserPlans.create({
-        user_id: userId,
-        plan_id: plan.id,
-      });
+      if (!plan) {
+        return res.status(404).send("Plano não encontrado");
+      }
 
+      const userPlan = await this.createOrUpdatePlan(plan, customer, userId);
       if (!userPlan) {
-        res.status(400).send({ message: "Plan not created" });
+        res.status(400).send({ message: "Erro ao criar ou atualizar plano" });
         return;
       }
 
@@ -48,6 +48,26 @@ module.exports = class {
     }
   }
 
+  async createOrUpdatePlan(plan, customer, userId) {
+    const userPlan = await UserPlans.findOne({ where: { user_id: userId } });
+    if (userPlan) {
+      const updateUserPlan = await userPlan.update({
+        plan_id: plan.id,
+        stripe_customer_id: customer.id,
+      });
+      if (updateUserPlan) return true;
+    } else {
+      const createUserPlan = await UserPlans.create({
+        user_id: userId,
+        plan_id: plan.id,
+        stripe_customer_id: customer.id,
+      });
+      if (createUserPlan) return true;
+    }
+
+    return false;
+  }
+
   async retrievePlans(req, res) {
     const { planId } = req.params;
     try {
@@ -59,14 +79,147 @@ module.exports = class {
     }
   }
 
-  async userPlans(req, res) {
+  // FIXME: Analisar trocar getUserPlans por userPlan
+  async getUserPlans(req, res) {
     const { userId } = req.params;
+
     try {
-      const plan = await stripe.plans.retrieve(userId);
-      res.json(plan);
+      const userPlans = await UserPlans.findAll({
+        where: {
+          user_id: userId,
+        },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["id", "plan_name", "count_downloads"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "contributor"],
+          },
+        ],
+      });
+
+      res.status(200).send({ data: userPlans });
     } catch (error) {
-      console.error("Erro ao recuperar plano:", error);
-      res.status(500).send({ error: "Falha ao recuperar o plano" });
+      console.error("Erro ao buscar planos do usuário:", error);
+      throw error;
+    }
+  }
+
+  // FIXME: adicioanr esse metodo no UserPlans service
+  async userPlan(req, res) {
+    const userId = req.query.userId;
+
+    try {
+      const userPlan = await UserPlans.findOne({
+        where: { user_id: userId },
+      });
+
+      if (!userPlan) {
+        return res.status(404).send("Usuário não encontrado");
+      }
+
+      res.status(200).send({ data: userPlan });
+    } catch (error) {
+      console.error("Erro ao retornar o plano:", error);
+      res.status(500).send(`Erro ao retornar o plano: ${error.message}`);
+    }
+  }
+
+  async userPlansPortalSession(req, res) {
+    const stripe_customer_id = req.query.stripe_customer_id;
+
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: stripe_customer_id,
+        return_url: "http://localhost:5173/profile",
+      });
+
+      res.status(200).send({ url: session.url });
+    } catch (error) {
+      res
+        .status(400)
+        .send(`Erro ao criar a sessão do Portal: ${error.message}`);
+    }
+  }
+
+  async getUserPlanDownloads(req, res) {
+    const { userId } = req.params;
+
+    try {
+      const userPlan = await UserPlans.findOne({
+        where: { user_id: userId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: [
+              "count_downloads",
+              "current_count_downloads",
+              "updatedAt",
+            ],
+          },
+        ],
+      });
+
+      if (!userPlan) {
+        return res
+          .status(404)
+          .send({ error: "Plano do usuário não encontrado" });
+      }
+
+      res.status(200).send({
+        data: {
+          count_downloads: userPlan.plans.count_downloads,
+          current_count_downloads: userPlan.plans.current_count_downloads,
+          updated_at: userPlan.plans.updatedAt,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao buscar os downloads do plano do usuário:", error);
+      res
+        .status(500)
+        .send({ error: "Erro ao buscar os downloads do plano do usuário" });
+    }
+  }
+
+  async updateUserPlanDownloads(req, res) {
+    const { userId } = req.params;
+
+    try {
+      const userPlan = await UserPlans.findOne({
+        where: { user_id: userId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["id", "current_count_downloads"],
+          },
+        ],
+      });
+
+      if (!userPlan) {
+        return res
+          .status(404)
+          .send({ error: "Plano do usuário não encontrado" });
+      }
+
+      const plan = userPlan.plans;
+      const newCount = plan.current_count_downloads + 1;
+
+      await plan.update({ current_count_downloads: newCount });
+
+      res.status(200).send({
+        message: "Quantidade de downloads atualizada com sucesso!",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar o plano do usuário:", error);
+      res.status(500).send({
+        error: error.message || "Erro ao atualizar o plano do usuário",
+      });
     }
   }
 
@@ -82,7 +235,7 @@ module.exports = class {
         process.env.STRIPE_WEBHOOK_SECRET
       );
     } catch (error) {
-      console.log(error);
+      console.error("Erro ao crair hook:", error);
       return res.status(400).send(`Webhook Error: ${error.message}`);
     }
 

@@ -24,6 +24,7 @@ module.exports = class UserMainGridController {
         tags,
         terms,
       } = req.body;
+
       const userMainGrid = await UserMainGrid.create(
         {
           admin_id,
@@ -52,7 +53,7 @@ module.exports = class UserMainGridController {
         for (const t of tags) {
           const tag = await Tags.create(
             {
-              name,
+              name: t,
             },
             { transaction }
           );

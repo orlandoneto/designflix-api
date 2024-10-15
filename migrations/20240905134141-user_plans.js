@@ -8,7 +8,6 @@ module.exports = {
         primaryKey: true,
         autoIncrement: true,
         allowNull: false,
-        
       },
       user_id: {
         type: Sequelize.INTEGER,
@@ -29,6 +28,10 @@ module.exports = {
         },
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
+      },
+      stripe_customer_id: {
+        type: Sequelize.STRING,
+        allowNull: false,
       },
       created_at: {
         type: Sequelize.DATE,
