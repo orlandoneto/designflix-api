@@ -28,7 +28,7 @@ module.exports = (sequelize, DataTypes) => {
         field: "is_reset_password",
         allowNull: false,
       },
-      super_admin:{
+      super_admin: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: 0,
@@ -70,6 +70,12 @@ module.exports = (sequelize, DataTypes) => {
       },
     }
   );
+
+  Admin.associate = function (models) {
+    Admin.hasMany(models.UserMainGrid, {
+      foreignKey: "admin_id",
+    });
+  };
 
   return Admin;
 };

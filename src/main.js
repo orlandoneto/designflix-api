@@ -2,8 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const swaggerJsDoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
+const swaggerJsDoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
+const path = require("path");
 
 require("dotenv").config();
 
@@ -13,6 +14,8 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(morgan("dev"));
 // app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
+
 app.use(
   express.urlencoded({
     extended: true,
@@ -21,25 +24,26 @@ app.use(
   })
 );
 
+console.log(8080);
 app.listen(8080);
 
 const swaggerOptions = {
-  swaggerDefinition:{
+  swaggerDefinition: {
     openapi: "3.0.0",
     info: {
       title: "Design Flix API",
       description: "Design Flix API documentation",
       contact: {
-        name: "DesignFlix", 
-        email:  process.env.EMAIL_HOST_SMTP
+        name: "DesignFlix",
+        email: process.env.EMAIL_HOST_SMTP,
       },
-      version: "1.0.0"
+      version: "1.0.0",
     },
     servers: [
       {
         url: process.env.API_URL,
-        description: "API"
-      }
+        description: "API",
+      },
     ],
     components: {
       securitySchemes: {
@@ -48,25 +52,36 @@ const swaggerOptions = {
           scheme: "bearer",
           in: "header",
           name: "Authorization",
-          bearerFormat: "JWT"
+          bearerFormat: "JWT",
         },
-      }
+      },
     },
-    security: [{
-      jwt: []
-    }],
+    security: [
+      {
+        jwt: [],
+      },
+    ],
   },
-  apis: ['src/main.js', 'src/controller/*.controller.js'],
+  apis: ["src/main.js", "src/controller/*.controller.js"],
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
-if(process.env.API_URL !== 'https://api.designflix.com'){
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+if (process.env.API_URL !== "https://api.designflix.com") {
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 }
 
-app.get('/favicon.ico', (req, res) => {
+app.get("/favicon.ico", (req, res) => {
   res.sendStatus(204);
 });
+
+// user main grid
+require("./controller/user-main-grid.controller")(app);
+
+// category
+require("./controller/category.controller")(app);
+
+// tags
+require("./controller/tags.controller")(app);
 
 // otp
 require("./controller/otps.controller")(app);
@@ -78,24 +93,16 @@ require("./controller/system.controller")(app);
 require("./controller/user.controller")(app);
 require("./controller/user-credit-card.controller")(app);
 require("./controller/user-address.controller")(app);
-require("./controller/user-invoice.controller")(app);
-require("./controller/product-categories.controller")(app);
-require("./controller/product.controller")(app);
-require("./controller/product-manual.controller")(app);
-require("./controller/product-video.controller")(app);
-require("./controller/product-faq.controller")(app);
 
 // admin
 require("./controller/admin.controller")(app);
-require("./controller/problems.controller")(app);
 
 // serviços
 require("./controller/upload.controller")(app);
 
-// temas
-require("./controller/tema.controller")(app);
-
 // google
 require("./controller/google-api.controller")(app);
 
+// Payment
+require("./controller/payment.controller")(app);
 module.exports = { app };

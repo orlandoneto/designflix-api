@@ -7,9 +7,7 @@ module.exports = (app) => {
   app.get("/admin", AuthenticateRoute(["super_admin"]), (req, res) =>
     AdminService.get(req, res)
   );
-  app.post("/admin", AuthenticateRoute(["super_admin"]), (req, res) =>
-    AdminService.create(req, res)
-  );
+  app.post("/admin", (req, res) => AdminService.create(req, res));
 
   /**
    * @openapi

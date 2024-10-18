@@ -1,9 +1,9 @@
 {
   "development": {
     "username": "designflix_user",
-    "password": 123456,
+    "password": "123456",
     "database": "designflix",
-    "host": "127.0.0.1",
+    "host": "localhost",
     "dialect": "mysql"
   },
   "test": {

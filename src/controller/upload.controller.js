@@ -1,61 +1,49 @@
 const multer = require("multer");
 const Upload = require("../services/upload.service");
 const AuthenticateRoute = require("../middleware/authentication");
-const multerConfig = require("../config/multer");
-const multerConfigFile = require("../config/multerFile");
+const multerImagesConfig = require("../config/multer");
+const multerCoverConfig = require("../config/multerCover");
+const multerPackImagesConfig = require("../config/multerPackImagem");
+const multerPackCoverConfig = require("../config/multerPackCover");
+const multerPackAvatarConfig = require("../config/multerPackAvatar");
+const path = require("path");
 
 module.exports = (app) => {
   const UploadService = new Upload();
-/**
- * @openapi
- * /upload/imagem:
- *  post:
- *    description: Endpoint de upload de imagem. Tamanho máximo 10MB
- *    security: []
- *    tags: ["Misc"]
- *    requestBody:
- *      required: true
- *      content:
- *        multipart/form-data:
- *          schema:
- *            type: object
- *            properties:
- *              path:
- *                type: string
- *              file:
- *                type: string
- *                format: binary
- *    responses:
- *      '200':
- *        description: Arquivo enviado com sucesso.
- */
-  app.post("/upload/imagem", multer(multerConfig).single("file"), (req, res) =>
-    UploadService.imagem(req, res)
+
+  const foldAvatar = process.env.FOLDER_NAME_PACK_IMAGES_PATH;
+
+  // FIXME: 1 - Fazer refactor para um unico arquivo de muilter
+  // 2 - Usar middleware de autenticação
+  app.post(
+    "/upload/file",
+    multer(multerImagesConfig).single("file"),
+    (req, res) => UploadService.file(req, res)
   );
-/**
- * @openapi
- * /upload/file:
- *  post:
- *    description: Endpoint de upload de arquivo - não imagem. Tamanho máximo 10MB
- *    security: []
- *    tags: ["Misc"]
- *    requestBody:
- *      required: true
- *      content:
- *        multipart/form-data:
- *          schema:
- *            type: object
- *            properties:
- *              path:
- *                type: string
- *              file:
- *                type: string
- *                format: binary
- *    responses:
- *      '200':
- *        description: Arquivo enviado com sucesso.
- */
-  app.post("/upload/file", multer(multerConfigFile).single("file"), (req, res) => 
-    UploadService.file(req, res)
+
+  app.post(
+    "/upload/cover",
+    multer(multerCoverConfig).single("file"),
+    (req, res) => UploadService.file(req, res)
+  );
+
+  app.post(
+    "/upload/pack/image",
+    multer(multerPackImagesConfig).single("file"),
+    (req, res) => UploadService.file(req, res)
+  );
+
+  app.post(
+    "/upload/pack/cover",
+    multer(multerPackCoverConfig).single("file"),
+    (req, res) => UploadService.file(req, res)
+  );
+
+  app.post(
+    "/upload/avatar/site",
+    multer(multerPackAvatarConfig(foldAvatar)).single("file"),
+    (req, res) => {
+      UploadService.file(req, res);
+    }
   );
 };

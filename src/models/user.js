@@ -22,9 +22,13 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      contributor: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
       photo: {
         type: DataTypes.STRING,
-        field: "photo",
         allowNull: true,
       },
       cpf: {
@@ -47,14 +51,14 @@ module.exports = (sequelize, DataTypes) => {
         field: "privacy_policy",
         allowNull: false,
       },
-      status: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      planType: {
+      acceptTerms: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
-        field: "plan_type",
+        field: "accept_terms",
+        allowNull: false,
+      },
+      status: {
+        type: DataTypes.STRING,
         allowNull: false,
       },
       isResetPassword: {
@@ -108,7 +112,10 @@ module.exports = (sequelize, DataTypes) => {
       User.hasMany(models.UserCreditCard, {
         foreignKey: "user_id",
       }),
-      User.hasMany(models.UserInvoice, {
+      User.hasMany(models.UserMainGrid, {
+        foreignKey: "user_id",
+      }),
+      User.hasMany(models.UserPlans, {
         foreignKey: "user_id",
       });
   };
