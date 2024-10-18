@@ -14,7 +14,7 @@ module.exports = (app) => {
   );
 
   app.get(
-    "/user-plan-grouped/:userId",
+    "/user-plan-grouped/:id",
     AuthenticateRoute(["user"]),
     (req, res) => paymentService.getUserPlans(req, res)
   );

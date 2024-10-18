@@ -40,7 +40,7 @@ module.exports = (app) => {
    *      '401':
    *        description: Não autorizado, token inválido ou expirado.
    */
-  app.get("/user", AuthenticateRoute(["admin", "user"]), (req, res) =>
+  app.get("/user/:id", AuthenticateRoute(["admin", "user"]), (req, res) =>
     UserService.get(req, res)
   );
 

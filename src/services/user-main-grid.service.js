@@ -153,36 +153,26 @@ module.exports = class UserMainGridController {
 
   async getAllByCategory(req, res) {
     try {
-      const searchTerm = req.query.searchTerm;
-      const categoryId = req.query.categoryId; // Captura o id da categoria, se enviado
+      const categoryId = req.query.categoryId;
 
-      const whereCondition = searchTerm
-        ? {
-            terms: {
-              [Sequelize.Op.like]: `%${searchTerm}%`,
-            },
-          }
-        : {};
-
-      // Condição para filtrar pelas categorias, se categoryId for enviado
-      const categoryCondition = categoryId
-        ? {
-            id: categoryId,
-          }
-        : {};
+      if (!categoryId) {
+        return res.status(400).send({ message: "O categoryId é obrigatório." });
+      }
 
       const userMainGrids = await UserMainGrid.findAll({
-        where: whereCondition,
         include: [
           {
             model: UserMainGridCategories,
             as: "user_main_grid_categories",
+            required: true,
+            where: {
+              category_id: categoryId,
+            },
             include: [
               {
                 model: Category,
                 as: "category",
                 attributes: ["id", "name", "active"],
-                where: categoryCondition, // Adiciona a condição de categoria aqui
               },
             ],
           },

@@ -23,13 +23,12 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
       contributor: {
-        type: DataTypes.BOOLEAN,
+        type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0,
       },
       photo: {
         type: DataTypes.STRING,
-        field: "photo",
         allowNull: true,
       },
       cpf: {
@@ -50,6 +49,12 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         defaultValue: 0,
         field: "privacy_policy",
+        allowNull: false,
+      },
+      acceptTerms: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        field: "accept_terms",
         allowNull: false,
       },
       status: {

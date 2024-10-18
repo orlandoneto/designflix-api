@@ -30,10 +30,10 @@ module.exports = class {
   }
 
   async get(req, res) {
-    const userId = req.params.userId;
+    const id = req.params.id;
     const user = await User.findOne({
-      where: { id: userId },
-      // attributes: { exclude: ["password"] },
+      where: { id: id },
+      attributes: { exclude: ["password"] },
       // include: [
       //   {
       //     model: UserAddress,
@@ -56,7 +56,6 @@ module.exports = class {
       //   },
       // ],
     });
-
     res.status(200).send({ data: user });
   }
 

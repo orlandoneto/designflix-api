@@ -75,18 +75,18 @@ module.exports = class {
       res.json(plan);
     } catch (error) {
       console.error("Erro ao recuperar plano:", error);
-      res.status(500).send({ error: "Falha ao recuperar o plano" });
+      res.status(500).send({ error: "Falha ao recuperar os planos do usuário" });
     }
   }
 
   // FIXME: Analisar trocar getUserPlans por userPlan
   async getUserPlans(req, res) {
-    const { userId } = req.params;
+    const { id } = req.params;
 
     try {
       const userPlans = await UserPlans.findAll({
         where: {
-          user_id: userId,
+          user_id: id,
         },
         include: [
           {
