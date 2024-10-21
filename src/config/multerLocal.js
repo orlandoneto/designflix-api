@@ -1,6 +1,7 @@
 const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
+const { CONST } = require("../utils/constants/constants");
 
 // Configuração do storage local usando multer
 const storage = multer.diskStorage({
@@ -43,7 +44,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 20 * 1024 * 1024, // Aumentei o limite de arquivo para 20MB
+    fileSize: CONST.LIMIT_SIZE_IMG,
   },
   fileFilter: fileFilter,
 });
