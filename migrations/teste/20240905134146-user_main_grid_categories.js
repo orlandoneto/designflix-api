@@ -11,9 +11,8 @@ module.exports = {
       },
       user_main_grid_id: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
-          model: "user_main_grid",
           key: "id",
         },
         onUpdate: "CASCADE",
@@ -21,9 +20,8 @@ module.exports = {
       },
       category_id: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
-          model: "categories",
           key: "id",
         },
         onUpdate: "CASCADE",
