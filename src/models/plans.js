@@ -45,7 +45,6 @@ module.exports = (sequelize, DataTypes) => {
     if (models.UsePlans) {
       Plans.hasMany(models.UsePlans, {
         foreignKey: "plan_id",
-        as: "usePlans",
       });
     }
   };

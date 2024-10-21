@@ -11,7 +11,7 @@ module.exports = {
       },
       admin_id: {
         type: Sequelize.INTEGER,
-        allowNull: true,
+        allowNull: false,
         references: {
           model: "admin",
           key: "id",
@@ -21,7 +21,7 @@ module.exports = {
       },
       user_id: {
         type: Sequelize.INTEGER,
-        allowNull: true,
+        allowNull: false,
         references: {
           model: "user",
           key: "id",

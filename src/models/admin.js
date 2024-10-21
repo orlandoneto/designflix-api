@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 const bcrypt = require("bcrypt");
+const syncAllTables = require("../config/syncDb");
 
 module.exports = (sequelize, DataTypes) => {
   const Admin = sequelize.define(
@@ -70,6 +71,16 @@ module.exports = (sequelize, DataTypes) => {
       },
     }
   );
+
+  syncAllTables(sequelize, "Admin");
+  // sequelize
+  // .sync({ force: true })
+  // .then(() => {
+  //   console.log("Tabelas criada!");
+  // })
+  // .catch((err) => {
+  //   console.error("Erro ao criar tabela: ", err);
+  // });
 
   Admin.associate = function (models) {
     Admin.hasMany(models.UserMainGrid, {
