@@ -72,7 +72,7 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
-  syncAllTables(sequelize, "Admin");
+  //syncAllTables(sequelize, "Admin");
   // sequelize
   // .sync({ force: true })
   // .then(() => {

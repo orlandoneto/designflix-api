@@ -1,9 +1,9 @@
 {
   "development": {
-    "username": "sql10728640",
-    "password": "HC8mvRTZxr",
-    "database": "sql10728640",
-    "host": "sql10.freemysqlhosting.net",
+    "username": "designflix_user",
+    "password": "123456",
+    "database": "designflix",
+    "host": "localhost",
     "dialect": "mysql"
   },
   "test": {
