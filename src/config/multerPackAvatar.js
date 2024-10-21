@@ -2,6 +2,7 @@ const multer = require("multer");
 const crypto = require("crypto");
 const aws = require("aws-sdk");
 const multerS3 = require("multer-s3");
+const { CONST } = require("../utils/constants/constants");
 
 const storageTypes = {
   s3: (folderName) => multerS3({
@@ -27,7 +28,7 @@ module.exports = (folderName) => {
   return {
     storage: storageTypes.s3(folderName),
     limits: {
-      fileSize: 10 * 1024 * 1024, // Limite de tamanho: 10MB
+      fileSize: CONST.LIMIT_SIZE_IMG,
     },
     fileFilter: (req, file, cb) => {
       const allowedMimes = [

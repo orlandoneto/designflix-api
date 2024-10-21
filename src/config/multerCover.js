@@ -3,6 +3,7 @@ const path = require("path");
 const crypto = require("crypto");
 const aws = require("aws-sdk");
 const multerS3 = require("multer-s3");
+const { CONST } = require("../utils/constants/constants");
 
 const storageTypes = {
   local: multer.diskStorage({
@@ -49,7 +50,7 @@ module.exports = {
   dest: path.resolve(__dirname, "..", "..", "tmp", "uploads"),
   storage: storageTypes[process.env.STORAGE_TYPE],
   limits: {
-    fileSize: 10 * 1024 * 1024, // Limite de tamanho: 10MB
+    fileSize: CONST.LIMIT_SIZE_IMG,
   },
   fileFilter: (req, file, cb) => {
     const allowedMimes = [
@@ -62,9 +63,9 @@ module.exports = {
       "application/vnd.corel-draw",
       "image/vnd.adobe.photoshop",
       "application/x-canva",
-      "application/zip",               // ZIP - Permitindo upload de ZIP
-      "application/x-rar-compressed",  // RAR
-      "application/x-7z-compressed",   // 7z
+      "application/zip", // ZIP - Permitindo upload de ZIP
+      "application/x-rar-compressed", // RAR
+      "application/x-7z-compressed", // 7z
     ];
 
     if (allowedMimes.includes(file.mimetype)) {
