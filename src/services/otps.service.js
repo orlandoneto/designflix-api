@@ -21,7 +21,7 @@ module.exports = class {
 
       const paramsEmail = {
         email: email,
-        name: "DesignFlix",   
+        name: "DesignFlix",
         title: "DesignFlix - Código de Verificação",
         description: `<p>Your OTP is: <strong>${otp}</strong></p>`,
       };
