@@ -58,7 +58,7 @@ module.exports = class {
     });
     res.status(200).send({ data: user });
   }
-
+///CAI AQUI ---------------
   async getByEmail(email) {
     const user = await User.findOne({
       where: { email },
@@ -80,12 +80,6 @@ module.exports = class {
       } = req.body;
 
       const hasUserEmail = await this.getByEmail(email);
-
-      if (typeof password === "undefined") {
-        let trimmedPhone = phone.replace(/\D/g, "");
-        password = uuidv4() + trimmedPhone;
-      }
-
       if (hasUserEmail) {
         res
           .status(400)
@@ -93,8 +87,12 @@ module.exports = class {
         return;
       }
 
-      const status = "CACTIVE";
+      if (typeof password === "undefined") {
+        let trimmedPhone = phone.replace(/\D/g, "");
+        password = uuidv4() + trimmedPhone;
+      }
 
+      const status = "CACTIVE";
       const user = await User.create({
         name,
         email,
