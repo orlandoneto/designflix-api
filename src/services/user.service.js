@@ -58,7 +58,7 @@ module.exports = class {
     });
     res.status(200).send({ data: user });
   }
-///CAI AQUI ---------------
+
   async getByEmail(email) {
     const user = await User.findOne({
       where: { email },
