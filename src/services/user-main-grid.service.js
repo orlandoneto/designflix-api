@@ -153,21 +153,23 @@ module.exports = class UserMainGridController {
 
   async getAllByCategory(req, res) {
     try {
-      const categoryId = req.query.categoryId;
-
-      if (!categoryId) {
-        return res.status(400).send({ message: "O categoryId é obrigatório." });
-      }
-
+      const { categoryId } = req.query;
+  
+      const whereCondition = categoryId
+        ? {
+            user_main_grid_categories: {
+              category_id: categoryId,
+            },
+          }
+        : {};
+  
       const userMainGrids = await UserMainGrid.findAll({
         include: [
           {
             model: UserMainGridCategories,
             as: "user_main_grid_categories",
-            required: true,
-            where: {
-              category_id: categoryId,
-            },
+            required: !!categoryId,
+            where: whereCondition.user_main_grid_categories,
             include: [
               {
                 model: Category,
@@ -193,7 +195,7 @@ module.exports = class UserMainGridController {
           ["updatedAt", "DESC"],
         ],
       });
-
+  
       const result = userMainGrids.map((grid) => ({
         id: grid.id,
         name: grid.name,
@@ -210,14 +212,15 @@ module.exports = class UserMainGridController {
           name: item.tag.name,
         })),
       }));
-
+  
       res.status(200).send({ data: result });
     } catch (err) {
       console.log(err);
       res.status(500).send({ message: err.message });
     }
   }
-
+  
+  
   async getOne(req, res) {
     try {
       const userMainGrid = await UserMainGrid.findOne({
