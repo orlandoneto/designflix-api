@@ -28,31 +28,48 @@ module.exports = class {
   async getCategoriesInGroups(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
-      const limit = 4; // Número de categorias por grupo
+      const limit = 4; // Número máximo de categorias por grupo
 
-      // Obter todas as categorias com UserMainGrid associado, apenas quando "user_main_grid_categories" estiver preenchido
-      const categoriesWithGrids = await Category.findAll({
+      // Obter todas as categorias associadas a UserMainGridCategories
+      const categoriesWithGrids = await UserMainGridCategories.findAll({
         include: [
           {
-            model: UserMainGridCategories,
-            as: "user_main_grid_categories",
-            required: true, // Garante que só traga categorias que têm registros em "user_main_grid_categories"
-            include: [
-              {
-                model: UserMainGrid,
-                as: "user_main_grid",
-                attributes: ["name", "format", "url"], // Campos que você quer trazer
-              },
-            ],
+            model: Category,
+            as: "category", // Assegure-se de que o alias esteja correto
+            required: true,
+          },
+          {
+            model: UserMainGrid,
+            as: "user_main_grid",
+            attributes: ["name", "format", "url"],
           },
         ],
-        order: [["createdAt", "DESC"]], // Ordenar pelas categorias mais recentes
+        order: [["createdAt", "DESC"]],
       });
 
-      // Agrupar categorias de 4 em 4
+      // Agrupar categorias pelo ID
+      const categoriesMap = {};
+      categoriesWithGrids.forEach((item) => {
+        const categoryId = item.category.id; // Usar o ID da categoria
+        if (!categoriesMap[categoryId]) {
+          categoriesMap[categoryId] = {
+            category: item.category,
+            user_main_grid_categories: [],
+          };
+        }
+        categoriesMap[categoryId].user_main_grid_categories.push(item);
+      });
+
+      // Criar grupos de até 4 categorias iguais
       const categoriesInGroups = [];
-      for (let i = 0; i < categoriesWithGrids.length; i += limit) {
-        categoriesInGroups.push(categoriesWithGrids.slice(i, i + limit));
+      for (const group of Object.values(categoriesMap)) {
+        const items = group.user_main_grid_categories;
+        for (let i = 0; i < items.length; i += limit) {
+          categoriesInGroups.push({
+            category: group.category,
+            user_main_grid_categories: items.slice(i, i + limit),
+          });
+        }
       }
 
       // Se a página solicitada for maior que o número de grupos, retornar erro
