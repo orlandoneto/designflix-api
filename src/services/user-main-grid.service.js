@@ -16,6 +16,7 @@ module.exports = class UserMainGridController {
     try {
       const {
         admin_id,
+        user_id,
         name,
         format,
         url_cover,
@@ -28,6 +29,7 @@ module.exports = class UserMainGridController {
       const userMainGrid = await UserMainGrid.create(
         {
           admin_id,
+          user_id,
           name,
           format,
           url_cover,
@@ -151,10 +153,86 @@ module.exports = class UserMainGridController {
     }
   }
 
+  async getAllByUserId(req, res) {
+    try {
+      const { searchTerm, format, userId } = req.params; // Adiciona o user_id aos parâmetros de consulta
+     
+      const whereCondition = {};
+
+      if (searchTerm) {
+        whereCondition.terms = {
+          [Sequelize.Op.like]: `%${searchTerm}%`,
+        };
+      }
+
+      if (format) {
+        whereCondition.format = format;
+      }
+
+      if (userId) {
+        whereCondition.user_id = userId; // Adiciona a condição para user_id
+      }
+
+      const userMainGrids = await UserMainGrid.findAll({
+        where: whereCondition,
+        include: [
+          {
+            model: UserMainGridCategories,
+            as: "user_main_grid_categories",
+            include: [
+              {
+                model: Category,
+                as: "category",
+                attributes: ["id", "name", "active"],
+              },
+            ],
+          },
+          {
+            model: UserMainGridTags,
+            as: "user_main_grid_tags",
+            include: [
+              {
+                model: Tags,
+                as: "tag",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+        ],
+        order: [
+          ["createdAt", "DESC"],
+          ["updatedAt", "DESC"],
+        ],
+      });
+
+      const result = userMainGrids.map((grid) => ({
+        id: grid.id,
+        name: grid.name,
+        format: grid.format,
+        url_cover: grid.url_cover,
+        url: grid.url,
+        categories: grid.user_main_grid_categories.map((item) => ({
+          id: item.category.id,
+          name: item.category.name,
+          active: item.category.active,
+        })),
+        tags: grid.user_main_grid_tags.map((item) => ({
+          id: item.tag.id,
+          name: item.tag.name,
+        })),
+      }));
+
+      res.status(200).send({ data: result });
+    } catch (err) {
+      console.log(err);
+      res.status(500).send({ message: err.message });
+    }
+  }
+
   async getAllByCategory(req, res) {
     try {
       const { categoryId } = req.query;
-  
+
       const whereCondition = categoryId
         ? {
             user_main_grid_categories: {
@@ -162,7 +240,7 @@ module.exports = class UserMainGridController {
             },
           }
         : {};
-  
+
       const userMainGrids = await UserMainGrid.findAll({
         include: [
           {
@@ -195,7 +273,7 @@ module.exports = class UserMainGridController {
           ["updatedAt", "DESC"],
         ],
       });
-  
+
       const result = userMainGrids.map((grid) => ({
         id: grid.id,
         name: grid.name,
@@ -212,15 +290,14 @@ module.exports = class UserMainGridController {
           name: item.tag.name,
         })),
       }));
-  
+
       res.status(200).send({ data: result });
     } catch (err) {
       console.log(err);
       res.status(500).send({ message: err.message });
     }
   }
-  
-  
+
   async getOne(req, res) {
     try {
       const userMainGrid = await UserMainGrid.findOne({
