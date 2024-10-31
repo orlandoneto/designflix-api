@@ -8,15 +8,12 @@ const privateKey = fs.readFileSync(DIR_key);
 
 const authenticateResource = (resources) => {
   return async (req, res, next) => {
-
     if (!req.headers.authorization) {
       return res.status(401).json({
         data: null,
         message: "Precisa enviar o token via header",
       });
     }
-
-
 
     try {
       const { authorization } = req.headers;
@@ -68,6 +65,11 @@ const authenticateResource = (resources) => {
                 valid = true;
               }
             }
+          }
+
+          // Passar depois token interno de segurança
+          if (resources.includes(ROLES.INTERNAL_USER)) {
+            valid = true;
           }
 
           if (!valid) {

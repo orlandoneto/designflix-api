@@ -29,6 +29,16 @@ module.exports = class {
     res.status(200).send({ data: users });
   }
 
+  async getAllUserContributor(req, res) {
+    const AcceptTerms = 0;
+    const users = await User.findAll({
+      where: { accept_terms: AcceptTerms },
+      attributes: { exclude: ["password"] },
+    });
+
+    res.status(200).send({ data: users });
+  }
+
   async get(req, res) {
     const id = req.params.id;
     const user = await User.findOne({
@@ -393,6 +403,29 @@ module.exports = class {
       } else {
         res.status(401).send({ message: "Você não pode fazer isto!" });
       }
+    } catch (err) {
+      res.status(500).send({ message: "Ocorreu um erro." });
+    }
+  }
+
+  async updateUserContributor(req, res) {
+    try {
+      let idToUpdate = req.query.userId;
+
+      const where = { id: idToUpdate };
+
+      const oldUser = await User.findOne({ where });
+
+      let updatedUser = { ...oldUser, ...req.body };
+
+      await User.update(updatedUser, { where });
+
+      const user = await User.findOne({ where });
+
+      res.status(200).send({
+        data: user,
+        message: "Contributor Atualizado com sucesso!",
+      });
     } catch (err) {
       res.status(500).send({ message: "Ocorreu um erro." });
     }
