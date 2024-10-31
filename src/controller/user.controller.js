@@ -22,6 +22,12 @@ module.exports = (app) => {
     (req, res) => UserService.getAll(req, res)
   );
 
+  app.get(
+    "/admin/users/contributor",
+    AuthenticateRoute(["admin"]),
+    (req, res) => UserService.getAllUserContributor(req, res)
+  );
+
   /**
    * @openapi
    * /user:
@@ -220,7 +226,11 @@ module.exports = (app) => {
    *      '500':
    *        description: Erro.
    */
-  app.put("/user", AuthenticateRoute(["user", "admin"]), (req, res) =>
+  app.put("/user", AuthenticateRoute(["user"]), (req, res) =>
     UserService.update(req, res)
+  );
+
+  app.put("/user/internal", AuthenticateRoute(["internal_user"]), (req, res) =>
+    UserService.updateUserContributor(req, res)
   );
 };

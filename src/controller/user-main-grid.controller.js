@@ -15,6 +15,9 @@ module.exports = (app) => {
   app.get("/user-main-grid/categories/filter", (req, res) =>
     UserMainGridService.getAllByCategory(req, res)
   );
+  app.get("/user-main-grid/user/:id", AuthenticateRoute(["user"]), (req, res) =>
+    UserMainGridService.getAllByUserId(req, res)
+  );
   app.get(
     "/user-main-grid/:id",
     AuthenticateRoute(["admin", "user"]),
