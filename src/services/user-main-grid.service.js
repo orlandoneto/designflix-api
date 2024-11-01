@@ -5,6 +5,7 @@ const {
   UserMainGridTags,
   Category,
   Tags,
+  User,
   Sequelize,
   sequelize,
 } = require("../models");
@@ -101,6 +102,11 @@ module.exports = class UserMainGridController {
         where: whereCondition,
         include: [
           {
+            model: User,
+            as: "user",
+            attributes: ["id", "name", "photo"],
+          },
+          {
             model: UserMainGridCategories,
             as: "user_main_grid_categories",
             include: [
@@ -135,6 +141,11 @@ module.exports = class UserMainGridController {
         format: grid.format,
         url_cover: grid.url_cover,
         url: grid.url,
+        user: {
+          id: grid.user?.id,
+          name: grid.user?.name,
+          photo: grid.user?.photo,
+        },
         categories: grid.user_main_grid_categories.map((item) => ({
           id: item.category.id,
           name: item.category.name,
@@ -155,8 +166,8 @@ module.exports = class UserMainGridController {
 
   async getAllByUserId(req, res) {
     try {
-      const { searchTerm, format, userId } = req.params; // Adiciona o user_id aos parâmetros de consulta
-     
+      const { searchTerm, format, userId } = req.params;
+
       const whereCondition = {};
 
       if (searchTerm) {
@@ -170,12 +181,17 @@ module.exports = class UserMainGridController {
       }
 
       if (userId) {
-        whereCondition.user_id = userId; // Adiciona a condição para user_id
+        whereCondition.user_id = userId;
       }
 
       const userMainGrids = await UserMainGrid.findAll({
         where: whereCondition,
         include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "name", "photo"],
+          },
           {
             model: UserMainGridCategories,
             as: "user_main_grid_categories",
@@ -211,6 +227,11 @@ module.exports = class UserMainGridController {
         format: grid.format,
         url_cover: grid.url_cover,
         url: grid.url,
+        user: {
+          id: grid.user?.id,
+          name: grid.user?.name,
+          photo: grid.user?.photo,
+        },
         categories: grid.user_main_grid_categories.map((item) => ({
           id: item.category.id,
           name: item.category.name,
