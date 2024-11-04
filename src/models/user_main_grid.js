@@ -73,6 +73,10 @@ module.exports = (sequelize, DataTypes) => {
       UserMainGrid.hasMany(models.UserMainGridTags, {
         foreignKey: "user_main_grid_id",
         as: "user_main_grid_tags",
+      }),
+      UserMainGrid.belongsTo(models.User, {
+        foreignKey: "user_id",
+        as: "user",
       });
   };
 

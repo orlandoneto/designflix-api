@@ -1,6 +1,5 @@
 const multer = require("multer");
 const Upload = require("../services/upload.service");
-const AuthenticateRoute = require("../middleware/authentication");
 const multerImagesConfig = require("../config/multer");
 const multerCoverConfig = require("../config/multerCover");
 const multerPackImagesConfig = require("../config/multerPackImagem");
