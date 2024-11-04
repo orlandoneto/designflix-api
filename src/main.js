@@ -105,4 +105,13 @@ require("./controller/google-api.controller")(app);
 
 // Payment
 require("./controller/payment.controller")(app);
+
+// Bug Reports
+require("./controller/user-bug.controller")(app);
+
+// Complaints
+require("./controller/complaints.controller")(app);
+
+// Favorites
+require("./controller/favorites.controller")(app);
 module.exports = { app };
