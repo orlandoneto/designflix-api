@@ -1,7 +1,6 @@
 const { UserFavorites } = require("../models");
 
 class UserFavoritesServices {
-  // Buscar todas as UserFavoritesServices
   async getAll(req, res) {
     try {
       const userFavoritesServices = await UserFavorites.findAll();
@@ -13,7 +12,6 @@ class UserFavoritesServices {
     }
   }
 
-  // Buscar uma UserFavoritesServices por user_id e user_main_grid_id
   async getById(req, res) {
     try {
       const { user_id, user_main_grid_id } = req.params;
@@ -33,7 +31,6 @@ class UserFavoritesServices {
     }
   }
 
-  // Criar uma nova UserFavoritesServices
   async create(req, res) {
     try {
       const userFavoritesServices = await UserFavorites.create(req.body);
@@ -45,7 +42,6 @@ class UserFavoritesServices {
     }
   }
 
-  // Excluir uma UserFavoritesServices por user_id e user_main_grid_id
   async delete(req, res) {
     try {
       const { user_id, user_main_grid_id } = req.params;
