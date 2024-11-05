@@ -114,4 +114,7 @@ require("./controller/complaints.controller")(app);
 
 // Favorites
 require("./controller/favorites.controller")(app);
+
+// Downloads S3
+require("./controller/downloadS3.controller")(app);
 module.exports = { app };
