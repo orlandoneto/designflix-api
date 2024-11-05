@@ -14,8 +14,7 @@ const storageTypes = {
       crypto.randomBytes(16, (err, hash) => {
         if (err) cb(err);
 
-        file.key =
-          req.body.path + "/" + `${hash.toString("hex")}-${file.originalname}`;
+        file.key = `${hash.toString("hex")}-${file.originalname}`;
 
         cb(null, file.key);
       });
@@ -26,7 +25,7 @@ const storageTypes = {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     }),
-    bucket: process.env.BUCKET_NAME,
+    bucket: process.env.AWS_BUCKET_NAME,
     contentType: multerS3.AUTO_CONTENT_TYPE,
     acl: "public-read",
     key: (req, file, cb) => {
@@ -35,8 +34,6 @@ const storageTypes = {
 
         const fileName =
           process.env.FOLDER_NAME_PACK_IMAGES_PATH +
-          "/" +
-          req.body.path +
           "/" +
           `${hash.toString("hex")}-${file.originalname}`;
 
