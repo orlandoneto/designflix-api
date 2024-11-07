@@ -2,23 +2,19 @@ const UserFollowsServices = require("../services/user-follows.services");
 const AuthenticateRoute = require("../middleware/authentication");
 
 module.exports = (app) => {
-  app.get("/user/uploads", AuthenticateRoute(["user"]), (req, res) =>
-    UserFollowsServices.getAll(req, res)
-  );
-
-  app.post("/user/uploads", AuthenticateRoute(["user"]), (req, res) =>
+  app.post("/user/follows", AuthenticateRoute(["user"]), (req, res) =>
     UserFollowsServices.create(req, res)
   );
 
   app.get(
-    "/user/uploads/:user_id/main_grid/:user_main_grid_id",
+    "/api/follow/status/:contributor_image_user_id/:contributor_image_admin_id",
     AuthenticateRoute(["user"]),
-    (req, res) => UserFollowsServices.getById(req, res)
+    (req, res) => UserFollowsServices.getIsfollow(req, res)
   );
 
-  app.delete(
-    "/user/uploads/:user_id/main_grid/:user_main_grid_id",
+  app.get(
+    "/user/follows/:contributor_image_user_id/total",
     AuthenticateRoute(["user"]),
-    (req, res) => UserFollowsServices.delete(req, res)
+    (req, res) => UserFollowsServices.getTotalFollowers(req, res)
   );
 };

@@ -1,65 +1,85 @@
 const { UserFollows } = require("../models");
 
 class UserFollowsServices {
-  async getAll(req, res) {
-    try {
-      const UserFollowsServices = await UserFollows.findAll();
-      res.status(200).json(UserFollowsServices);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar UserFollowsServices", error: error.message });
-    }
-  }
-
-  async getById(req, res) {
-    try {
-      const { user_id, user_main_grid_id } = req.params;
-      const UserFollowsServices = await UserFollows.findOne({
-        where: { user_id, user_main_grid_id }
-      });
-
-      if (!UserFollowsServices) {
-        return res.status(404).json({ message: "UserFollows não encontrada" });
-      }
-
-      res.status(200).json(UserFollowsServices);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar UserFollows", error: error.message });
-    }
-  }
-
   async create(req, res) {
     try {
-      const UserFollowsServices = await UserFollows.create(req.body);
-      res.status(201).json(UserFollowsServices);
+      const { user_id, contributor_image_user_id, contributor_image_admin_id } =
+        req.body;
+      const userFollows = [];
+
+      if (contributor_image_user_id) {
+        const userFollowUser = await UserFollows.create({
+          user_id,
+          contributor_image_user_id,
+          contributor_image_admin_id: null,
+        });
+        userFollows.push(userFollowUser);
+      }
+
+      if (contributor_image_admin_id) {
+        const userFollowAdmin = await UserFollows.create({
+          user_id,
+          contributor_image_user_id: null,
+          contributor_image_admin_id,
+        });
+        userFollows.push(userFollowAdmin);
+      }
+
+      if (userFollows.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "Nenhuma informação de seguidor fornecida" });
+      }
+
+      res.status(201).json(userFollows);
     } catch (error) {
       res
         .status(500)
-        .json({ message: "Erro ao criar UserFollowsServices", error: error.message });
+        .json({ message: "Erro ao criar UserFollows", error: error.message });
     }
   }
 
-  async delete(req, res) {
-    try {
-      const { user_id, user_main_grid_id } = req.params;
-      const UserFollowsServices = await UserFollows.findOne({
-        where: { user_id, user_main_grid_id }
-      });
+  async getIsfollow(req, res) {
+    const { contributor_image_user_id, contributor_image_admin_id } =
+      req.params;
 
-      if (!UserFollowsServices) {
-        return res.status(404).json({ message: "UserFollows não encontrada" });
+    try {
+      let followExists = null;
+
+      if (contributor_image_user_id !== "null") {
+        followExists = await UserFollows.findOne({
+          where: { contributor_image_user_id },
+        });
       }
 
-      await UserFollowsServices.destroy();
+      if (contributor_image_admin_id !== "null") {
+        followExists = await UserFollows.findOne({
+          where: { contributor_image_admin_id },
+        });
+      }
 
-      res.status(200).json({ message: "UserFollows excluída com sucesso" });
+      return res.json({ isFollowing: !!followExists });
     } catch (error) {
-      res
+      return res
         .status(500)
-        .json({ message: "Erro ao excluir UserFollows", error: error.message });
+        .json({ error: "Erro ao verificar status de follow" });
+    }
+  }
+
+  async getTotalFollowers(req, res) {
+    try {
+      const { contributor_image_user_id } = req.params;
+
+      const totalFollowers = await UserFollows.count({
+        where: { contributor_image_user_id },
+      });
+
+      res.status(200).json({ contributor_image_user_id, totalFollowers });
+    } catch (error) {
+      res.status(500).json({
+        message: "Erro ao buscar total de seguidores",
+        error: error.message,
+      });
     }
   }
 }

@@ -9,11 +9,11 @@ module.exports = (sequelize, DataTypes) => {
       },
       admin_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
       user_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },  
       total_uploads: {
         type: DataTypes.INTEGER,

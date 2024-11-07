@@ -22,7 +22,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       total_downloads: {
         type: DataTypes.INTEGER,
-        defaultValue: 0,
+        defaultValue: 1,
       },
       createdAt: {
         type: DataTypes.DATE,

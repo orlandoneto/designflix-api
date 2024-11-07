@@ -1,65 +1,32 @@
 const { UserUploads } = require("../models");
 
 class UserUploadsServices {
-  async getAll(req, res) {
+  async incrementUploads(req, res) {
     try {
-      const UserUploadsServices = await UserUploads.findAll();
-      res.status(200).json(UserUploadsServices);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar UserUploadsServices", error: error.message });
-    }
-  }
+      const { userId } = req.params;
 
-  async getById(req, res) {
-    try {
-      const { user_id, user_main_grid_id } = req.params;
-      const UserUploadsServices = await UserUploads.findOne({
-        where: { user_id, user_main_grid_id }
+      const [userUpload, created] = await UserUploads.findOrCreate({
+        where: { user_id: userId },
+        defaults: {
+          user_id: userId,
+          total_uploads: 1,
+        },
       });
 
-      if (!UserUploadsServices) {
-        return res.status(404).json({ message: "UserUploads não encontrada" });
+      if (!created) {
+        userUpload.total_uploads += 1;
+        await userUpload.save();
       }
 
-      res.status(200).json(UserUploadsServices);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar UserUploads", error: error.message });
-    }
-  }
-
-  async create(req, res) {
-    try {
-      const UserUploadsServices = await UserUploads.create(req.body);
-      res.status(201).json(UserUploadsServices);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erro ao criar UserUploadsServices", error: error.message });
-    }
-  }
-
-  async delete(req, res) {
-    try {
-      const { user_id, user_main_grid_id } = req.params;
-      const UserUploadsServices = await UserUploads.findOne({
-        where: { user_id, user_main_grid_id }
+      res.status(200).json({
+        message: "Total de uploads incrementado com sucesso",
+        total_uploads: userUpload.total_uploads,
       });
-
-      if (!UserUploadsServices) {
-        return res.status(404).json({ message: "UserUploads não encontrada" });
-      }
-
-      await UserUploadsServices.destroy();
-
-      res.status(200).json({ message: "UserUploads excluída com sucesso" });
     } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erro ao excluir UserUploads", error: error.message });
+      res.status(500).json({
+        message: "Erro ao incrementar total de uploads",
+        error: error.message,
+      });
     }
   }
 }
