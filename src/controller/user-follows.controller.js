@@ -7,7 +7,7 @@ module.exports = (app) => {
   );
 
   app.get(
-    "/api/follow/status/:contributor_image_user_id/:contributor_image_admin_id",
+    "/api/follow/status/:user_id/:contributor_image_user_id/:contributor_image_admin_id",
     AuthenticateRoute(["user"]),
     (req, res) => UserFollowsServices.getIsfollow(req, res)
   );

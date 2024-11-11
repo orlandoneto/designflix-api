@@ -40,7 +40,7 @@ class UserFollowsServices {
   }
 
   async getIsfollow(req, res) {
-    const { contributor_image_user_id, contributor_image_admin_id } =
+    const { user_id, contributor_image_user_id, contributor_image_admin_id } =
       req.params;
 
     try {
@@ -48,13 +48,13 @@ class UserFollowsServices {
 
       if (contributor_image_user_id !== "null") {
         followExists = await UserFollows.findOne({
-          where: { contributor_image_user_id },
+          where: { user_id, contributor_image_user_id },
         });
       }
 
       if (contributor_image_admin_id !== "null") {
         followExists = await UserFollows.findOne({
-          where: { contributor_image_admin_id },
+          where: { user_id, contributor_image_admin_id },
         });
       }
 
