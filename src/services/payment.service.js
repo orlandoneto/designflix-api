@@ -92,7 +92,7 @@ module.exports = class {
           {
             model: Plans,
             as: "plans",
-            attributes: ["id", "plan_name", "count_downloads"],
+            attributes: ["id", "plan_name", "count_downloads", "current_count_downloads"],
           },
           {
             model: User,

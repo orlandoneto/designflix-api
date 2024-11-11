@@ -30,12 +30,12 @@ module.exports = class {
   }
 
   async getAllUserContributor(req, res) {
-    const AcceptTerms = 0;
+    const acceptTerms = 0;
+    const contributor = 1;
     const users = await User.findAll({
-      where: { accept_terms: AcceptTerms },
+      where: { contributor: contributor, accept_terms: acceptTerms },
       attributes: { exclude: ["password"] },
     });
-
     res.status(200).send({ data: users });
   }
 

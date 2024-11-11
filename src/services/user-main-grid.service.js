@@ -4,6 +4,7 @@ const {
   UserMainGridCategories,
   UserMainGridTags,
   Category,
+  UserUploads,
   Tags,
   User,
   Sequelize,
@@ -105,6 +106,13 @@ module.exports = class UserMainGridController {
             model: User,
             as: "user",
             attributes: ["id", "name", "photo"],
+            include: [
+              {
+                model: UserUploads,
+                as: "user_uploads",
+                attributes: ["total_uploads"],
+              },
+            ],
           },
           {
             model: UserMainGridCategories,
@@ -137,6 +145,8 @@ module.exports = class UserMainGridController {
 
       const result = userMainGrids.map((grid) => ({
         id: grid.id,
+        contributor_id: grid.user_id,
+        contributor_admin_id: grid.admin_id,
         name: grid.name,
         format: grid.format,
         url_cover: grid.url_cover,
@@ -145,6 +155,7 @@ module.exports = class UserMainGridController {
           id: grid.user?.id,
           name: grid.user?.name,
           photo: grid.user?.photo,
+          total_uploads: grid.user?.user_uploads?.total_uploads || 0,
         },
         categories: grid.user_main_grid_categories.map((item) => ({
           id: item.category.id,
