@@ -1,47 +1,53 @@
-const PaymentService = require("../services/payment.service");
+const PaymentStripeService = require("../services/paymentStripe.service");
+const PaymentMercadopagoService = require("../services/paymentMercadopago.service");
 const VerifyWebhook = require("../middleware/verifyWebhook");
 const AuthenticateRoute = require("../middleware/authentication");
 
 module.exports = (app) => {
-  const paymentService = new PaymentService();
+  /* START ENDPOITS STRIP */
+  const paymentStripeService = new PaymentStripeService();
+  const paymentMercadopagoService = new PaymentMercadopagoService();
 
   app.post("/create-subscription", AuthenticateRoute(["user"]), (req, res) =>
-    paymentService.createSubscription(req, res)
+    paymentStripeService.createSubscription(req, res)
   );
 
   app.get("/retrieve-plan/:planId", AuthenticateRoute(["user"]), (req, res) =>
-    paymentService.retrievePlans(req, res)
+    paymentStripeService.retrievePlans(req, res)
   );
 
-  app.get(
-    "/user-plan-grouped/:id",
-    AuthenticateRoute(["user"]),
-    (req, res) => paymentService.getUserPlans(req, res)
+  app.get("/user-plan-grouped/:id", AuthenticateRoute(["user"]), (req, res) =>
+    paymentStripeService.getUserPlans(req, res)
   );
 
   app.get("/user-plan", AuthenticateRoute(["user"]), (req, res) =>
-    paymentService.userPlan(req, res)
+    paymentStripeService.userPlan(req, res)
   );
 
   app.get(
     "/create-customer-portal-session",
     AuthenticateRoute(["user"]),
-    (req, res) => paymentService.userPlansPortalSession(req, res)
+    (req, res) => paymentStripeService.userPlansPortalSession(req, res)
   );
 
   app.post("/webhook", VerifyWebhook, (req, res) =>
-    paymentService.handleWebhook(req, res)
+    paymentStripeService.handleWebhook(req, res)
   );
 
   app.get(
     "/user-plan-download/:userId",
     AuthenticateRoute(["user"]),
-    (req, res) => paymentService.getUserPlanDownloads(req, res)
+    (req, res) => paymentStripeService.getUserPlanDownloads(req, res)
   );
 
-  app.put(
-    "/user-plan-download-update/:userId",
-    AuthenticateRoute(["user"]),
-    (req, res) => paymentService.updateUserPlanDownloads(req, res)
+  /* END ENDPOITS STRIP */
+
+  /* START ENDPOITS MERCADOPAGO */
+  app.post("/create-mercadopago-pix", AuthenticateRoute(["user"]), (req, res) =>
+    paymentMercadopagoService.createPix(req, res)
   );
+  app.post("/v1/webhook", (req, res) =>
+    paymentMercadopagoService.processPayment(req, res)
+  );
+  /* END ENDPOITS MERCADOPAGO */
 };
