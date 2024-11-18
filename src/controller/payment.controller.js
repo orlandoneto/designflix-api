@@ -46,8 +46,18 @@ module.exports = (app) => {
   app.post("/create-mercadopago-pix", AuthenticateRoute(["user"]), (req, res) =>
     paymentMercadopagoService.createPix(req, res)
   );
+
   app.post("/v1/webhook", (req, res) =>
-    paymentMercadopagoService.processPayment(req, res)
+    paymentMercadopagoService.processPaymentWebhook(req, res)
   );
+
+  app.get("/mercadopago/pix/:id", AuthenticateRoute(["user"]), (req, res) =>
+    paymentMercadopagoService.getById(req, res)
+  );
+
+  app.put("/mercadopago/pix/:id", AuthenticateRoute(["user"]), (req, res) =>
+    paymentMercadopagoService.updateById(req, res)
+  );
+
   /* END ENDPOITS MERCADOPAGO */
 };

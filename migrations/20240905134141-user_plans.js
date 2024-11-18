@@ -24,7 +24,11 @@ module.exports = {
       },
       stripe_customer_id: {
         type: Sequelize.STRING,
-        allowNull: false,
+        allowNull: true,
+      },
+      mercadopago_customer_id: {
+        type: Sequelize.STRING,
+        allowNull: true,
       },
       created_at: {
         type: Sequelize.DATE,

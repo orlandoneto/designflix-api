@@ -34,7 +34,7 @@ module.exports = class {
 
       const userPlan = await this.createOrUpdatePlan(plan, customer, userId);
       if (!userPlan) {
-        res.status(400).send({ message: "Erro ao criar ou atualizar plano" });
+        res.status(400).send({ message: "Erro ao criar ou atualizar plano via cartão - stripe" });
         return;
       }
 
@@ -94,11 +94,7 @@ module.exports = class {
           {
             model: Plans,
             as: "plans",
-            attributes: [
-              "id",
-              "plan_name",
-              "count_downloads",
-            ],
+            attributes: ["id", "plan_name", "count_downloads"],
           },
           {
             model: User,
@@ -141,7 +137,7 @@ module.exports = class {
     try {
       const session = await stripe.billingPortal.sessions.create({
         customer: stripe_customer_id,
-        return_url: "http://localhost:5173/profile",
+        return_url: process.env.STRIPE_URL_PORTAL,
       });
 
       res.status(200).send({ url: session.url });
@@ -162,10 +158,7 @@ module.exports = class {
           {
             model: Plans,
             as: "plans",
-            attributes: [
-              "count_downloads",
-              "updatedAt",
-            ],
+            attributes: ["count_downloads", "updatedAt"],
           },
         ],
       });

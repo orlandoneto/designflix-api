@@ -17,7 +17,11 @@ module.exports = (sequelize, DataTypes) => {
       },
       stripe_customer_id: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
+      },
+      mercadopago_customer_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
       createdAt: {
         type: DataTypes.DATE,
