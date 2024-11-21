@@ -110,7 +110,7 @@ module.exports = class {
     } else {
       const createUserPlan = await UserPlans.create({
         user_id: userId,
-        plan_id: plan.id,
+        plan_id: planId,
         mercadopago_customer_id: customerId,
       });
       if (createUserPlan) return true;

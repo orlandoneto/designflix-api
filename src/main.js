@@ -128,4 +128,7 @@ require("./controller/user-follows.controller")(app);
 
 // Plans Download Limits
 require("./controller/plans-download-limit.controller")(app);
+
+// Forgot Signup
+require("./controller/forgot.controller")(app);
 module.exports = { app };

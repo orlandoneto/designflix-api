@@ -4,16 +4,7 @@ const hbs = require("nodemailer-handlebars");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 
-const Sequelize = require("sequelize");
-
-const {
-  User,
-  // UserAddress,
-  // UserCreditCard,
-  // UserInvoice,
-  // UserInvoiceProduct,
-  // ProductCategory,
-} = require("../models");
+const { User } = require("../models");
 
 const { sendEmail } = require("../utils/emailService");
 
@@ -44,27 +35,6 @@ module.exports = class {
     const user = await User.findOne({
       where: { id: id },
       attributes: { exclude: ["password"] },
-      // include: [
-      //   {
-      //     model: UserAddress,
-      //   },
-      //   {
-      //     model: UserCreditCard,
-      //   },
-      //   {
-      //     model: UserInvoice,
-      //     include: [
-      //       {
-      //         model: UserInvoiceProduct,
-      //         include: [
-      //           {
-      //             model: ProductCategory,
-      //           },
-      //         ],
-      //       },
-      //     ],
-      //   },
-      // ],
     });
     res.status(200).send({ data: user });
   }
