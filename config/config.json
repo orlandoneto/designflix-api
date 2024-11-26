@@ -1,23 +1,23 @@
 {
   "development": {
+    "username": "flixdesign_dev",
+    "password": "Developer501q3e!QEAKIA4TDI26WKOUZTIEGZ@234dfd",
+    "database": "development_development",
+    "host": "localhost",
+    "dialect": "mysql"
+  },
+  "test": {
     "username": "designflix_user",
     "password": "123456",
     "database": "designflix",
     "host": "localhost",
     "dialect": "mysql"
   },
-  "test": {
-    "username": "root",
-    "password": null,
-    "database": "database_test",
-    "host": "127.0.0.1",
-    "dialect": "mysql"
-  },
   "production": {
-    "username": "root",
-    "password": null,
-    "database": "database_production",
-    "host": "127.0.0.1",
+    "username": "flixdesign_prd",
+    "password": "AKIA4TDI26WKOUZTIEGZ@Developer501q3e!QE1254k",
+    "database": "flixdesign_prodution",
+    "host": "localhost",
     "dialect": "mysql"
   }
 }
