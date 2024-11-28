@@ -34,7 +34,7 @@ module.exports = class {
 
       const userPlan = await this.createOrUpdatePlan(plan, customer, userId);
       if (!userPlan) {
-        res.status(400).send({ message: "Erro ao criar ou atualizar plano" });
+        res.status(400).send({ message: "Erro ao criar ou atualizar plano via cartão - stripe" });
         return;
       }
 
@@ -75,7 +75,9 @@ module.exports = class {
       res.json(plan);
     } catch (error) {
       console.error("Erro ao recuperar plano:", error);
-      res.status(500).send({ error: "Falha ao recuperar os planos do usuário" });
+      res
+        .status(500)
+        .send({ error: "Falha ao recuperar os planos do usuário" });
     }
   }
 
@@ -92,7 +94,7 @@ module.exports = class {
           {
             model: Plans,
             as: "plans",
-            attributes: ["id", "plan_name", "count_downloads", "current_count_downloads"],
+            attributes: ["id", "plan_name", "count_downloads"],
           },
           {
             model: User,
@@ -135,7 +137,7 @@ module.exports = class {
     try {
       const session = await stripe.billingPortal.sessions.create({
         customer: stripe_customer_id,
-        return_url: "http://localhost:5173/profile",
+        return_url: process.env.STRIPE_URL_PORTAL,
       });
 
       res.status(200).send({ url: session.url });
@@ -156,11 +158,7 @@ module.exports = class {
           {
             model: Plans,
             as: "plans",
-            attributes: [
-              "count_downloads",
-              "current_count_downloads",
-              "updatedAt",
-            ],
+            attributes: ["count_downloads", "updatedAt"],
           },
         ],
       });
@@ -174,7 +172,6 @@ module.exports = class {
       res.status(200).send({
         data: {
           count_downloads: userPlan.plans.count_downloads,
-          current_count_downloads: userPlan.plans.current_count_downloads,
           updated_at: userPlan.plans.updatedAt,
         },
       });
@@ -183,43 +180,6 @@ module.exports = class {
       res
         .status(500)
         .send({ error: "Erro ao buscar os downloads do plano do usuário" });
-    }
-  }
-
-  async updateUserPlanDownloads(req, res) {
-    const { userId } = req.params;
-
-    try {
-      const userPlan = await UserPlans.findOne({
-        where: { user_id: userId },
-        include: [
-          {
-            model: Plans,
-            as: "plans",
-            attributes: ["id", "current_count_downloads"],
-          },
-        ],
-      });
-
-      if (!userPlan) {
-        return res
-          .status(404)
-          .send({ error: "Plano do usuário não encontrado" });
-      }
-
-      const plan = userPlan.plans;
-      const newCount = plan.current_count_downloads + 1;
-
-      await plan.update({ current_count_downloads: newCount });
-
-      res.status(200).send({
-        message: "Quantidade de downloads atualizada com sucesso!",
-      });
-    } catch (error) {
-      console.error("Erro ao atualizar o plano do usuário:", error);
-      res.status(500).send({
-        error: error.message || "Erro ao atualizar o plano do usuário",
-      });
     }
   }
 

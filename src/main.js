@@ -24,8 +24,8 @@ app.use(
   })
 );
 
-console.log(8080);
-app.listen(8080);
+console.log("Port:", process.env.NODE_PORT);
+app.listen(process.env.NODE_PORT);
 
 const swaggerOptions = {
   swaggerDefinition: {
@@ -91,7 +91,6 @@ require("./controller/system.controller")(app);
 
 // user
 require("./controller/user.controller")(app);
-require("./controller/user-credit-card.controller")(app);
 require("./controller/user-address.controller")(app);
 
 // admin
@@ -126,4 +125,10 @@ require("./controller/user-uploads.controller")(app);
 
 // User Follows
 require("./controller/user-follows.controller")(app);
+
+// Plans Download Limits
+require("./controller/plans-download-limit.controller")(app);
+
+// Forgot Signup
+require("./controller/forgot.controller")(app);
 module.exports = { app };

@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
-  const UserPlans = sequelize.define(
-    "UserPlans",
+  const PlansDownloadLimits = sequelize.define(
+    "PlansDownloadLimits",
     {
       id: {
         type: DataTypes.INTEGER,
@@ -11,17 +11,9 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      plan_id: {
+      current_count_downloads: {
         type: DataTypes.INTEGER,
         allowNull: false,
-      },
-      stripe_customer_id: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
-      mercadopago_customer_id: {
-        type: DataTypes.STRING,
-        allowNull: true,
       },
       createdAt: {
         type: DataTypes.DATE,
@@ -33,24 +25,20 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         field: "updated_at",
         allowNull: false,
-        defaultValue: DataTypes.NOW,
+        defaultValue: null,
       },
     },
     {
-      tableName: "user_plans",
+      tableName: "plans_download_limits",
     }
   );
 
-  UserPlans.associate = function (models) {
-    UserPlans.belongsTo(models.User, {
+  PlansDownloadLimits.associate = function (models) {
+    PlansDownloadLimits.belongsTo(models.User, {
       foreignKey: "user_id",
       as: "user",
-    }),
-      UserPlans.belongsTo(models.Plans, {
-        foreignKey: "plan_id",
-        as: "plans",
-      });
+    });
   };
 
-  return UserPlans;
+  return PlansDownloadLimits;
 };
