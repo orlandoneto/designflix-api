@@ -9,7 +9,7 @@ module.exports = (app) => {
   app.get("/forgot-check-token/:token", (req, res) =>
     ForgotService.forgotCheckToken(req, res)
   );
-  app.put("/forgot-update-password", (req, res) =>
+  app.put("/forgot-update-password/:token", (req, res) =>
     ForgotService.forgotUpdatePassword(req, res)
   );
 };

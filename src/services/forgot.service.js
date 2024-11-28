@@ -59,10 +59,10 @@ module.exports = class {
         from: process.env.EMAIL_TO_SEND,
         to: user.email,
         subject: "Redefinição de Senha - DesignFlix",
-        template: "index",
+        template: "forgot",
         context: {
           name: user.name,
-          resetLink: `${process.env.FRONTEND_URL}/reset-password?email=${user.email}?&token=${resetToken}`,
+          resetLink: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`,
         },
       };
 
@@ -99,9 +99,9 @@ module.exports = class {
     }
   }
 
-
-  async forgotUpdatePassword(req, res) {
-    const { token, newPassword } = req.body;
+  async forgotUpdatePassword(req, res) {    
+    const { token } = req.params;
+    const { password } = req.body;
 
     try {
       // Decodificar o token
@@ -114,13 +114,15 @@ module.exports = class {
       }
 
       // Atualizar a senha do usuário
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      const hashedPassword = await bcrypt.hash(password, 10);
       await User.update(
         { password: hashedPassword },
         { where: { id: user.id } }
       );
 
-      res.status(200).send({ message: "Senha redefinida com sucesso." });
+      res
+        .status(200)
+        .send({ message: "Senha redefinida com sucesso.", status: 200 });
     } catch (error) {
       res.status(400).send({
         message: "Token inválido ou expirado. Solicite uma nova redefinição.",
