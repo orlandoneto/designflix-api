@@ -1,22 +1,23 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
-// Lê os argumentos passados no script
-const [, , env] = process.argv;
+// Recebe o argumento do ambiente (development, production, test)
+const env = process.argv[2];
 
 if (!env) {
-  console.error("Por favor, forneça o ambiente (ex: development, production).");
+  console.error("Por favor, especifique o ambiente: development, production ou test");
   process.exit(1);
 }
 
-// Define a variável NODE_ENV
-process.env.NODE_ENV = env;
+const sourceEnvFile = path.resolve(__dirname, `../.env.${env}`);
+const targetEnvFile = path.resolve(__dirname, '../.env');
 
-// Carrega variáveis do arquivo .env se existir
-const envPath = path.resolve(__dirname, `../.env.${env}`);
-
-if (fs.existsSync(envPath)) {
-  require("dotenv").config({ path: envPath });
-} else {
-  console.warn(`Nenhum arquivo .env.${env} encontrado.`);
+if (!fs.existsSync(sourceEnvFile)) {
+  console.error(`Arquivo de configuração .env.${env} não encontrado.`);
+  process.exit(1);
 }
+
+// Copia o arquivo de configuração do ambiente para .env
+fs.copyFileSync(sourceEnvFile, targetEnvFile);
+
+console.log(`Arquivo de ambiente configurado para: ${env}`);

@@ -1,24 +1,42 @@
-const glob = require("glob");
-const { exec } = require("child_process");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
+const UglifyJS = require('uglify-js');
 
-const files = glob.sync("dist/**/*.js");
-if (!files.length) {
-  console.error("No files found to minify.");
+// Diretório de saída dos arquivos compilados
+const distDir = path.resolve(__dirname, '../dist');
+
+// Verifica se o diretório dist existe
+if (!fs.existsSync(distDir)) {
+  console.error("Diretório 'dist' não encontrado. Certifique-se de que a aplicação foi compilada.");
   process.exit(1);
 }
 
-files.forEach((file) => {
-  const outputFile = path.join(path.dirname(file), path.basename(file));
-  const terserCommand = `npx terser ${file} --compress --mangle --output ${outputFile}`;
-  exec(terserCommand, (err, stdout, stderr) => {
-    if (err) {
-      console.error(`Error minifying ${file}: ${err.message}`);
-      return;
+// Função para minificar os arquivos
+const minifyFiles = (dir) => {
+  const files = fs.readdirSync(dir);
+
+  files.forEach((file) => {
+    const filePath = path.join(dir, file);
+
+    if (fs.statSync(filePath).isDirectory()) {
+      // Se for uma subpasta, chama a função recursivamente
+      minifyFiles(filePath);
+    } else if (file.endsWith('.js')) {
+      // Apenas arquivos .js
+      const fileContents = fs.readFileSync(filePath, 'utf-8');
+      const result = UglifyJS.minify(fileContents);
+
+      if (result.error) {
+        console.error(`Erro ao minificar ${file}:`, result.error);
+        return;
+      }
+
+      fs.writeFileSync(filePath, result.code, 'utf-8');
+      console.log(`Minificado: ${filePath}`);
     }
-    if (stderr) {
-      console.error(`Terser stderr for ${file}: ${stderr}`);
-    }
-    console.log(`Minified: ${file}`);
   });
-});
+};
+
+// Minifica os arquivos na pasta dist
+minifyFiles(distDir);
+console.log("Minificação concluída.");
