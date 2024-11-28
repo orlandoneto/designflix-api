@@ -20,7 +20,11 @@ module.exports = {
       count_downloads: {
         type: Sequelize.INTEGER,
         allowNull: false,
-      },     
+      },
+      current_count_downloads: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+      },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,

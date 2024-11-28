@@ -24,8 +24,8 @@ app.use(
   })
 );
 
-console.log(8080);
-app.listen(8080);
+console.log("Port:", process.env.NODE_PORT);
+app.listen(process.env.NODE_PORT);
 
 const swaggerOptions = {
   swaggerDefinition: {
