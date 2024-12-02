@@ -11,8 +11,8 @@
     "start": "node scripts/setEnv.js production && node src/main.js",
     "build": "node scripts/setEnv.js production && babel src --out-dir dist && npm run minify",
     "migrate": "cd src && npx sequelize-cli db:migrate && cd ..",
-    "deploy-dev": "pm2 start ecosystem.config.js --env development",
-    "deploy-prd": "pm2 start ecosystem.config.js --env production"
+    "deploy-stg": "pm2 deploy ecosystem.config.js staging",
+    "deploy-prd": "pm2 deploy ecosystem.config.js production"
   },
   "author": "DesignFlix",
   "dependencies": {
