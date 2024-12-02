@@ -14,6 +14,9 @@ module.exports = {
         NODE_ENV: "production", // Ambiente de produção
         PORT: 4000, // Porta em produção
       },
+      error_file: "../shared/logs/error.log", // Arquivo de erro (compartilhado)
+      out_file: "../shared/logs/out.log", // Arquivo de saída (compartilhado)
+      log_date_format: "YYYY-MM-DD HH:mm Z",
     },
   ],
 
@@ -25,7 +28,8 @@ module.exports = {
       repo: "git@github.com:orlandoneto/designflix-api.git", // Repositório Git
       path: "/root/api/prd/designflix-api", // Caminho onde o projeto será implantado
       "post-deploy":
-        "npm install && npm run build && pm2 reload ecosystem.config.js --env production", // Comandos pós-deploy
+        "npm install && pm2 reload ecosystem.config.js --env production",
+      "pre-deploy-local": "echo 'Preparando deploy of production...'", // Opcional
     },
     staging: {
       user: "root",
@@ -34,7 +38,8 @@ module.exports = {
       repo: "git@github.com:orlandoneto/designflix-api.git",
       path: "/root/api/dev/designflix-api",
       "post-deploy":
-        "npm install && npm run build && pm2 reload ecosystem.config.js --env development", // Comandos pós-deploy
+        "npm install && pm2 reload ecosystem.config.js --env development",
+      "pre-deploy-local": "echo 'Preparando deploy of development...'", // Opcional
     },
   },
 };
