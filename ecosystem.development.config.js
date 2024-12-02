@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "designflix-api", // Nome da sua aplicação
-      script: "/root/api/dev/designflix-api/shared/src/main.js", // Arquivo principal da aplicação
+      script: "/root/api/dev/designflix-api/current/src/main.js", // Arquivo principal da aplicação
       instances: 1, // Garantindo que apenas uma instância será executada
       exec_mode: "fork", // Modo de execução "fork" (não cluster)
       watch: false, // Desabilita o watch em produção para evitar reinicializações desnecessárias
