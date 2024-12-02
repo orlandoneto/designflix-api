@@ -25,7 +25,7 @@ module.exports = {
       user: "root", // Usuário SSH no servidor
       host: "46.202.146.92", // IP ou Host do servidor
       ref: "origin/main", // Branch do repositório Git que será usada
-      repo: "git@github.com:orlandoneto/designflix-api.git", // Repositório Git
+      repo: "https://github.com/orlandoneto/designflix-api.git", // Repositório Git
       path: "/root/api/prd/designflix-api", // Caminho onde o projeto será implantado
       "post-deploy":
         "npm install && pm2 reload ecosystem.config.js --env production",
@@ -35,7 +35,7 @@ module.exports = {
       user: "root",
       host: "46.202.146.92",
       ref: "origin/main",
-      repo: "git@github.com:orlandoneto/designflix-api.git",
+      repo: "https://github.com/orlandoneto/designflix-api.git",
       path: "/root/api/dev/designflix-api",
       "post-deploy":
         "npm install && pm2 reload ecosystem.config.js --env development",
