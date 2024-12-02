@@ -13,6 +13,7 @@ module.exports = {
       error_file: "/root/api/prd/designflix-api/shared/logs/error.log",
       out_file: "/root/api/prd/designflix-api/shared/logs/out.log",     
       log_date_format: "YYYY-MM-DD HH:mm Z",
+      merge_logs: true, 
     },
   ],
 
