@@ -8,6 +8,7 @@ module.exports = {
       watch: false, // Desabilita o watch em produção para evitar reinicializações desnecessárias
       env: {
         NODE_ENV: "production", // Ambiente de produção
+        DOTENV_CONFIG_PATH: "/root/api/prd/designflix-api/current/.env",
         PORT: 4000, // Porta da aplicação em produção
       },
       error_file: "/root/api/prd/designflix-api/shared/logs/error.log",
