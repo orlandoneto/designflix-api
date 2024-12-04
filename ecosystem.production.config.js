@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "designflix-api", // Nome da sua aplicação
+      name: "designflix-api-prd", // Nome da sua aplicação
       script: "/root/api/prd/designflix-api/current/src/main.js", // Arquivo principal da aplicação
       instances: 1, // Garantindo que apenas uma instância será executada
       exec_mode: "fork", // Modo de execução "fork" (não cluster)
@@ -26,7 +26,7 @@ module.exports = {
       repo: "git@github.com:orlandoneto/designflix-api.git", // Repositório Git
       path: "/root/api/prd/designflix-api", // Caminho onde o projeto será implantado
       "post-deploy":
-        "npm install && pm2 reload ecosystem.production.config.js --env production", // Comando pós-deploy
+        "npm install && pm2 reload ecosystem.production.config.js --env production --name designflix-api-prd", // Comando pós-deploy
       "pre-deploy-local": "echo 'Preparando deploy of production...'", // Opcional
     },
   },
