@@ -8,6 +8,7 @@ module.exports = {
       watch: false, // Desabilita o watch em produção para evitar reinicializações desnecessárias
       env: {
         NODE_ENV: "development", // Ambiente de desenvolvimento
+        DOTENV_CONFIG_PATH: "/root/api/dev/designflix-api/current/.env",
         PORT: 3000, // Porta da aplicação em desenvolvimento
       },
       error_file: "/root/api/prd/designflix-api/shared/logs/error.log",
@@ -25,7 +26,7 @@ module.exports = {
       repo: "git@github.com:orlandoneto/designflix-api.git", // Repositório Git
       path: "/root/api/dev/designflix-api", // Caminho onde o projeto será implantado
       "post-deploy":
-        "npm install && pm2 reload ecosystem.development.config.js --env development", // Comando pós-deploy
+        "npm install && pm2 reload ecosystem.development.config.js --env development --name designflix-api-prd", // Comando pós-deploy com o nome adicionado
       "pre-deploy-local": "echo 'Preparando deploy of development...'", // Opcional
     },
   },
