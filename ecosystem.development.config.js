@@ -24,9 +24,9 @@ module.exports = {
       host: "46.202.146.92", // IP ou Host do servidor
       ref: "origin/main", // Branch do repositório Git que será usada
       repo: "git@github.com:orlandoneto/designflix-api.git", // Repositório Git
-      path: "/root/api/dev/designflix-api/current/dist", // Caminho onde o projeto será implantado
+      path: "/root/api/dev/designflix-api", // Caminho onde o projeto será implantado
       "post-deploy":
-        "npm i && pm2 reload ecosystem.development.config.js --env development",
+        "npm i && npm run build-prd && pm2 reload ecosystem.development.config.js --env development",
       "pre-deploy-local": "echo 'Preparando deploy of development...'", // Opcional
     },
   },
