@@ -26,7 +26,7 @@ module.exports = {
       repo: "git@github.com:orlandoneto/designflix-api.git", // Repositório Git
       path: "/root/api/prd/designflix-api", // Caminho onde o projeto será implantado
       "post-deploy":
-        "npm run build && pm2 reload ecosystem.production.config.js --env production",
+        "npm i && pm2 reload ecosystem.production.config.js --env production",
       "pre-deploy-local": "echo 'Preparando deploy of production...'", // Opcional
     },
   },
