@@ -12,9 +12,9 @@ module.exports = {
         PORT: 4000, // Porta da aplicação em produção
       },
       error_file: "/root/api/prd/designflix-api/shared/logs/error.log",
-      out_file: "/root/api/prd/designflix-api/shared/logs/out.log",
+      out_file: "/root/api/prd/designflix-api/shared/logs/out.log",     
       log_date_format: "YYYY-MM-DD HH:mm Z",
-      merge_logs: true,
+      merge_logs: true, 
     },
   ],
 
@@ -26,7 +26,7 @@ module.exports = {
       repo: "git@github.com:orlandoneto/designflix-api.git", // Repositório Git
       path: "/root/api/prd/designflix-api", // Caminho onde o projeto será implantado
       "post-deploy":
-        "npm i && npm run build-prd && ln -sf /root/api/dev/designflix-api/source/src/middleware/private.key /root/api/dev/designflix-api/source/dist/middleware/private.key && pm2 reload ecosystem.production.config.js --env production && pm2 save --force && pm2 list",
+        "npm i && npm run build-prd && pm2 reload ecosystem.production.config.js --env production && pm2 list",
       "pre-deploy-local": "echo 'Preparando deploy of production...'", // Opcional
     },
   },
