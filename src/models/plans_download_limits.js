@@ -24,12 +24,14 @@ module.exports = (sequelize, DataTypes) => {
       updatedAt: {
         type: DataTypes.DATE,
         field: "updated_at",
-        allowNull: false,
+        allowNull: true,
         defaultValue: null,
       },
     },
     {
       tableName: "plans_download_limits",
+      timestamps: true,
+      underscored: true,
     }
   );
 
@@ -37,6 +39,8 @@ module.exports = (sequelize, DataTypes) => {
     PlansDownloadLimits.belongsTo(models.User, {
       foreignKey: "user_id",
       as: "user",
+      onDelete: "NO ACTION",
+      onUpdate: "CASCADE",
     });
   };
 

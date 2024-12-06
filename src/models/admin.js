@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 const bcrypt = require("bcrypt");
-const syncAllTables = require("../config/syncDb");
+//const syncAllTables = require("../config/syncDb");
 
 module.exports = (sequelize, DataTypes) => {
   const Admin = sequelize.define(
