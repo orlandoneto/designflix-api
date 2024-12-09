@@ -30,7 +30,7 @@ module.exports = (app) => {
     (req, res) => paymentStripeService.userPlansPortalSession(req, res)
   );
 
-  app.post("/webhook", VerifyWebhook, (req, res) =>
+  app.post("/stripe/webhook", VerifyWebhook, (req, res) =>
     paymentStripeService.handleWebhook(req, res)
   );
 
