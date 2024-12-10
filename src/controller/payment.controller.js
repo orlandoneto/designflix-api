@@ -12,8 +12,10 @@ module.exports = (app) => {
     paymentStripeService.createSubscription(req, res)
   );
 
-  app.get("/retrieve-plan/:planId", AuthenticateRoute(["user"]), (req, res) =>
-    paymentStripeService.retrievePlans(req, res)
+  app.get(
+    "/retrieve-plan-stripe/:planId",
+    AuthenticateRoute(["user"]),
+    (req, res) => paymentStripeService.retrievePlans(req, res)
   );
 
   app.get("/user-plan-grouped/:id", AuthenticateRoute(["user"]), (req, res) =>
@@ -22,6 +24,10 @@ module.exports = (app) => {
 
   app.get("/user-plan", AuthenticateRoute(["user"]), (req, res) =>
     paymentStripeService.userPlan(req, res)
+  );
+
+  app.get("/user-plan-all", AuthenticateRoute(["user"]), (req, res) =>
+    paymentStripeService.getAllPlans(req, res)
   );
 
   app.get(
