@@ -34,7 +34,9 @@ module.exports = class {
 
       const userPlan = await this.createOrUpdatePlan(plan, customer, userId);
       if (!userPlan) {
-        res.status(400).send({ message: "Erro ao criar ou atualizar plano via cartão - stripe" });
+        res.status(400).send({
+          message: "Erro ao criar ou atualizar plano via cartão - stripe",
+        });
         return;
       }
 
@@ -78,6 +80,26 @@ module.exports = class {
       res
         .status(500)
         .send({ error: "Falha ao recuperar os planos do usuário" });
+    }
+  }
+
+  async getAllPlans(req, res) {
+    try {
+      const plans = await Plans.findAll({
+        where: {
+          type_plans: process.env.STRIPE_TYPE_PLAN_ID,
+        },
+      });
+
+      if (!plans) {
+        return res.status(404).send("Plano não encontrado");
+      }
+
+      res.status(200).send({ data: plans });
+    } catch (error) {
+      res.status(500).json({
+        message: error.message,
+      });
     }
   }
 

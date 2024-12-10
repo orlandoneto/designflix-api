@@ -12,8 +12,10 @@ module.exports = (app) => {
     paymentStripeService.createSubscription(req, res)
   );
 
-  app.get("/retrieve-plan/:planId", AuthenticateRoute(["user"]), (req, res) =>
-    paymentStripeService.retrievePlans(req, res)
+  app.get(
+    "/retrieve-plan-stripe/:planId",
+    AuthenticateRoute(["user"]),
+    (req, res) => paymentStripeService.retrievePlans(req, res)
   );
 
   app.get("/user-plan-grouped/:id", AuthenticateRoute(["user"]), (req, res) =>
@@ -24,13 +26,17 @@ module.exports = (app) => {
     paymentStripeService.userPlan(req, res)
   );
 
+  app.get("/user-plan-all", AuthenticateRoute(["user"]), (req, res) =>
+    paymentStripeService.getAllPlans(req, res)
+  );
+
   app.get(
     "/create-customer-portal-session",
     AuthenticateRoute(["user"]),
     (req, res) => paymentStripeService.userPlansPortalSession(req, res)
   );
 
-  app.post("/webhook", VerifyWebhook, (req, res) =>
+  app.post("/stripe/webhook", VerifyWebhook, (req, res) =>
     paymentStripeService.handleWebhook(req, res)
   );
 
