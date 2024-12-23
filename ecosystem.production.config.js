@@ -26,7 +26,7 @@ module.exports = {
       repo: "git@github.com:orlandoneto/designflix-api.git", // Repositório Git
       path: "/root/api/prd/designflix-api", // Caminho onde o projeto será implantado
       "post-deploy":
-        "npm install --production && npx sequelize db:seed:undo:all --env production && npx sequelize db:seed:all --env production && pm2 reload ecosystem.production.config.js --env production && pm2 save --force && pm2 list",
+        "npm i && npx sequelize db:seed:undo:all --env production && npx sequelize db:seed:all --env production && pm2 reload ecosystem.production.config.js --only designflix-api-dev && pm2 save --force && pm2 list",
       "pre-deploy-local": "echo 'Preparando deploy of production...'", // Opcional
     },
   },
