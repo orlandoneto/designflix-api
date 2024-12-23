@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "designflix-api-dev", // Nome da sua aplicação
-      script: "/root/api/dev/designflix-api/current/dist/main.js", // Arquivo principal da aplicação
+      script: "/root/api/dev/designflix-api/current/main.js", // Arquivo principal da aplicação
       instances: 1, // Garantindo que apenas uma instância será executada
       exec_mode: "fork", // Modo de execução "fork" (não cluster)
       watch: false, // Desabilita o watch em produção para evitar reinicializações desnecessárias
@@ -26,7 +26,7 @@ module.exports = {
       repo: "git@github.com:orlandoneto/designflix-api.git", // Repositório Git
       path: "/root/api/dev/designflix-api", // Caminho onde o projeto será implantado
       "post-deploy":
-        "npm i && npm run build-stg && npx sequelize db:seed:undo:all --env development && npx sequelize db:seed:all --env development && ln -sf /root/api/dev/designflix-api/source/src/middleware/private.key /root/api/dev/designflix-api/source/dist/middleware/private.key && pm2 reload ecosystem.development.config.js --env development && pm2 save --force && pm2 list",
+        "npm i && npm run build-stg && npx sequelize db:seed:undo:all --env development && npx sequelize db:seed:all --env development && pm2 reload ecosystem.development.config.js && --env development && pm2 save --force && pm2 list",
       "pre-deploy-local": "echo 'Preparando deploy of development...'", // Opcional
     },
   },
