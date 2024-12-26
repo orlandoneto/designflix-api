@@ -255,7 +255,7 @@ module.exports = class {
 
     const context = {
       name: "DesignFlix",
-      baseUrl: `${process.env.API_URL}/logo`,
+      baseUrl: process.env.API_URL,
     };
 
     sendEmail(paramsEmail, "index", context)

@@ -63,7 +63,7 @@ module.exports = class {
         context: {
           name: user.name,
           resetLink: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`,
-          baseUrl: `${process.env.API_URL}/logo`,
+          baseUrl: process.env.API_URL,
         },
       };
 

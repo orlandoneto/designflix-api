@@ -170,7 +170,7 @@ module.exports = class {
         context: {
           newPassword: time,
           name: admin.name,
-          baseUrl: `${process.env.API_URL}/logo`,
+          baseUrl: process.env.API_URL,
         },
       };
 
