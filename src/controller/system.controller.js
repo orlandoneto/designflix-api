@@ -1,13 +1,15 @@
 const fs = require("fs");
 const stream = require("stream");
 const path = require("path");
-const logo = path.join(__dirname, "../images/logo.png");
+
+
 module.exports = (app) => {
   app.get("/", (req, res) => {
     res.status(200).send("API ONLINE!! versão:" + process.env.VERSION_API);
   });
 
   app.get("/logo", (req, res) => {
+    const logo = path.join(__dirname, '../images/logo.png');
     fs.access(logo, fs.constants.F_OK, (err) => {
       if (err) {
         console.error("Logo file not found:", err);
