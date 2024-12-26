@@ -2,7 +2,6 @@ const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-handlebars");
 const path = require("path");
-const imageToBase64 = require('../utils/utils');
 
 const { User } = require("../models");
 
@@ -56,7 +55,6 @@ module.exports = class {
         })
       );
 
-      const base64Logo = imageToBase64(path.join(__dirname, '../images/logo.png'));
       const mailOptions = {
         from: process.env.EMAIL_TO_SEND,
         to: user.email,
@@ -65,7 +63,7 @@ module.exports = class {
         context: {
           name: user.name,
           resetLink: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`,
-          baseUrl: imageToBase64(base64Logo),
+          baseUrl: `${process.env.API_URL}`,
         },
       };
 
