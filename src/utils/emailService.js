@@ -14,7 +14,13 @@ const createTransporter = () => {
   });
 };
 
-const sendEmail = async (paramsEmail, templateName , context = {}) => {
+const sendEmail = async (
+  paramsEmail,
+  templateName,
+  context = {
+    baseUrl: `${process.env.API_URL}/logo.png`,
+  }
+) => {
   const transporter = createTransporter();
   transporter.use(
     "compile",

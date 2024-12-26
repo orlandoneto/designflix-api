@@ -99,6 +99,7 @@ module.exports = class {
       const context = {
         name: paramsEmail.name,
         time: "Sua nova senha temporária é 123456",
+        baseUrl: `${process.env.API_URL}/logo.png`,
       };
 
       sendEmail(paramsEmail, "index", context)
@@ -314,6 +315,7 @@ module.exports = class {
         context: {
           newPassword: time,
           name: user.name,
+          baseUrl: `${process.env.API_URL}/logo.png`,
         },
       };
 
