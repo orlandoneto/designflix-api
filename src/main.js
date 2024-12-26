@@ -13,8 +13,7 @@ app.use(helmet());
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 app.use(morgan("dev"));
-const publicPath = path.resolve(__dirname, "..", "public");
-app.use("/", express.static(publicPath));
+app.use("/", express.static(path.resolve(__dirname, "..", "public")));
 app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
 
 app.use(
