@@ -58,7 +58,7 @@ module.exports = class {
       const mailOptions = {
         from: process.env.EMAIL_TO_SEND,
         to: user.email,
-        subject: "Redefinição de Senha - DesignFlix",
+        subject: "Redefinição de Senha - FlixDesign",
         template: "forgot",
         context: {
           name: user.name,

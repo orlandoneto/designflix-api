@@ -1,5 +1,5 @@
 {
-  "name": "designflix-api",
+  "name": "flixdesign-api",
   "private": true,
   "version": "1.0.0",
   "description": "API Design Flix made on Node.js",
@@ -18,7 +18,7 @@
     "copy-keys": "cp ./src/middleware/private.key ./dist/middleware/",
     "build": "babel src --out-dir dist && npm run copy-keys"
   },
-  "author": "DesignFlix",
+  "author": "FlixDesign",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.700.0",
     "@aws-sdk/s3-request-presigner": "^3.700.0",

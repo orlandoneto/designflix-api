@@ -92,7 +92,7 @@ module.exports = class {
       const paramsEmail = {
         email: email,
         name: name,
-        title: "DesignFlix - Usuário criado",
+        title: "FlixDesign - Usuário criado",
         description: "Sua conta foi criada com sucesso!",
       };
 
@@ -309,7 +309,7 @@ module.exports = class {
       const mailOptions = {
         from: process.env.EMAIL_TO_SEND,
         to: user.email,
-        subject: "Reset de Senha - DesignFlix",
+        subject: "Reset de Senha - FlixDesign",
         text: "",
         template: "index",
         context: {

@@ -248,13 +248,13 @@ module.exports = class {
   handleSendEmail(email) {
     const paramsEmail = {
       email: email,
-      name: email.replace(/^[^@]+/, "") || "DesignFlix",
-      title: "DesignFlix - Assinatura concluída",
+      name: email.replace(/^[^@]+/, "") || "FlixDesign",
+      title: "FlixDesign - Assinatura concluída",
       description: `<p>Sua Assinatura esta: <strong>concluída</strong></p>`,
     };
 
     const context = {
-      name: "DesignFlix",
+      name: "FlixDesign",
       baseUrl: process.env.API_URL,
     };
 
