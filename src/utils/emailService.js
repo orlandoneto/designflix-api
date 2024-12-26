@@ -18,7 +18,7 @@ const sendEmail = async (
   paramsEmail,
   templateName,
   context = {
-    baseUrl: `${process.env.API_URL}/logo`,
+    baseUrl: process.env.API_URL,
   }
 ) => {
   const transporter = createTransporter();

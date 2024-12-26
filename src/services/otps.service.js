@@ -29,7 +29,7 @@ module.exports = class {
       const context = {
         name: paramsEmail.name,
         otps: otp,
-        baseUrl: `${process.env.API_URL}/logo`,
+        baseUrl: process.env.API_URL,
       };
 
       sendEmail(paramsEmail, "otps", context)

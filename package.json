@@ -14,6 +14,7 @@
     "migrate": "cd src && npx sequelize-cli db:migrate && cd ..",
     "deploy-stg": "pm2 deploy ecosystem.development.config.js staging",
     "deploy-prd": "pm2 deploy ecosystem.production.config.js production",
+    "deploy": "yarn run deploy-stg && yarn run deploy-prd",
     "copy-keys": "cp ./src/middleware/private.key ./dist/middleware/",
     "build": "babel src --out-dir dist && npm run copy-keys"
   },
