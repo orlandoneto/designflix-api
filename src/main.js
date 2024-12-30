@@ -66,9 +66,7 @@ const swaggerOptions = {
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
-if (process.env.API_URL.length > 0) {
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-}
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 app.get("/favicon.ico", (req, res) => {
   res.sendStatus(204);
