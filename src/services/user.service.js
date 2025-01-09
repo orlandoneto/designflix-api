@@ -39,6 +39,30 @@ module.exports = class {
     res.status(200).send({ data: user });
   }
 
+  async getUserByEmail(req, res) {
+    const { email } = req.params;
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email é obrigatório" });
+    }
+
+    try {
+      const user = await User.findOne({ where: { email } });
+      if (!user) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Usuário não encontrado" });
+      }
+
+      return res.status(200).json({ success: true});
+    } catch (error) {
+      return res
+        .status(500)
+        .json({ success: false, message: "Erro interno do servidor" });
+    }
+  }
+
   async getByEmail(email) {
     const user = await User.findOne({
       where: { email },
