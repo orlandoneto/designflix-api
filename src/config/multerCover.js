@@ -59,9 +59,11 @@ module.exports = {
       "application/vnd.corel-draw",
       "image/vnd.adobe.photoshop",
       "application/x-canva",
-      "application/zip", // ZIP - Permitindo upload de ZIP
-      "application/x-rar-compressed", // RAR
-      "application/x-7z-compressed", // 7z
+      "application/zip",
+      "application/x-rar",
+      "application/x-zip-compressed",
+      "application/x-compressed",
+      "application/x-7z-compressed",
     ];
 
     if (allowedMimes.includes(file.mimetype)) {

@@ -31,6 +31,11 @@ const fileFilter = (req, file, cb) => {
     "application/vnd.corel-draw",  // CDR
     "image/vnd.adobe.photoshop",  // PSD
     "application/x-canva",  // CANVA (não é um formato oficial, mas incluído por especificação)
+    "application/zip",
+    "application/x-rar",
+    "application/x-zip-compressed",
+    "application/x-compressed",
+    "application/x-7z-compressed",
   ];
 
   if (allowedMimes.includes(file.mimetype)) {
