@@ -50,6 +50,8 @@ module.exports = (app) => {
     UserService.get(req, res)
   );
 
+  app.get("/user/find/:email", (req, res) => UserService.getUserByEmail(req, res));
+
   /**
    * @openapi
    * /user:
