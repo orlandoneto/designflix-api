@@ -37,7 +37,9 @@ module.exports = (folderName) => {
         "image/gif",
         "image/svg+xml",
         "application/zip",
-        "application/x-rar-compressed",
+        "application/x-rar",
+        "application/x-zip-compressed",
+        "application/x-compressed",
         "application/x-7z-compressed",
       ];
 
