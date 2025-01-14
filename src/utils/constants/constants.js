@@ -8,7 +8,7 @@ const ROLES = {
 };
 
 const CONST = {
-  LIMIT_SIZE_IMG: 20 * 1024 * 1024, // Limite de tamanho: 20MB
+  LIMIT_SIZE_IMG: 300 * 1024 * 1024, // Limite de tamanho: 300MB
 };
 
 module.exports = { ROLES, CONST };
