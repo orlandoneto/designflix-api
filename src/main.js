@@ -19,7 +19,7 @@ app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
 app.use(
   express.urlencoded({
     extended: true,
-    limit: "50mb",
+    limit: "300mb",
     parameterLimit: "9999999",
   })
 );
