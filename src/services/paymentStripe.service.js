@@ -2,6 +2,13 @@ const stripe = require("../config/stripe");
 const { sendEmail } = require("../utils/emailService");
 const { UserPlans, Plans, User } = require("../models");
 
+const planNames = {
+  free: "Gratuito",
+  monthly: "Mensal",
+  semi_annual: "Semestral",
+  annual: "Anual",
+};
+
 module.exports = class {
   async createSubscription(req, res) {
     try {
@@ -40,7 +47,11 @@ module.exports = class {
         return;
       }
 
-      this.handleSendEmail(email);
+      const title = `FlixDesign - Assinatura do plano ${
+        planNames[plan?.plan_name] || plan?.plan_name
+      } concluída`;
+      const description = `<p>Sua Assinatura esta: <strong>concluída</strong></p>`;
+      this.handleSendEmail(email, title, description);
       res.status(200).json(subscription);
     } catch (error) {
       console.log(error);
@@ -205,52 +216,74 @@ module.exports = class {
     }
   }
 
-  handleWebhook(req, res) {
-    const sig = req.headers["stripe-signature"];
+  async handleWebhook(req, res) {
+    // console.log("Webhook recebido:", req.body);
 
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
-    } catch (error) {
-      console.error("Erro ao crair hook:", error);
-      return res.status(400).send(`Webhook Error: ${error.message}`);
-    }
-
-    const paymentIntent = event.data.object;
-
-    switch (event.type) {
+    const eventType = req.body.type; // Tipo do evento recebido
+    const eventData = req.body.data.object; // Dados do evento
+    switch (eventType) {
       case "invoice.payment_succeeded":
-        this.handlePaymentSucceeded(paymentIntent);
+        // console.log("Pagamento da fatura concluído:", eventData);
         break;
+
       case "invoice.payment_failed":
-        this.handlePaymentFailed(paymentIntent);
+        // console.log("Pagamento da fatura falhou:", eventData);
         break;
+
+      case "customer.subscription.deleted":
+        // console.log("Assinatura cancelada:", eventData);
+        break;
+
+      case "customer.subscription.updated":
+        // console.log("Assinatura atualizada:", eventData);
+        break;
+
+      case "customer.created":
+        // console.log("Novo cliente criado:", eventData);
+        break;
+
+      case "customer.updated":
+        // console.log("Dados do cliente atualizados:", eventData);
+        break;
+
+      case "invoice.finalized":
+        // console.log("Fatura finalizada:", eventData);
+        break;
+
+      case "charge.refunded": // Evento de reembolso
+        // console.log("Pagamento reembolsado:", eventData);
+        this.handleRefund(eventData); // Chame um método separado para lidar com reembolsos, se necessário
+        break;
+
       default:
-        console.log(`Unhandled event type ${event.type}`);
+        console.log(`Evento não tratado: ${eventType}`);
     }
 
     res.json({ received: true });
   }
 
-  handlePaymentSucceeded(paymentIntent) {
-    console.log("Payment succeeded", paymentIntent);
+  handleRefund(refundData) {
+    try {
+      const refundId = refundData.id; // ID do reembolso
+      const paymentIntentId = refundData.payment_intent; // ID do pagamento original
+      const amountRefunded = refundData.amount / 100; // Valor reembolsado (em unidades monetárias)
+
+      console.log(`Reembolso processado: ${refundId}`);
+      console.log(`Pagamento original: ${paymentIntentId}`);
+      console.log(`Valor reembolsado: $${amountRefunded}`);
+    } catch (error) {
+      console.error("Erro ao processar reembolso:", error);
+    }
   }
 
-  handlePaymentFailed(paymentIntent) {
-    console.log("Payment failed", paymentIntent);
-  }
+  // EVENTOS HOOKS
 
-  handleSendEmail(email) {
+  handleSendEmail(email, title, description) {
     const paramsEmail = {
       email: email,
       name: email.replace(/^[^@]+/, "") || "FlixDesign",
-      title: "FlixDesign - Assinatura concluída",
-      description: `<p>Sua Assinatura esta: <strong>concluída</strong></p>`,
+      title: title,
+      description: description,
     };
 
     const context = {

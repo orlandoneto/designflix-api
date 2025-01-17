@@ -11,7 +11,11 @@ const verifyWebhook = (req, res, next) => {
         : undefined,
     },
     (err, body) => {
-      if (err) return next(err);
+      if (err) {
+        console.error("Erro ao processar corpo da requisição:", err.message);
+        return res.status(400).send("Webhook Error: Corpo inválido");
+      }
+
       req.body = body;
       next();
     }

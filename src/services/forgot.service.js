@@ -56,7 +56,7 @@ module.exports = class {
       );
 
       const mailOptions = {
-        from: process.env.EMAIL_TO_SEND,
+        from: process.env.EMAIL_USER_SMTP,
         to: user.email,
         subject: "Redefinição de Senha - FlixDesign",
         template: "forgot",
