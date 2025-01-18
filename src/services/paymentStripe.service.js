@@ -54,7 +54,7 @@ module.exports = class {
       this.handleSendEmail(email, title, description);
       res.status(200).json(subscription);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(500).json({
         message: error.message,
       });
@@ -217,7 +217,7 @@ module.exports = class {
   }
 
   async handleWebhook(req, res) {
-    // console.log("Webhook recebido:", req.body);
+    //console.log("Webhook recebido:", JSON.stringify(req.body, null, 2));
 
     const eventType = req.body.type; // Tipo do evento recebido
     const eventData = req.body.data.object; // Dados do evento
@@ -262,21 +262,68 @@ module.exports = class {
     res.json({ received: true });
   }
 
-  handleRefund(refundData) {
+  async handleRefund(refundData) {
     try {
-      const refundId = refundData.id; // ID do reembolso
-      const paymentIntentId = refundData.payment_intent; // ID do pagamento original
+      if (
+        !refundData ||
+        !refundData.customer ||
+        !refundData.billing_details?.email ||
+        !refundData.amount
+      ) {
+        throw new Error("Dados de reembolso inválidos ou incompletos.");
+      }
+
+      const customerId = refundData.customer; // ID do cliente no Stripe
+      const emailUser = refundData.billing_details.email; // E-mail do usuário
       const amountRefunded = refundData.amount / 100; // Valor reembolsado (em unidades monetárias)
 
-      console.log(`Reembolso processado: ${refundId}`);
-      console.log(`Pagamento original: ${paymentIntentId}`);
-      console.log(`Valor reembolsado: $${amountRefunded}`);
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+      });
+
+      if (!userPlan) {
+        console.warn(`Nenhum plano encontrado para o cliente: ${customerId}`);
+        return null;
+      }
+
+      const destroyUserPlan = await userPlan.destroy();
+      if (destroyUserPlan) {
+        const paramsEmail = {
+          email: emailUser,
+          name: emailUser.split("@")[0],
+          title: "Reembolso de plano",
+          description: "Reembolso de plano",
+        };
+
+        const contextParams = {
+          amount: amountRefunded.toFixed(2),
+          refundDate: new Date().toLocaleDateString("pt-BR"),
+          baseUrl: process.env.API_URL,
+        };
+
+        this.handleRefundPlanSendEmail(paramsEmail, contextParams);
+
+        return userPlan;
+      }
+
+      console.error("Erro ao excluir o plano do usuário.");
+      return null;
     } catch (error) {
-      console.error("Erro ao processar reembolso:", error);
+      console.error("Erro ao processar reembolso:", error.message);
+      console.error(error);
     }
   }
-
   // EVENTOS HOOKS
+
+  handleRefundPlanSendEmail(paramsEmail, context) {
+    sendEmail(paramsEmail, "refundPlan", context)
+      .then((response) => {
+        console.log("Email enviado com sucesso:", response);
+      })
+      .catch((error) => {
+        console.error("Erro ao enviar email:", error);
+      });
+  }
 
   handleSendEmail(email, title, description) {
     const paramsEmail = {
