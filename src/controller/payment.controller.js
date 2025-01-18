@@ -1,6 +1,5 @@
 const PaymentStripeService = require("../services/paymentStripe.service");
 const PaymentMercadopagoService = require("../services/paymentMercadopago.service");
-const VerifyWebhook = require("../middleware/verifyWebhook");
 const AuthenticateRoute = require("../middleware/authentication");
 
 module.exports = (app) => {
@@ -36,8 +35,9 @@ module.exports = (app) => {
     (req, res) => paymentStripeService.userPlansPortalSession(req, res)
   );
 
-  app.post("/stripe/webhook", VerifyWebhook, (req, res) =>
-    paymentStripeService.handleWebhook(req, res)
+  app.post(
+    "/stripe/webhook",
+    (req, res) => paymentStripeService.handleWebhook(req, res)
   );
 
   app.get(

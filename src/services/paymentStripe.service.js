@@ -2,6 +2,13 @@ const stripe = require("../config/stripe");
 const { sendEmail } = require("../utils/emailService");
 const { UserPlans, Plans, User } = require("../models");
 
+const planNames = {
+  free: "Gratuito",
+  monthly: "Mensal",
+  semi_annual: "Semestral",
+  annual: "Anual",
+};
+
 module.exports = class {
   async createSubscription(req, res) {
     try {
@@ -40,10 +47,14 @@ module.exports = class {
         return;
       }
 
-      this.handleSendEmail(email);
+      const title = `FlixDesign - Assinatura do plano ${
+        planNames[plan?.plan_name] || plan?.plan_name
+      } concluída`;
+      const description = `<p>Sua Assinatura esta: <strong>concluída</strong></p>`;
+      this.handleSendEmail(email, title, description);
       res.status(200).json(subscription);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(500).json({
         message: error.message,
       });
@@ -205,52 +216,121 @@ module.exports = class {
     }
   }
 
-  handleWebhook(req, res) {
-    const sig = req.headers["stripe-signature"];
+  async handleWebhook(req, res) {
+    //console.log("Webhook recebido:", JSON.stringify(req.body, null, 2));
 
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
-    } catch (error) {
-      console.error("Erro ao crair hook:", error);
-      return res.status(400).send(`Webhook Error: ${error.message}`);
-    }
-
-    const paymentIntent = event.data.object;
-
-    switch (event.type) {
+    const eventType = req.body.type; // Tipo do evento recebido
+    const eventData = req.body.data.object; // Dados do evento
+    switch (eventType) {
       case "invoice.payment_succeeded":
-        this.handlePaymentSucceeded(paymentIntent);
+        // console.log("Pagamento da fatura concluído:", eventData);
         break;
+
       case "invoice.payment_failed":
-        this.handlePaymentFailed(paymentIntent);
+        // console.log("Pagamento da fatura falhou:", eventData);
         break;
+
+      case "customer.subscription.deleted":
+        // console.log("Assinatura cancelada:", eventData);
+        break;
+
+      case "customer.subscription.updated":
+        // console.log("Assinatura atualizada:", eventData);
+        break;
+
+      case "customer.created":
+        // console.log("Novo cliente criado:", eventData);
+        break;
+
+      case "customer.updated":
+        // console.log("Dados do cliente atualizados:", eventData);
+        break;
+
+      case "invoice.finalized":
+        // console.log("Fatura finalizada:", eventData);
+        break;
+
+      case "charge.refunded": // Evento de reembolso
+        // console.log("Pagamento reembolsado:", eventData);
+        this.handleRefund(eventData); // Chame um método separado para lidar com reembolsos, se necessário
+        break;
+
       default:
-        console.log(`Unhandled event type ${event.type}`);
+        console.log(`Evento não tratado: ${eventType}`);
     }
 
     res.json({ received: true });
   }
 
-  handlePaymentSucceeded(paymentIntent) {
-    console.log("Payment succeeded", paymentIntent);
+  async handleRefund(refundData) {
+    try {
+      if (
+        !refundData ||
+        !refundData.customer ||
+        !refundData.billing_details?.email ||
+        !refundData.amount
+      ) {
+        throw new Error("Dados de reembolso inválidos ou incompletos.");
+      }
+
+      const customerId = refundData.customer; // ID do cliente no Stripe
+      const emailUser = refundData.billing_details.email; // E-mail do usuário
+      const amountRefunded = refundData.amount / 100; // Valor reembolsado (em unidades monetárias)
+
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+      });
+
+      if (!userPlan) {
+        console.warn(`Nenhum plano encontrado para o cliente: ${customerId}`);
+        return null;
+      }
+
+      const destroyUserPlan = await userPlan.destroy();
+      if (destroyUserPlan) {
+        const paramsEmail = {
+          email: emailUser,
+          name: emailUser.split("@")[0],
+          title: "Reembolso de plano",
+          description: "Reembolso de plano",
+        };
+
+        const contextParams = {
+          amount: amountRefunded.toFixed(2),
+          refundDate: new Date().toLocaleDateString("pt-BR"),
+          baseUrl: process.env.API_URL,
+        };
+
+        this.handleRefundPlanSendEmail(paramsEmail, contextParams);
+
+        return userPlan;
+      }
+
+      console.error("Erro ao excluir o plano do usuário.");
+      return null;
+    } catch (error) {
+      console.error("Erro ao processar reembolso:", error.message);
+      console.error(error);
+    }
+  }
+  // EVENTOS HOOKS
+
+  handleRefundPlanSendEmail(paramsEmail, context) {
+    sendEmail(paramsEmail, "refundPlan", context)
+      .then((response) => {
+        console.log("Email enviado com sucesso:", response);
+      })
+      .catch((error) => {
+        console.error("Erro ao enviar email:", error);
+      });
   }
 
-  handlePaymentFailed(paymentIntent) {
-    console.log("Payment failed", paymentIntent);
-  }
-
-  handleSendEmail(email) {
+  handleSendEmail(email, title, description) {
     const paramsEmail = {
       email: email,
       name: email.replace(/^[^@]+/, "") || "FlixDesign",
-      title: "FlixDesign - Assinatura concluída",
-      description: `<p>Sua Assinatura esta: <strong>concluída</strong></p>`,
+      title: title,
+      description: description,
     };
 
     const context = {

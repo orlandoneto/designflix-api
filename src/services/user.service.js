@@ -331,7 +331,7 @@ module.exports = class {
 
     try {
       const mailOptions = {
-        from: process.env.EMAIL_TO_SEND,
+        from: process.env.EMAIL_USER_SMTP,
         to: user.email,
         subject: "Reset de Senha - FlixDesign",
         text: "",
