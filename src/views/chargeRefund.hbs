@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bem-vindo ao FlixDesign</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css?family=Rubik:300,400,500,700|Open+Sans:300,400,600,700');
+    body {
+      font-family: 'Open Sans', sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 670px;
+      margin: 0 auto;
+      background-color: #fff;
+      border-radius: 3px;
+      box-shadow: 0 6px 18px 0 rgba(0, 0, 0, .06);
+      text-align: left;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      background: #0A1218;
+      padding: 20px;
+    }
+
+    .header img {
+      width: 275px;
+    }
+
+    .content {
+      color: #455056;
+      font-size: 15px;
+      line-height: 24px;
+      margin: 20px 0;
+    }
+
+    .footer {
+      text-align: center;
+      color: #999;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+       <img src="{{baseUrl}}/logo.png" title="logo do FlixDesign" alt="logo do FlixDesign">
+    </div>
+    <div class="content">
+      <p>Olá {{name}},</p>
+      <p>Gostaríamos de informar que o reembolso referente à sua assinatura no plano <strong>{{planName}}</strong> do FlixDesign foi concluído com sucesso.</p>
+      <p>Segue abaixo os detalhes do reembolso:</p>
+      <ul>
+        <li><strong>Plano:</strong> {{planName}}</li>
+        <li><strong>Valor reembolsado:</strong> R$ {{amount}}</li>
+        <li><strong>Data do reembolso:</strong> {{refundDate}}</li>
+      </ul>
+      <p>O valor será devolvido para o mesmo método de pagamento utilizado no momento da assinatura. Por favor, note que o prazo para o crédito do valor pode variar de acordo com o banco ou a administradora do cartão.</p>
+      <p>Caso tenha qualquer dúvida ou necessite de mais informações, não hesite em entrar em contato com nossa equipe de suporte. Estamos à disposição para ajudá-lo.</p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2024 FlixDesign. Todos os direitos reservados.</p>
+    </div>
+  </div>
+</body>
+
+</html>
