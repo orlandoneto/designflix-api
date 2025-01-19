@@ -216,43 +216,31 @@ module.exports = class {
     }
   }
 
+  // START EVENTOS HOOKS
+
   async handleWebhook(req, res) {
-    //console.log("Webhook recebido:", JSON.stringify(req.body, null, 2));
+    const eventType = req.body.type;
+    const eventData = req.body.data.object;
 
-    const eventType = req.body.type; // Tipo do evento recebido
-    const eventData = req.body.data.object; // Dados do evento
     switch (eventType) {
-      case "invoice.payment_succeeded":
-        // console.log("Pagamento da fatura concluído:", eventData);
+      case "charge.refunded": // Evento de reembolso de assinatura
+        await this.handleSubscriptionChange(
+          eventData,
+          "chargeRefund",
+          "Reembolso de plano"
+        );
         break;
 
-      case "invoice.payment_failed":
-        // console.log("Pagamento da fatura falhou:", eventData);
+      case "customer.subscription.deleted": // Evento de cancelamento de assinatura
+        await this.handleSubscriptionChange(
+          eventData,
+          "customerSubscriptionDeleted",
+          "Cancelamento de plano"
+        );
         break;
 
-      case "customer.subscription.deleted":
-        // console.log("Assinatura cancelada:", eventData);
-        break;
-
-      case "customer.subscription.updated":
-        // console.log("Assinatura atualizada:", eventData);
-        break;
-
-      case "customer.created":
-        // console.log("Novo cliente criado:", eventData);
-        break;
-
-      case "customer.updated":
-        // console.log("Dados do cliente atualizados:", eventData);
-        break;
-
-      case "invoice.finalized":
-        // console.log("Fatura finalizada:", eventData);
-        break;
-
-      case "charge.refunded": // Evento de reembolso
-        // console.log("Pagamento reembolsado:", eventData);
-        this.handleRefund(eventData); // Chame um método separado para lidar com reembolsos, se necessário
+      case "customer.subscription.updated": // Evento de atualização de assinatura
+        await this.handleSubscriptionUpdated(eventData);
         break;
 
       default:
@@ -262,23 +250,29 @@ module.exports = class {
     res.json({ received: true });
   }
 
-  async handleRefund(refundData) {
+  async handleSubscriptionChange(data, emailTemplate, emailTitle) {
     try {
-      if (
-        !refundData ||
-        !refundData.customer ||
-        !refundData.billing_details?.email ||
-        !refundData.amount
-      ) {
-        throw new Error("Dados de reembolso inválidos ou incompletos.");
+      if (!data?.customer || !data.billing_details?.email) {
+        throw new Error("Dados inválidos ou incompletos.");
       }
 
-      const customerId = refundData.customer; // ID do cliente no Stripe
-      const emailUser = refundData.billing_details.email; // E-mail do usuário
-      const amountRefunded = refundData.amount / 100; // Valor reembolsado (em unidades monetárias)
+      const customerId = data.customer;
+      const emailUser = data.billing_details.email;
 
       const userPlan = await UserPlans.findOne({
         where: { stripe_customer_id: customerId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["id", "plan_name", "count_downloads"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "name", "contributor"],
+          },
+        ],
       });
 
       if (!userPlan) {
@@ -286,37 +280,173 @@ module.exports = class {
         return null;
       }
 
-      const destroyUserPlan = await userPlan.destroy();
-      if (destroyUserPlan) {
+      const userName = userPlan.user?.name;
+      const planName = userPlan.plans?.plan_name;
+      if (!userName || !planName) {
+        console.error(
+          `Dados incompletos no plano ou usuário. Plano: ${planName}, Usuário: ${userName}`
+        );
+        return null;
+      }
+
+      await userPlan.destroy();
+
+      const paramsEmail = {
+        email: emailUser,
+        name: userName,
+        title: emailTitle,
+        description: emailTitle, // FIXME:  Analisr se é passdo
+      };
+
+      const contextParams = {
+        name: userName,
+        planName: planNames?.[planName] || planName,
+        amount:
+          emailTemplate === "chargeRefund"
+            ? (data.amount / 100).toFixed(2)
+            : undefined,
+        cancellationDate:
+          emailTemplate === "customerSubscriptionDeleted"
+            ? new Date().toLocaleDateString("pt-BR")
+            : undefined,
+        refundDate:
+          emailTemplate === "chargeRefund"
+            ? new Date().toLocaleDateString("pt-BR")
+            : undefined,
+        baseUrl: process.env.API_URL,
+      };
+
+      this.handleRefudedOrCanceledSendEmail(
+        paramsEmail,
+        emailTemplate,
+        contextParams
+      );
+      return userPlan;
+    } catch (error) {
+      console.error(
+        "Erro ao processar alteração na assinatura:",
+        error.message
+      );
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async handleSubscriptionUpdated(data) {
+    try {
+      if (!data?.customer || !data.billing_details?.email) {
+        throw new Error("Dados inválidos ou incompletos.");
+      }
+
+      const customerId = data.customer;
+      const emailUser = data.billing_details.email;
+
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["id", "plan_name", "count_downloads"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "name", "contributor"],
+          },
+        ],
+      });
+
+      if (!userPlan) {
+        console.warn(`Nenhum plano encontrado para o cliente: ${customerId}`);
+        return null;
+      }
+
+      const userName = userPlan.user?.name;
+      const planName = userPlan.plans?.plan_name;
+      if (!userName || !planName) {
+        console.error(
+          `Dados incompletos no plano ou usuário. Plano: ${planName}, Usuário: ${userName}`
+        );
+        return null;
+      }
+
+      const updatedFields = [];
+
+      if (data.items && data.items.data) {
+        const newPlanId = data.items.data[0].plan.id;
+        const newPlanName = data.items.data[0].plan.name;
+        if (newPlanId !== userPlan.plans.id) {
+          updatedFields.push(`Plano alterado para: ${newPlanName}`);
+        }
+      }
+
+      if (data.items && data.items.data) {
+        const newQuantity = data.items.data[0].quantity;
+        if (newQuantity !== userPlan.count_downloads) {
+          updatedFields.push(`Quantidade alterada para: ${newQuantity}`);
+        }
+      }
+
+      const newStatus = data.status;
+      if (newStatus !== userPlan.status) {
+        updatedFields.push(`Status alterado para: ${newStatus}`);
+      }
+
+      if (data.metadata && Object.keys(data.metadata).length > 0) {
+        updatedFields.push(
+          `Metadados alterados: ${JSON.stringify(data.metadata)}`
+        );
+      }
+
+      if (updatedFields.length > 0) {
+        console.log(`Alterações detectadas: ${updatedFields.join(", ")}`);
+
         const paramsEmail = {
           email: emailUser,
-          name: emailUser.split("@")[0],
-          title: "Reembolso de plano",
-          description: "Reembolso de plano",
+          name: userName,
+          title: "Assinatura atualizada",
+          description: `Sua assinatura foi atualizada. Alterações: ${updatedFields.join(
+            ", "
+          )}`,
         };
 
         const contextParams = {
-          amount: amountRefunded.toFixed(2),
-          refundDate: new Date().toLocaleDateString("pt-BR"),
+          name: userName,
+          planName: planName,
+          updatedDate: new Date().toLocaleDateString("pt-BR"),
           baseUrl: process.env.API_URL,
         };
 
-        this.handleRefundPlanSendEmail(paramsEmail, contextParams);
-
-        return userPlan;
+        this.handleUpdatedSendEmail(
+          "customerSubscriptionUpdated",
+          paramsEmail,
+          contextParams
+        );
       }
 
-      console.error("Erro ao excluir o plano do usuário.");
-      return null;
+      return userPlan;
     } catch (error) {
-      console.error("Erro ao processar reembolso:", error.message);
+      console.error(
+        "Erro ao processar atualização de assinatura:",
+        error.message
+      );
       console.error(error);
+      throw error;
     }
   }
-  // EVENTOS HOOKS
 
-  handleRefundPlanSendEmail(paramsEmail, context) {
-    sendEmail(paramsEmail, "refundPlan", context)
+  handleRefudedOrCanceledSendEmail(paramsEmail, template, context) {
+    sendEmail(paramsEmail, template, context)
+      .then((response) => {
+        console.log("Email enviado com sucesso:", response);
+      })
+      .catch((error) => {
+        console.error("Erro ao enviar email:", error);
+      });
+  }
+  handleUpdatedSendEmail(paramsEmail, template, context) {
+    sendEmail(paramsEmail, template, context)
       .then((response) => {
         console.log("Email enviado com sucesso:", response);
       })
@@ -346,4 +476,6 @@ module.exports = class {
         console.error("Erro ao enviar email:", error);
       });
   }
+
+  // END EVENTOS EMAILS HOOKS
 };
