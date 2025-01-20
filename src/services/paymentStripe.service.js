@@ -264,8 +264,8 @@ module.exports = class {
       if (!customer || !customer.email) {
         throw new Error("Não foi possível obter o e-mail do cliente.");
       }
-
       const emailUser = customer.email;
+
       const userPlan = await UserPlans.findOne({
         where: { stripe_customer_id: customerId },
         include: [
@@ -398,19 +398,22 @@ module.exports = class {
         "Erro ao processar alteração na assinatura:",
         error.message
       );
-      console.error(error);
       throw error;
     }
   }
 
   async handleSubscriptionUpdated(data) {
     try {
-      if (!data?.customer || !data.billing_details?.email) {
+      if (!data?.customer) {
         throw new Error("Dados inválidos ou incompletos.");
       }
 
       const customerId = data.customer;
-      const emailUser = data.billing_details.email;
+      const customer = await stripe.customers.retrieve(customerId);
+      if (!customer || !customer.email) {
+        throw new Error("Não foi possível obter o e-mail do cliente.");
+      }
+      const emailUser = customer.email;
 
       const userPlan = await UserPlans.findOne({
         where: { stripe_customer_id: customerId },
@@ -418,7 +421,7 @@ module.exports = class {
           {
             model: Plans,
             as: "plans",
-            attributes: ["plan_name"],
+            attributes: ["id", "plan_name"],
           },
           {
             model: User,
@@ -442,59 +445,47 @@ module.exports = class {
         return null;
       }
 
-      const updatedFields = [];
+      let statusPlan;
+      let additionalDetails = "";
 
-      if (data.items && data.items.data) {
-        const newPlanId = data.items.data[0].plan.id;
-        const newPlanName = data.items.data[0].plan.name;
-        if (newPlanId !== userPlan.plans.id) {
-          updatedFields.push(`Plano alterado para: ${newPlanName}`);
-        }
-      }
-
-      if (data.items && data.items.data) {
-        const newQuantity = data.items.data[0].quantity;
-        if (newQuantity !== userPlan.count_downloads) {
-          updatedFields.push(`Quantidade alterada para: ${newQuantity}`);
-        }
-      }
-
-      const newStatus = data.status;
-      if (newStatus !== userPlan.status) {
-        updatedFields.push(`Status alterado para: ${newStatus}`);
-      }
-
-      if (data.metadata && Object.keys(data.metadata).length > 0) {
-        updatedFields.push(
-          `Metadados alterados: ${JSON.stringify(data.metadata)}`
+      if (
+        data.cancel_at_period_end &&
+        data.cancellation_details?.reason === "cancellation_requested"
+      ) {
+        const cancelDate = new Date(data.cancel_at * 1000).toLocaleDateString(
+          "pt-BR"
         );
+        statusPlan = "Cancelamento solicitado";
+        additionalDetails = cancelDate;
+      } else if (
+        !data.cancel_at_period_end &&
+        !data.cancellation_details?.reason
+      ) {
+        statusPlan = "Plano ativo";
+      } else {
+        statusPlan = "Status indefinido";
       }
 
-      if (updatedFields.length > 0) {
-        console.log(`Alterações detectadas: ${updatedFields.join(", ")}`);
+      const paramsEmail = {
+        email: emailUser,
+        name: userName,
+        title: "Assinatura atualizada",
+      };
 
-        const paramsEmail = {
-          email: emailUser,
-          name: userName,
-          title: "Assinatura atualizada",
-          description: `Sua assinatura foi atualizada. Alterações: ${updatedFields.join(
-            ", "
-          )}`,
-        };
+      const contextParams = {
+        name: userName,
+        planName: planNames?.[planName] || planName,
+        statusPlan,
+        additionalDetails,
+        updatedDate: new Date().toLocaleDateString("pt-BR"),
+        baseUrl: process.env.API_URL,
+      };
 
-        const contextParams = {
-          name: userName,
-          planName: planName,
-          updatedDate: new Date().toLocaleDateString("pt-BR"),
-          baseUrl: process.env.API_URL,
-        };
-
-        this.handleUpdatedSendEmail(
-          "customerSubscriptionUpdated",
-          paramsEmail,
-          contextParams
-        );
-      }
+      this.handleUpdatedSendEmail(
+        paramsEmail,
+        "customerSubscriptionUpdated",
+        contextParams
+      );
 
       return userPlan;
     } catch (error) {
@@ -502,7 +493,6 @@ module.exports = class {
         "Erro ao processar atualização de assinatura:",
         error.message
       );
-      console.error(error);
       throw error;
     }
   }

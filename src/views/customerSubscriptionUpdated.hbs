@@ -56,32 +56,25 @@
         <img src="{{baseUrl}}/logo.png" title="logo do FlixDesign" alt="logo do FlixDesign">
       </div>
       <div class="content">
-      <p>Olá {{name}},</p>
-      
-      <p>Estamos entrando em contato para informar que houve uma atualização em sua assinatura no FlixDesign. Abaixo estão os detalhes das mudanças recentes:</p>
+        <p>Olá {{name}},</p>
+        
+        <p>Estamos entrando em contato para informar que houve uma atualização em sua assinatura no FlixDesign. Abaixo estão os detalhes das mudanças recentes:</p>
 
-      <p>Alterações na sua assinatura:</p>
-      <ul>
-        {{#if updatedFields.plan}}
-          <li><strong>Plano:</strong> {{updatedFields.plan}}</li>
-        {{/if}}
-        {{#if updatedFields.quantity}}
-          <li><strong>Quantidade de downloads:</strong> {{updatedFields.quantity}}</li>
-        {{/if}}
-        {{#if updatedFields.status}}
-          <li><strong>Status da assinatura:</strong> {{updatedFields.status}}</li>
-        {{/if}}
-        {{#if updatedFields.metadata}}
-          <li><strong>Metadados:</strong> {{updatedFields.metadata}}</li>
-        {{/if}}
-      </ul>
+        <p>Alterações na sua assinatura:</p>
+        <ul>       
+            <li><strong>Plano:</strong> {{planName}}</li> 
+            <li><strong>Status:</strong> {{statusPlan}}</li> 
+            {{#if additionalDetails}}
+            <li><strong>Data de cancelamento:</strong> {{additionalDetails}}</li>  
+            {{/if}}             
+        </ul>
 
-      <p>Se você não reconhece essas alterações ou se tem alguma dúvida, nossa equipe de suporte está disponível para ajudá-lo.</p>
+        <p>Se você não reconhece essas alterações ou se tem alguma dúvida, nossa equipe de suporte está disponível para ajudá-lo.</p>
 
-      <p>Agradecemos por escolher o FlixDesign. Estamos comprometidos em oferecer o melhor serviço para você!</p>
+        <p>Agradecemos por escolher o FlixDesign. Estamos comprometidos em oferecer o melhor serviço para você!</p>
 
-      <p>Atenciosamente,<br>A equipe do FlixDesign</p>
-    </div>
+        <p>Atenciosamente,<br>A equipe do FlixDesign</p>
+      </div>
 
     <div class="footer">
       <p>&copy; 2024 FlixDesign. Todos os direitos reservados.</p>
