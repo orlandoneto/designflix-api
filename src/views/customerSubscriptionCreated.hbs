@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bem-vindo ao FlixDesign</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css?family=Rubik:300,400,500,700|Open+Sans:300,400,600,700');
+    body {
+      font-family: 'Open Sans', sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 670px;
+      margin: 0 auto;
+      background-color: #fff;
+      border-radius: 3px;
+      box-shadow: 0 6px 18px 0 rgba(0, 0, 0, .06);
+      text-align: left;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      background: #0A1218;
+      padding: 20px;
+    }
+
+    .header img {
+      width: 275px;
+    }
+
+    .content {
+      color: #455056;
+      font-size: 15px;
+      line-height: 24px;
+      margin: 20px 0;
+    }
+
+    .footer {
+      text-align: center;
+      color: #999;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+       <img src="{{baseUrl}}/logo.png" title="logo do FlixDesign" alt="logo do FlixDesign">
+    </div>
+    <div class="content">
+      <p>Olá {{name}},</p>
+      <p>Obrigado por adquirir um plano no FlixDesign! Estamos animados em ter você conosco.</p>
+      <p>Detalhes da sua assinatura:</p>
+      <ul>
+        <li><strong>Plano escolhido:</strong> {{planName}}</li>
+        <li><strong>Data da assinatura:</strong> {{subscriptionDate}}</li>
+      </ul>
+      <p>Agora você tem acesso a todos os benefícios e conteúdos exclusivos do seu plano. Explore e aproveite ao máximo sua experiência conosco!</p>
+      <p>Se precisar de qualquer ajuda ou tiver dúvidas, nossa equipe de suporte está à disposição para ajudá-lo.</p>
+      <p>Atenciosamente,<br>Equipe FlixDesign</p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2024 FlixDesign. Todos os direitos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>

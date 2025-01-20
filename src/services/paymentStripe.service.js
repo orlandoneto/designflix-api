@@ -47,11 +47,6 @@ module.exports = class {
         return;
       }
 
-      const title = `FlixDesign - Assinatura do plano ${
-        planNames[plan?.plan_name] || plan?.plan_name
-      } concluída`;
-      const description = `<p>Sua Assinatura esta: <strong>concluída</strong></p>`;
-      this.handleSendEmail(email, title, description);
       res.status(200).json(subscription);
     } catch (error) {
       console.error(error);
@@ -223,11 +218,11 @@ module.exports = class {
     const eventData = req.body.data.object;
 
     switch (eventType) {
-      case "charge.refunded": // Evento de reembolso de assinatura
-        await this.handleSubscriptionChange(
+      case "customer.subscription.created": // Evento de nova assinatura
+        await this.handleCustomerSubscriptionCreated(
           eventData,
-          "chargeRefund",
-          "Reembolso de plano"
+          "customerSubscriptionCreated",
+          "Bem-vindo ao FlixDesign!"
         );
         break;
 
@@ -243,11 +238,87 @@ module.exports = class {
         await this.handleSubscriptionUpdated(eventData);
         break;
 
+      case "charge.refunded": // Evento de reembolso de assinatura
+        await this.handleSubscriptionChange(
+          eventData,
+          "chargeRefund",
+          "Reembolso de plano"
+        );
+        break;
+
       default:
         console.log(`Evento não tratado: ${eventType}`);
     }
 
     res.json({ received: true });
+  }
+
+  async handleCustomerSubscriptionCreated(data, emailTemplate, emailTitle) {
+    try {
+      if (!data?.plan || !data.customer) {
+        throw new Error("Dados inválidos ou incompletos.");
+      }
+
+      const customerId = data.customer;
+      const customer = await stripe.customers.retrieve(customerId);
+      if (!customer || !customer.email) {
+        throw new Error("Não foi possível obter o e-mail do cliente.");
+      }
+
+      const emailUser = customer.email;
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["plan_name"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["name"],
+          },
+        ],
+      });
+
+      if (!userPlan) {
+        console.warn(`Nenhum plano encontrado para o cliente: ${customerId}`);
+        return null;
+      }
+
+      const userName = userPlan.user?.name || customer.name || "Cliente";
+      const planName = userPlan.plans?.plan_name;
+      if (!userName || !planName) {
+        console.error(
+          `Dados incompletos no plano ou usuário. Usuário: ${userName}`
+        );
+        return null;
+      }
+
+      const paramsEmail = {
+        email: emailUser,
+        name: userName,
+        title: emailTitle,
+        description: `Obrigado por se tornar um assinante do FlixDesign!`,
+      };
+
+      const contextParams = {
+        name: userName,
+        planName: planNames?.[planName] || planName,
+        subscriptionDate: new Date().toLocaleDateString("pt-BR"),
+        baseUrl: process.env.API_URL,
+      };
+
+      this.handleCreatedSendEmail(paramsEmail, emailTemplate, contextParams);
+      return userPlan;
+    } catch (error) {
+      console.error(
+        "Erro ao processar a criação da assinatura:",
+        error.message
+      );
+      throw error;
+    }
   }
 
   async handleSubscriptionChange(data, emailTemplate, emailTitle) {
@@ -265,12 +336,12 @@ module.exports = class {
           {
             model: Plans,
             as: "plans",
-            attributes: ["id", "plan_name", "count_downloads"],
+            attributes: ["plan_name"],
           },
           {
             model: User,
             as: "user",
-            attributes: ["id", "name", "contributor"],
+            attributes: ["name"],
           },
         ],
       });
@@ -347,12 +418,12 @@ module.exports = class {
           {
             model: Plans,
             as: "plans",
-            attributes: ["id", "plan_name", "count_downloads"],
+            attributes: ["plan_name"],
           },
           {
             model: User,
             as: "user",
-            attributes: ["id", "name", "contributor"],
+            attributes: ["name"],
           },
         ],
       });
@@ -436,6 +507,18 @@ module.exports = class {
     }
   }
 
+  // END EVENTOS HOOKS
+
+  handleCreatedSendEmail(paramsEmail, template, context) {
+    sendEmail(paramsEmail, template, context)
+      .then((response) => {
+        console.log("Email enviado com sucesso:", response);
+      })
+      .catch((error) => {
+        console.error("Erro ao enviar email:", error);
+      });
+  }
+
   handleRefudedOrCanceledSendEmail(paramsEmail, template, context) {
     sendEmail(paramsEmail, template, context)
       .then((response) => {
@@ -445,30 +528,9 @@ module.exports = class {
         console.error("Erro ao enviar email:", error);
       });
   }
+
   handleUpdatedSendEmail(paramsEmail, template, context) {
     sendEmail(paramsEmail, template, context)
-      .then((response) => {
-        console.log("Email enviado com sucesso:", response);
-      })
-      .catch((error) => {
-        console.error("Erro ao enviar email:", error);
-      });
-  }
-
-  handleSendEmail(email, title, description) {
-    const paramsEmail = {
-      email: email,
-      name: email.replace(/^[^@]+/, "") || "FlixDesign",
-      title: title,
-      description: description,
-    };
-
-    const context = {
-      name: "FlixDesign",
-      baseUrl: process.env.API_URL,
-    };
-
-    sendEmail(paramsEmail, "index", context)
       .then((response) => {
         console.log("Email enviado com sucesso:", response);
       })
