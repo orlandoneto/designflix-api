@@ -47,11 +47,6 @@ module.exports = class {
         return;
       }
 
-      const title = `FlixDesign - Assinatura do plano ${
-        planNames[plan?.plan_name] || plan?.plan_name
-      } concluída`;
-      const description = `<p>Sua Assinatura esta: <strong>concluída</strong></p>`;
-      this.handleSendEmail(email, title, description);
       res.status(200).json(subscription);
     } catch (error) {
       console.error(error);
@@ -216,43 +211,39 @@ module.exports = class {
     }
   }
 
+  // START EVENTOS HOOKS
+
   async handleWebhook(req, res) {
-    //console.log("Webhook recebido:", JSON.stringify(req.body, null, 2));
+    const eventType = req.body.type;
+    const eventData = req.body.data.object;
 
-    const eventType = req.body.type; // Tipo do evento recebido
-    const eventData = req.body.data.object; // Dados do evento
     switch (eventType) {
-      case "invoice.payment_succeeded":
-        // console.log("Pagamento da fatura concluído:", eventData);
+      case "customer.subscription.created": // Evento de nova assinatura
+        await this.handleCustomerSubscriptionCreated(
+          eventData,
+          "customerSubscriptionCreated",
+          "Bem-vindo ao FlixDesign!"
+        );
         break;
 
-      case "invoice.payment_failed":
-        // console.log("Pagamento da fatura falhou:", eventData);
+      case "customer.subscription.deleted": // Evento de cancelamento de assinatura
+        await this.handleSubscriptionChangeDeleteOrRefund(
+          eventData,
+          "customerSubscriptionDeleted",
+          "Cancelamento de plano"
+        );
         break;
 
-      case "customer.subscription.deleted":
-        // console.log("Assinatura cancelada:", eventData);
+      case "customer.subscription.updated": // Evento de atualização de assinatura
+        await this.handleSubscriptionUpdated(eventData);
         break;
 
-      case "customer.subscription.updated":
-        // console.log("Assinatura atualizada:", eventData);
-        break;
-
-      case "customer.created":
-        // console.log("Novo cliente criado:", eventData);
-        break;
-
-      case "customer.updated":
-        // console.log("Dados do cliente atualizados:", eventData);
-        break;
-
-      case "invoice.finalized":
-        // console.log("Fatura finalizada:", eventData);
-        break;
-
-      case "charge.refunded": // Evento de reembolso
-        // console.log("Pagamento reembolsado:", eventData);
-        this.handleRefund(eventData); // Chame um método separado para lidar com reembolsos, se necessário
+      case "charge.refunded": // Evento de reembolso de assinatura
+        await this.handleSubscriptionChangeDeleteOrRefund(
+          eventData,
+          "chargeRefund",
+          "Reembolso de plano"
+        );
         break;
 
       default:
@@ -262,23 +253,33 @@ module.exports = class {
     res.json({ received: true });
   }
 
-  async handleRefund(refundData) {
+  async handleCustomerSubscriptionCreated(data, emailTemplate, emailTitle) {
     try {
-      if (
-        !refundData ||
-        !refundData.customer ||
-        !refundData.billing_details?.email ||
-        !refundData.amount
-      ) {
-        throw new Error("Dados de reembolso inválidos ou incompletos.");
+      if (!data?.plan || !data.customer) {
+        throw new Error("Dados inválidos ou incompletos.");
       }
 
-      const customerId = refundData.customer; // ID do cliente no Stripe
-      const emailUser = refundData.billing_details.email; // E-mail do usuário
-      const amountRefunded = refundData.amount / 100; // Valor reembolsado (em unidades monetárias)
+      const customerId = data.customer;
+      const customer = await stripe.customers.retrieve(customerId);
+      if (!customer || !customer.email) {
+        throw new Error("Não foi possível obter o e-mail do cliente.");
+      }
+      const emailUser = customer.email;
 
       const userPlan = await UserPlans.findOne({
         where: { stripe_customer_id: customerId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["plan_name"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["name"],
+          },
+        ],
       });
 
       if (!userPlan) {
@@ -286,37 +287,220 @@ module.exports = class {
         return null;
       }
 
-      const destroyUserPlan = await userPlan.destroy();
-      if (destroyUserPlan) {
-        const paramsEmail = {
-          email: emailUser,
-          name: emailUser.split("@")[0],
-          title: "Reembolso de plano",
-          description: "Reembolso de plano",
-        };
-
-        const contextParams = {
-          amount: amountRefunded.toFixed(2),
-          refundDate: new Date().toLocaleDateString("pt-BR"),
-          baseUrl: process.env.API_URL,
-        };
-
-        this.handleRefundPlanSendEmail(paramsEmail, contextParams);
-
-        return userPlan;
+      const userName = userPlan.user?.name || customer.name || "Cliente";
+      const planName = userPlan.plans?.plan_name;
+      if (!userName || !planName) {
+        console.error(
+          `Dados incompletos no plano ou usuário. Usuário: ${userName}`
+        );
+        return null;
       }
 
-      console.error("Erro ao excluir o plano do usuário.");
-      return null;
+      const paramsEmail = {
+        email: emailUser,
+        name: userName,
+        title: emailTitle,
+        description: `Obrigado por se tornar um assinante do FlixDesign!`,
+      };
+
+      const contextParams = {
+        name: userName,
+        planName: planNames?.[planName] || planName,
+        subscriptionDate: new Date().toLocaleDateString("pt-BR"),
+        baseUrl: process.env.API_URL,
+      };
+
+      this.handleCreatedSendEmail(paramsEmail, emailTemplate, contextParams);
+      return userPlan;
     } catch (error) {
-      console.error("Erro ao processar reembolso:", error.message);
-      console.error(error);
+      console.error(
+        "Erro ao processar a criação da assinatura:",
+        error.message
+      );
+      throw error;
     }
   }
-  // EVENTOS HOOKS
 
-  handleRefundPlanSendEmail(paramsEmail, context) {
-    sendEmail(paramsEmail, "refundPlan", context)
+  async handleSubscriptionChangeDeleteOrRefund(data, emailTemplate, emailTitle) {
+    try {
+      if (!data?.customer || !data.billing_details?.email) {
+        throw new Error("Dados inválidos ou incompletos.");
+      }
+
+      const customerId = data.customer;
+      const emailUser = data.billing_details.email;
+
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["plan_name"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["name"],
+          },
+        ],
+      });
+
+      if (!userPlan) {
+        console.warn(`Nenhum plano encontrado para o cliente: ${customerId}`);
+        return null;
+      }
+
+      const userName = userPlan.user?.name;
+      const planName = userPlan.plans?.plan_name;
+      if (!userName || !planName) {
+        console.error(
+          `Dados incompletos no plano ou usuário. Plano: ${planName}, Usuário: ${userName}`
+        );
+        return null;
+      }
+
+      await userPlan.destroy();
+
+      const paramsEmail = {
+        email: emailUser,
+        name: userName,
+        title: emailTitle,
+        description: emailTitle, // FIXME:  Analisr se é passdo
+      };
+
+      const contextParams = {
+        name: userName,
+        planName: planNames?.[planName] || planName,
+        amount:
+          emailTemplate === "chargeRefund"
+            ? (data.amount / 100).toFixed(2)
+            : undefined,
+        cancellationDate:
+          emailTemplate === "customerSubscriptionDeleted"
+            ? new Date().toLocaleDateString("pt-BR")
+            : undefined,
+        refundDate:
+          emailTemplate === "chargeRefund"
+            ? new Date().toLocaleDateString("pt-BR")
+            : undefined,
+        baseUrl: process.env.API_URL,
+      };
+
+      this.handleRefudedOrCanceledSendEmail(
+        paramsEmail,
+        emailTemplate,
+        contextParams
+      );
+      return userPlan;
+    } catch (error) {
+      console.error(
+        "Erro ao processar alteração na assinatura:",
+        error.message
+      );
+      throw error;
+    }
+  }
+
+  async handleSubscriptionUpdated(data) {
+    try {
+      if (!data?.customer) {
+        throw new Error("Dados inválidos ou incompletos.");
+      }
+
+      const customerId = data.customer;
+      const customer = await stripe.customers.retrieve(customerId);
+      if (!customer || !customer.email) {
+        throw new Error("Não foi possível obter o e-mail do cliente.");
+      }
+      const emailUser = customer.email;
+
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["id", "plan_name"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["name"],
+          },
+        ],
+      });
+
+      if (!userPlan) {
+        console.warn(`Nenhum plano encontrado para o cliente: ${customerId}`);
+        return null;
+      }
+
+      const userName = userPlan.user?.name;
+      const planName = userPlan.plans?.plan_name;
+      if (!userName || !planName) {
+        console.error(
+          `Dados incompletos no plano ou usuário. Plano: ${planName}, Usuário: ${userName}`
+        );
+        return null;
+      }
+
+      let statusPlan;
+      let additionalDetails = "";
+
+      if (
+        data.cancel_at_period_end &&
+        data.cancellation_details?.reason === "cancellation_requested"
+      ) {
+        const cancelDate = new Date(data.cancel_at * 1000).toLocaleDateString(
+          "pt-BR"
+        );
+        statusPlan = "Cancelamento solicitado";
+        additionalDetails = cancelDate;
+      } else if (
+        !data.cancel_at_period_end &&
+        !data.cancellation_details?.reason
+      ) {
+        statusPlan = "Plano ativo";
+      } else {
+        statusPlan = "Status indefinido";
+      }
+
+      const paramsEmail = {
+        email: emailUser,
+        name: userName,
+        title: "Assinatura atualizada",
+      };
+
+      const contextParams = {
+        name: userName,
+        planName: planNames?.[planName] || planName,
+        statusPlan,
+        additionalDetails,
+        updatedDate: new Date().toLocaleDateString("pt-BR"),
+        baseUrl: process.env.API_URL,
+      };
+
+      this.handleUpdatedSendEmail(
+        paramsEmail,
+        "customerSubscriptionUpdated",
+        contextParams
+      );
+
+      return userPlan;
+    } catch (error) {
+      console.error(
+        "Erro ao processar atualização de assinatura:",
+        error.message
+      );
+      throw error;
+    }
+  }
+
+  // END EVENTOS HOOKS
+
+  handleCreatedSendEmail(paramsEmail, template, context) {
+    sendEmail(paramsEmail, template, context)
       .then((response) => {
         console.log("Email enviado com sucesso:", response);
       })
@@ -325,20 +509,8 @@ module.exports = class {
       });
   }
 
-  handleSendEmail(email, title, description) {
-    const paramsEmail = {
-      email: email,
-      name: email.replace(/^[^@]+/, "") || "FlixDesign",
-      title: title,
-      description: description,
-    };
-
-    const context = {
-      name: "FlixDesign",
-      baseUrl: process.env.API_URL,
-    };
-
-    sendEmail(paramsEmail, "index", context)
+  handleRefudedOrCanceledSendEmail(paramsEmail, template, context) {
+    sendEmail(paramsEmail, template, context)
       .then((response) => {
         console.log("Email enviado com sucesso:", response);
       })
@@ -346,4 +518,16 @@ module.exports = class {
         console.error("Erro ao enviar email:", error);
       });
   }
+
+  handleUpdatedSendEmail(paramsEmail, template, context) {
+    sendEmail(paramsEmail, template, context)
+      .then((response) => {
+        console.log("Email enviado com sucesso:", response);
+      })
+      .catch((error) => {
+        console.error("Erro ao enviar email:", error);
+      });
+  }
+
+  // END EVENTOS EMAILS HOOKS
 };
