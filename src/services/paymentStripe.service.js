@@ -227,7 +227,7 @@ module.exports = class {
         break;
 
       case "customer.subscription.deleted": // Evento de cancelamento de assinatura
-        await this.handleSubscriptionChange(
+        await this.handleSubscriptionChangeDeleteOrRefund(
           eventData,
           "customerSubscriptionDeleted",
           "Cancelamento de plano"
@@ -239,7 +239,7 @@ module.exports = class {
         break;
 
       case "charge.refunded": // Evento de reembolso de assinatura
-        await this.handleSubscriptionChange(
+        await this.handleSubscriptionChangeDeleteOrRefund(
           eventData,
           "chargeRefund",
           "Reembolso de plano"
@@ -321,7 +321,7 @@ module.exports = class {
     }
   }
 
-  async handleSubscriptionChange(data, emailTemplate, emailTitle) {
+  async handleSubscriptionChangeDeleteOrRefund(data, emailTemplate, emailTitle) {
     try {
       if (!data?.customer || !data.billing_details?.email) {
         throw new Error("Dados inválidos ou incompletos.");
