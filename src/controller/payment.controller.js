@@ -25,7 +25,7 @@ module.exports = (app) => {
     paymentStripeService.userPlan(req, res)
   );
 
-  app.get("/user-plan-all", AuthenticateRoute(["user"]), (req, res) =>
+  app.get("/user-plan-all", (req, res) =>
     paymentStripeService.getAllPlans(req, res)
   );
 
@@ -35,9 +35,8 @@ module.exports = (app) => {
     (req, res) => paymentStripeService.userPlansPortalSession(req, res)
   );
 
-  app.post(
-    "/stripe/webhook",
-    (req, res) => paymentStripeService.handleWebhook(req, res)
+  app.post("/stripe/webhook", (req, res) =>
+    paymentStripeService.handleWebhook(req, res)
   );
 
   app.get(
