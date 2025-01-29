@@ -1,7 +1,10 @@
 const multer = require("multer");
 const Upload = require("../services/upload.service");
 const multerImagesConfig = require("../config/multer");
-const multerCoverConfig = require("../config/multerCover");
+const {
+  uploadPreview,
+  addWatermark,
+} = require("../config/multerUploadPreview");
 const multerPackImagesConfig = require("../config/multerPackImagem");
 const multerPackCoverConfig = require("../config/multerPackCover");
 const multerPackAvatarConfig = require("../config/multerPackAvatar");
@@ -21,8 +24,9 @@ module.exports = (app) => {
   );
 
   app.post(
-    "/upload/cover",
-    multer(multerCoverConfig).single("file"),
+    "/upload/preview",
+    multer(uploadPreview).single("file"),
+    addWatermark,
     (req, res) => UploadService.file(req, res)
   );
 
