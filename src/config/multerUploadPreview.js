@@ -63,20 +63,20 @@ const addWatermark = async (req, res, next) => {
     const { width: watermarkWidth, height: watermarkHeight } =
       await watermarkImage.metadata();
 
-    const left = Math.round((width - watermarkWidth) / 2);
-    const top = Math.round((height - watermarkHeight) / 2);
-
-    const processedImage = await image
-      .composite([
-        {
+    const composites = [];
+    for (let y = 0; y < height; y += watermarkHeight + 10) {
+      for (let x = 0; x < width; x += watermarkWidth + 10) {
+        composites.push({
           input: watermark,
-          left: left,
-          top: top,
+          left: x,
+          top: y,
           blend: "overlay",
           opacity: 0.5,
-        },
-      ])
-      .toBuffer();
+        });
+      }
+    }
+
+    const processedImage = await image.composite(composites).toBuffer();
 
     const fileName = `${process.env.FOLDER_IMAGE_PREVIEW}/${crypto
       .randomBytes(16)
