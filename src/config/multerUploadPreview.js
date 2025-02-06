@@ -2,7 +2,6 @@ const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
 const aws = require("aws-sdk");
-const multerS3 = require("multer-s3");
 const sharp = require("sharp");
 const { CONST } = require("../utils/constants/constants");
 
@@ -24,6 +23,7 @@ const upload = multer({
       "image/pjpeg",
       "image/png",
       "image/gif",
+      "image/webp",
       "image/svg+xml",
       "application/vnd.corel-draw",
       "image/vnd.adobe.photoshop",
