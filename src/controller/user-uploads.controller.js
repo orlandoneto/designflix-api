@@ -7,4 +7,12 @@ module.exports = (app) => {
     AuthenticateRoute(["user"]),
     (req, res) => UserUploadsServices.incrementUploads(req, res)
   );
+
+  app.get("/user/uploads", AuthenticateRoute(["admin"]), (req, res) =>
+    UserUploadsServices.getAllUploads(req, res)
+  );
+
+  app.get("/user/uploads/:user_id", AuthenticateRoute(["user"]), (req, res) =>
+    UserUploadsServices.getUploadsByUserId(req, res)
+  );
 };

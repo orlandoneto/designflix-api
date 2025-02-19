@@ -41,7 +41,7 @@ module.exports = class {
           {
             model: UserMainGrid,
             as: "user_main_grid",
-            attributes: ["name", "format", "url"],
+            attributes: ["name", "format", "url_cover"],
           },
         ],
         order: [["createdAt", "DESC"]],
