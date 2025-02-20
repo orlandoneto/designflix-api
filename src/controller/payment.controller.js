@@ -45,6 +45,12 @@ module.exports = (app) => {
     (req, res) => paymentStripeService.getUserPlanDownloads(req, res)
   );
 
+  app.delete(
+    "/stripe/trial/:customerId/cancel",
+    AuthenticateRoute(["user"]),
+    (req, res) => paymentStripeService.refundSubscriptionWithin7Days(req, res)
+  );
+
   /* END ENDPOITS STRIP */
 
   /* START ENDPOITS MERCADOPAGO */
@@ -62,6 +68,12 @@ module.exports = (app) => {
 
   app.put("/mercadopago/pix/:id", AuthenticateRoute(["user"]), (req, res) =>
     paymentMercadopagoService.updateById(req, res)
+  );
+
+  app.delete(
+    "/mercadopago/trial/:userId/cancel",
+    AuthenticateRoute(["user"]),
+    (req, res) => paymentMercadopagoService.cancelTrialMercadopago(req, res)
   );
 
   /* END ENDPOITS MERCADOPAGO */

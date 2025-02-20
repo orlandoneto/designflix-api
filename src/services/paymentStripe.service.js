@@ -176,6 +176,74 @@ module.exports = class {
     }
   }
 
+  async refundSubscriptionWithin7Days(req, res) {
+    const { customerId } = req.params;
+
+    try {
+      // Buscar a assinatura ativa do cliente
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "active",
+        limit: 1,
+      });
+
+      if (subscriptions.data.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Nenhuma assinatura ativa encontrada para este cliente.",
+        });
+      }
+
+      const subscription = subscriptions.data[0];
+
+      // Buscar os pagamentos associados à assinatura
+      const invoices = await stripe.invoices.list({
+        customer: customerId,
+        limit: 1,
+      });
+
+      if (invoices.data.length === 0 || !invoices.data[0].charge) {
+        return res.status(404).json({
+          success: false,
+          message: "Nenhum pagamento encontrado para reembolso.",
+        });
+      }
+
+      const chargeId = invoices.data[0].charge;
+      const charge = await stripe.charges.retrieve(chargeId);
+
+      // Verificar se o pagamento foi feito há menos de 7 dias
+      const paymentTime = charge.created;
+      const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
+
+      if (paymentTime < sevenDaysAgo) {
+        return res.status(400).json({
+          success: false,
+          message: "O período de reembolso de 7 dias já expirou.",
+        });
+      }
+
+      // Criar o reembolso
+      const refund = await stripe.refunds.create({
+        charge: chargeId,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Reembolso realizado com sucesso.",
+        refund,
+      });
+    } catch (error) {
+      console.error("Erro ao processar o reembolso:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Erro ao processar o reembolso.",
+        error: error.message,
+      });
+    }
+  }
+
   async getUserPlanDownloads(req, res) {
     const { userId } = req.params;
 
@@ -321,7 +389,11 @@ module.exports = class {
     }
   }
 
-  async handleSubscriptionChangeDeleteOrRefund(data, emailTemplate, emailTitle) {
+  async handleSubscriptionChangeDeleteOrRefund(
+    data,
+    emailTemplate,
+    emailTitle
+  ) {
     try {
       if (!data?.customer || !data.billing_details?.email) {
         throw new Error("Dados inválidos ou incompletos.");

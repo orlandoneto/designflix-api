@@ -119,6 +119,32 @@ module.exports = class {
     return false;
   }
 
+  async cancelTrialMercadopago(req, res) {
+    try {
+      const { userId } = req.params;
+
+      const userPlan = await UserPlans.findOne({ where: { user_id: userId } });
+
+      if (!userPlan) {
+        return res.status(404).json({
+          message: "Plano não encontrado para este usuário",
+        });
+      }
+
+      await UserPlans.destroy({ where: { user_id: userId } });
+
+      res.status(200).json({
+        message: "Período de teste cancelado com sucesso",
+      });
+    } catch (error) {
+      console.error("Erro ao cancelar o período de teste:", error);
+      res.status(500).json({
+        message: "Erro ao cancelar o período de teste",
+        error: error.message,
+      });
+    }
+  }
+
   async processPaymentWebhook(req, res) {
     try {
       const {
