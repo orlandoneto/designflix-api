@@ -67,6 +67,14 @@ module.exports = (sequelize, DataTypes) => {
         field: "is_reset_password",
         allowNull: false,
       },
+      balance: {
+        type: DataTypes.DECIMAL(10, 2),
+        defaultValue: 0.0,
+      },
+      lastPayout: {
+        type: DataTypes.DATE,
+        field: "last_payout",
+      },
       createdAt: {
         type: DataTypes.DATE,
         field: "created_at",
@@ -118,10 +126,10 @@ module.exports = (sequelize, DataTypes) => {
       User.hasMany(models.UserPlans, {
         foreignKey: "user_id",
       });
-      User.hasOne(models.UserUploads, {
-        foreignKey: "user_id",
-        as: "user_uploads"
-      });
+    User.hasOne(models.UserUploads, {
+      foreignKey: "user_id",
+      as: "user_uploads",
+    });
   };
 
   return User;
