@@ -127,6 +127,9 @@ require("./controller/user-follows.controller")(app);
 // Plans Download Limits
 require("./controller/plans-download-limit.controller")(app);
 
+// User Commissions
+require("./controller/user-commissions.controller")(app);
+
 // Plans
 require("./controller/user-plans.controller")(app);
 

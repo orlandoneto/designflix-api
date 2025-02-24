@@ -22,6 +22,12 @@ module.exports = (app) => {
     UserService.getUserByEmail(req, res)
   );
 
+  app.get(
+    "/user/balance/:userId",
+    AuthenticateRoute(["user"]),
+    (req, res) => UserService.userBalanceById(req, res)
+  );
+
   app.patch(
     "/user/:userId/update-balance",
     AuthenticateRoute(["user"]),

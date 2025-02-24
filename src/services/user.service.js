@@ -63,6 +63,31 @@ class UserServices {
     }
   }
 
+  // FIXME: Criar um service único que reunina todos os metodo da carteira.
+  async userBalanceById(req, res) {
+    const { userId } = req.params;
+    try {
+      const user = await User.findOne({
+        where: { id: userId },
+        attributes: ["balance"],
+      });
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Usuário nao encontrado" });
+      }
+      const result = { success: true, data: user };
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Erro ao trazer balanço do usuário",
+        error: error.message,
+      });
+    }
+  }
+
+  // FIXME: Criar um service único que reunina todos os metodo da carteira.
   async updateBalance(req, res) {
     const { userId } = req.params;
     try {
@@ -81,6 +106,7 @@ class UserServices {
     }
   }
 
+  // FIXME: Criar um service único que reunina todos os metodo da carteira.
   async _updateBalance(userId) {
     try {
       // Tenta encontrar o usuário
