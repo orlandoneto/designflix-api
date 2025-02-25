@@ -67,6 +67,11 @@ module.exports = (sequelize, DataTypes) => {
         field: "is_reset_password",
         allowNull: false,
       },
+      stripeAccountId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "stripe_account_id",
+      },
       balance: {
         type: DataTypes.DECIMAL(10, 2),
         defaultValue: 0.0,

@@ -1,15 +1,16 @@
 const { UserPayout, User } = require("../models");
-const stripe = require("../config/stripe"); // Certifique-se de que o Stripe está configurado corretamente
+const stripeModule = require("../modules/stripe.module");
 
 class UserPayoutsServices {
   async requestPayout(req, res) {
     const { userId, amount } = req.body; // O usuário escolhe o valor do saque
+    
 
     try {
       // Verifica o saldo do usuário
       const user = await User.findOne({
         where: { id: userId },
-        attributes: ["balance", "stripe_account", "last_payout"],
+        attributes: ["balance", "stripe_account_id", "last_payout"],
       });
 
       if (!user) {
@@ -50,15 +51,11 @@ class UserPayoutsServices {
       }
 
       // Adiciona as taxas de saque do Stripe
-      const stripeFee = (amount * 0.0149) + 0.25; // Taxa de 1.49% + R$ 0,25
+      const stripeFee = amount * 0.0149 + 0.25; // Taxa de 1.49% + R$ 0,25
       const finalAmount = amount - stripeFee;
 
       // Transfere o valor para a conta do usuário no Stripe
-      const transfer = await stripe.transfers.create({
-        amount: Math.round(finalAmount * 100), // Valor em centavos
-        currency: "brl",
-        destination: user.stripe_account,
-      });
+      await stripeModule.makeTransfer(user.stripe_account_id, finalAmount);
 
       // Registra o pagamento
       await UserPayout.create({
@@ -87,6 +84,36 @@ class UserPayoutsServices {
       res
         .status(500)
         .json({ success: false, message: "Erro ao processar saque." });
+    }
+  }
+
+  async choosePayoutMethod(req, res) {
+    const { userId, paymentMethod } = req.body;
+
+    try {
+      const user = await User.findOne({
+        where: { id: userId },
+        attributes: ["stripe_account_id"],
+      });
+
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Usuário não encontrado." });
+      }
+
+      await stripeModule.updatePaymentMethod(user.stripe_account_id, paymentMethod);
+
+      res.status(200).json({
+        success: true,
+        message: `Método de pagamento atualizado para ${paymentMethod}.`,
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar o método de pagamento:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao atualizar o método de pagamento.",
+      });
     }
   }
 }

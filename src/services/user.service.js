@@ -3,10 +3,9 @@ const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-handlebars");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
-
 const { User } = require("../models");
-
 const { sendEmail } = require("../utils/emailService");
+const stripeModule = require("../modules/stripe.module");
 
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
@@ -195,6 +194,13 @@ class UserServices {
         status,
         planType: plan_type,
       });
+
+      // Criar conta conectada no Stripe
+      const stripeAccountId = await stripeModule.createConnectedAccount(email);
+      await User.update(
+        { stripe_account_id: stripeAccountId },
+        { where: { id: user.id } }
+      );
 
       const userData = user.dataValues;
       let getTokenData = await this.authenticateSync(email, password);
