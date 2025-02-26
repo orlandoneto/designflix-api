@@ -17,7 +17,7 @@ async function createConnectedAccount(userEmail) {
       settings: {
         payouts: {
           schedule: {
-            interval: "manual", // Pagamento manual
+            interval: "daily", // ou "weekly" ou "monthly"
           },
         },
       },
@@ -30,57 +30,33 @@ async function createConnectedAccount(userEmail) {
   }
 }
 
+
 /**
- * Atualiza a conta conectada com dados bancários para TED
+ * Adiciona a chave PIX à conta conectada do usuário
  * @param {string} accountId - ID da conta conectada
- * @param {object} bankDetails - Dados bancários para saque via TED
+ * @param {string} chavePix - Chave PIX do usuário
  */
-async function createTedPayout(accountId, bankDetails) {
+async function addPixKeyToAccount(accountId, chavePix) {
   try {
-    await stripe.accounts.createExternalAccount(accountId, {
-      external_account: {
-        object: "bank_account",
-        country: "BR",
-        currency: "brl",
-        account_holder_name: bankDetails.holder_name,
-        routing_number: bankDetails.bank_code, // Código do banco (ex: 001 para Banco do Brasil)
-        account_number: `${bankDetails.account_number}-${bankDetails.account_check_digit}`, // Conta com dígito
-        account_type: bankDetails.account_type, // "checking" ou "savings"
-      },
-    });
-
-    console.log("✅ Conta bancária adicionada com sucesso!");
+    accountId,
+      {
+        external_account: {
+          object: "bank_account",
+          country: "BR",
+          currency: "brl",
+          account_holder_name: "Nome do Contribuidor", // Defina conforme necessário
+          routing_number: chavePix, // Usando a chave PIX como 'routing_number'
+          account_type: "checking", // Conta corrente
+        },
+      };
   } catch (error) {
-    console.error("❌ Erro ao adicionar conta bancária:", error);
+    console.error("Erro ao adicionar chave PIX:", error);
     throw error;
   }
 }
 
 /**
- * Realiza o pagamento para a conta conectada do usuário
- * @param {string} userStripeAccountId - ID da conta conectada do usuário
- * @param {number} amount - Valor a ser transferido (em reais)
- */
-async function makeTransfer(userStripeAccountId, amount) {
-  try {
-    const transfer = await stripe.transfers.create({
-      amount: Math.round(amount * 100), // Valor em centavos
-      currency: "brl",
-      destination: userStripeAccountId,
-    });
-
-    console.log(
-      `✅ Transferência de R$ ${amount} enviada para a conta Stripe do usuário.`
-    );
-    return transfer;
-  } catch (error) {
-    console.error("❌ Erro ao realizar o repasse:", error);
-    throw error;
-  }
-}
-
-/**
- * Realiza o saque (payout) para a conta bancária do usuário via PIX ou TED
+ * Realiza o saque (payout) para a chave PIX do usuário
  * @param {string} userStripeAccountId - ID da conta conectada do usuário
  * @param {number} amount - Valor a ser sacado (em reais)
  */
@@ -88,26 +64,27 @@ async function makePayout(userStripeAccountId, amount) {
   try {
     const payout = await stripe.payouts.create(
       {
-        amount: Math.round(amount * 100), // Valor em centavos
+        amount: Math.round(amount * 100), // Convertendo para centavos
         currency: "brl",
-        method: "instant", // Usar "instant" para PIX, "standard" para TED
+        method: "instant", // Usar "instant" para PIX
       },
       {
         stripeAccount: userStripeAccountId, // Conta conectada
       }
     );
 
-    console.log(`✅ Payout de R$ ${amount} enviado para o banco do usuário.`);
+    console.log(
+      `✅ Payout de R$ ${amount} enviado para a chave PIX do usuário.`
+    );
     return payout;
   } catch (error) {
-    console.error("❌ Erro ao realizar o saque:", error);
+    console.error("Erro ao realizar o saque via PIX:", error);
     throw error;
   }
 }
 
 module.exports = {
   createConnectedAccount,
-  createTedPayout,
-  makeTransfer,
+  addPixKeyToAccount,
   makePayout,
 };

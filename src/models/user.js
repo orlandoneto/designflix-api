@@ -72,6 +72,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         field: "stripe_account_id",
       },
+      chavePix: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "chave_pix",
+      },
       balance: {
         type: DataTypes.DECIMAL(10, 2),
         defaultValue: 0.0,

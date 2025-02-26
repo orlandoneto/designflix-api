@@ -55,6 +55,6 @@ module.exports = (app) => {
   );
 
   app.put("/user/internal", AuthenticateRoute(["internal_user"]), (req, res) =>
-    UserService.updateUserContributor(req, res)
+    UserService.updateUserContributorInternal(req, res)
   );
 };

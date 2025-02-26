@@ -195,13 +195,6 @@ class UserServices {
         planType: plan_type,
       });
 
-      // Criar conta conectada no Stripe
-      const stripeAccountId = await stripeModule.createConnectedAccount(email);
-      await User.update(
-        { stripe_account_id: stripeAccountId },
-        { where: { id: user.id } }
-      );
-
       const userData = user.dataValues;
       let getTokenData = await this.authenticateSync(email, password);
       delete userData.password;
@@ -455,10 +448,6 @@ class UserServices {
       let idToUpdate;
       let self = false;
 
-      if (req.params.userType === "admin") {
-        idToUpdate = req.params.userId;
-      }
-
       if (req.params.userType === "user") {
         idToUpdate = req.params.userId;
         self = true;
@@ -468,6 +457,23 @@ class UserServices {
         const where = { id: idToUpdate };
 
         const oldUser = await User.findOne({ where });
+
+        // Criar conta conectada no Stripe
+        if (req.body.contributor) {
+          const accountId = await stripeModule.createConnectedAccount(
+            oldUser.email
+          );
+
+          req.body.stripeAccountId = accountId;
+        }
+
+        // Atualizar conta conectada para a chave pix
+        if (req.body.chavePix) {
+          await stripeModule.addPixKeyToAccount(
+            oldUser.stripeAccountId,
+            req.body.chavePix
+          );
+        }
 
         let updatedUser = { ...oldUser, ...req.body };
 
@@ -498,7 +504,7 @@ class UserServices {
     }
   }
 
-  async updateUserContributor(req, res) {
+  async updateUserContributorInternal(req, res) {
     try {
       let idToUpdate = req.query.userId;
 
