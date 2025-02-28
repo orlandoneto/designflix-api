@@ -3,7 +3,7 @@ const AuthenticateRoute = require("../middleware/authentication");
 
 module.exports = (app) => {
   app.get(
-    "/user/plans/:userId/check",
+    "/user/plans/:userId/time",
     AuthenticateRoute(["user"]),
     (req, res) => UserPlansServices.planIsOutOfTime(req, res)
   );

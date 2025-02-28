@@ -45,6 +45,20 @@ const upload = multer({
   },
 });
 
+const uploadToS3 = async (fileName, processedImage, mimeType) => {
+  await s3
+    .putObject({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: fileName,
+      Body: processedImage,
+      ContentType: mimeType,
+      ACL: "public-read",
+    })
+    .promise();
+
+  return `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+};
+
 const addWatermark = async (req, res, next) => {
   if (!req.file) {
     return next();
@@ -77,25 +91,28 @@ const addWatermark = async (req, res, next) => {
     }
 
     const processedImage = await image.composite(composites).toBuffer();
+    const webpImage = await convertToWebP(processedImage);
 
     const fileName = `${process.env.FOLDER_IMAGE_PREVIEW}/${crypto
       .randomBytes(16)
-      .toString("hex")}-${req.file.originalname}`;
+      .toString("hex")}-${Date.now()}.webp`;
 
-    await s3
-      .putObject({
-        Bucket: process.env.AWS_BUCKET_NAME,
-        Key: fileName,
-        Body: processedImage,
-        ContentType: req.file.mimetype,
-        ACL: "public-read",
-      })
-      .promise();
-
-    req.file.location = `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+    req.file.location = await uploadToS3(fileName, webpImage, "image/webp");
     next();
   } catch (error) {
     next(error);
+  }
+};
+
+const convertToWebP = async (imageBuffer) => {
+  try {
+    if (!imageBuffer || imageBuffer.length === 0) {
+      throw new Error("Invalid image buffer");
+    }
+    return await sharp(imageBuffer).webp().toBuffer();
+  } catch (error) {
+    console.error("Error converting image to WebP:", error);
+    throw error;
   }
 };
 
