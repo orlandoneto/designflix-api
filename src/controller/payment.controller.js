@@ -58,7 +58,7 @@ module.exports = (app) => {
     paymentMercadopagoService.createPix(req, res)
   );
 
-  app.post("/v1/webhook", (req, res) =>
+  app.post("/mercadopago/pix/webhook", (req, res) =>
     paymentMercadopagoService.processPaymentWebhook(req, res)
   );
 

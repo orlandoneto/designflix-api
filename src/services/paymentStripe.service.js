@@ -1,13 +1,7 @@
 const stripe = require("../config/stripe");
 const { sendEmail } = require("../utils/emailService");
 const { UserPlans, Plans, User } = require("../models");
-
-const planNames = {
-  free: "Gratuito",
-  monthly: "Mensal",
-  semi_annual: "Semestral",
-  annual: "Anual",
-};
+const { PLAN_NAMES } = require("../utils/constants/constants");
 
 module.exports = class {
   async createSubscription(req, res) {
@@ -373,7 +367,7 @@ module.exports = class {
 
       const contextParams = {
         name: userName,
-        planName: planNames?.[planName] || planName,
+        planName: PLAN_NAMES?.[planName] || planName,
         subscriptionDate: new Date().toLocaleDateString("pt-BR"),
         baseUrl: process.env.API_URL,
       };
@@ -443,7 +437,7 @@ module.exports = class {
 
       const contextParams = {
         name: userName,
-        planName: planNames?.[planName] || planName,
+        planName: PLAN_NAMES?.[planName] || planName,
         amount:
           emailTemplate === "chargeRefund"
             ? (data.amount / 100).toFixed(2)
@@ -546,7 +540,7 @@ module.exports = class {
 
       const contextParams = {
         name: userName,
-        planName: planNames?.[planName] || planName,
+        planName: PLAN_NAMES?.[planName] || planName,
         statusPlan,
         additionalDetails,
         updatedDate: new Date().toLocaleDateString("pt-BR"),

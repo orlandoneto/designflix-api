@@ -1,5 +1,12 @@
 const payment = require("../config/mercadopago");
-const { UserPixPaymentMercadoPago, UserPlans, Plans } = require("../models");
+const {
+  UserPixPaymentMercadoPago,
+  UserPlans,
+  Plans,
+  User,
+} = require("../models");
+const { sendEmail } = require("../utils/emailService");
+const { PLAN_NAMES, PLAN_VALUES } = require("../utils/constants/constants");
 
 module.exports = class {
   async createPix(req, res) {
@@ -123,15 +130,65 @@ module.exports = class {
     try {
       const { userId } = req.params;
 
-      const userPlan = await UserPlans.findOne({ where: { user_id: userId } });
+      const userPlan = await UserPlans.findOne({
+        where: {
+          user_id: userId,
+        },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["plan_name"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["name", "email"],
+          },
+        ],
+      });
 
       if (!userPlan) {
-        return res.status(404).json({
-          message: "Plano não encontrado para este usuário",
-        });
+        console.warn(`Nenhum plano encontrado para o cliente: ${customerId}`);
+        return null;
+      }
+
+      const emailTitle = "Período de teste cancelado com sucesso";
+      const userName = userPlan.user?.name;
+      const planName = userPlan.plans?.plan_name;
+      const emailUser = userPlan.user?.email;
+      if (!userName || !planName || !emailUser) {
+        console.error(
+          `Dados incompletos no plano ou usuário. Plano: ${planName}, Usuário: ${userName}`
+        );
+        return null;
       }
 
       await UserPlans.destroy({ where: { user_id: userId } });
+
+      const emailTemplate = "chargeRefund";
+      const paramsEmail = {
+        email: emailUser,
+        name: userName,
+        title: emailTitle,
+        description: emailTitle,
+      };
+
+      const contextParams = {
+        name: userName,
+        planName: PLAN_NAMES?.[planName] || planName,
+        amount: PLAN_VALUES?.[planName] || planName,
+        refundDate:
+          new Date().toLocaleDateString("pt-BR") ||
+          new Date().toLocaleDateString("pt-BR"),
+        baseUrl: process.env.API_URL,
+      };
+
+      this.handleRefudedOrCanceledSendEmail(
+        paramsEmail,
+        emailTemplate,
+        contextParams
+      );
 
       res.status(200).json({
         message: "Período de teste cancelado com sucesso",
@@ -169,6 +226,53 @@ module.exports = class {
         userPixId: user_id,
       });
 
+      const userPlans = await UserPlans.findAll({
+        where: {
+          mercadopago_customer_id: user_id,
+        },
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["name", "email"],
+          },
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["plan_name"],
+          },
+        ],
+      });
+      const plainResults = userPlans.map((instance) => instance.toJSON());
+
+      if (!plainResults || plainResults.length === 0) {
+        return res.status(404).json({
+          message: "Plano não encontrado para este usuário",
+        });
+      }
+
+      const paramsEmail = {
+        email: plainResults[0].user.email,
+        name: plainResults[0].user.name,
+        title: "Bem-vindo ao FlixDesign!",
+        description: `Obrigado por se tornar um assinante do FlixDesign!`,
+      };
+
+      const contextParams = {
+        name: plainResults[0].user.name,
+        planName:
+          PLAN_NAMES?.[plainResults[0].plans.plan_name] ||
+          plainResults[0].plans.plan_name,
+        subscriptionDate: new Date().toLocaleDateString("pt-BR"),
+        baseUrl: process.env.API_URL,
+      };
+
+      this.handleRefudedOrCanceledSendEmail(
+        paramsEmail,
+        "customerSubscriptionCreated",
+        contextParams
+      );
+
       res.status(200).json({ data: newPayment });
     } catch (error) {
       console.error("Erro ao processar pagamento PIX:", error);
@@ -176,5 +280,15 @@ module.exports = class {
         error_message: "Erro ao salvar pagamento pix no banco de dados.",
       });
     }
+  }
+
+  handleRefudedOrCanceledSendEmail(paramsEmail, template, context) {
+    sendEmail(paramsEmail, template, context)
+      .then((response) => {
+        console.log("Email enviado com sucesso:", response);
+      })
+      .catch((error) => {
+        console.error("Erro ao enviar email:", error);
+      });
   }
 };
