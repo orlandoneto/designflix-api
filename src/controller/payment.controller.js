@@ -55,11 +55,11 @@ module.exports = (app) => {
 
   /* START ENDPOITS MERCADOPAGO */
   app.post("/create-mercadopago-pix", AuthenticateRoute(["user"]), (req, res) =>
-    paymentMercadopagoService.createPix(req, res)
+    paymentMercadopagoService.createMercadopagoPix(req, res)
   );
 
   app.post("/mercadopago/pix/webhook", (req, res) =>
-    paymentMercadopagoService.processPaymentWebhook(req, res)
+    paymentMercadopagoService.mercadopagoPixPaymentWebhook(req, res)
   );
 
   app.get("/mercadopago/pix/:id", AuthenticateRoute(["user"]), (req, res) =>

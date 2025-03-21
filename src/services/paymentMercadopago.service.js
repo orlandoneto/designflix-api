@@ -1,4 +1,6 @@
 const payment = require("../config/mercadopago");
+const { broadcastMessage } = require('../config/websocket'); 
+
 const {
   UserPixPaymentMercadoPago,
   UserPlans,
@@ -9,7 +11,7 @@ const { sendEmail } = require("../utils/emailService");
 const { PLAN_NAMES, PLAN_VALUES } = require("../utils/constants/constants");
 
 module.exports = class {
-  async createPix(req, res) {
+  async createMercadopagoPix(req, res) {
     const body = {
       transaction_amount: req.body.transaction_amount,
       description: req.body.description,
@@ -202,7 +204,7 @@ module.exports = class {
     }
   }
 
-  async processPaymentWebhook(req, res) {
+  async mercadopagoPixPaymentWebhook(req, res) {
     try {
       const {
         action,
@@ -272,6 +274,15 @@ module.exports = class {
         "customerSubscriptionCreated",
         contextParams
       );
+
+      const message = {
+        userId: user_id,
+        paymentId: id,
+        planName: plainResults[0].plans.plan_name,
+        subscriptionDate: new Date().toLocaleDateString("pt-BR"),
+      };
+
+      broadcastMessage(JSON.stringify(message));
 
       res.status(200).json({ data: newPayment });
     } catch (error) {
