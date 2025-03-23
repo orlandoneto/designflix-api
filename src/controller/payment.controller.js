@@ -62,10 +62,6 @@ module.exports = (app) => {
     paymentMercadopagoService.mercadopagoPixPaymentWebhook(req, res)
   );
 
-  app.get("/mercadopago/pix/:id", AuthenticateRoute(["user"]), (req, res) =>
-    paymentMercadopagoService.getById(req, res)
-  );
-
   app.put("/mercadopago/pix/:id", AuthenticateRoute(["user"]), (req, res) =>
     paymentMercadopagoService.updateById(req, res)
   );

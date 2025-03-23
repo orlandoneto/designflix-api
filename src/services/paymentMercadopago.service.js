@@ -1,5 +1,5 @@
 const payment = require("../config/mercadopago");
-const { broadcastMessage } = require('../config/websocket'); 
+const { broadcastMessage } = require("../config/websocket");
 
 const {
   UserPixPaymentMercadoPago,
@@ -35,25 +35,6 @@ module.exports = class {
         const errorMessage = error.message || "Erro ao processar transação";
         res.status(errorStatus).json({ error_message: errorMessage });
       });
-  }
-
-  async getById(req, res) {
-    try {
-      const { id } = req.params;
-
-      const paymentData = await UserPixPaymentMercadoPago.findOne({
-        where: { user_id: id, is_check: 0 },
-      });
-
-      if (!paymentData) {
-        return res.status(200).json({ data: null });
-      }
-
-      res.status(200).json({ data: paymentData });
-    } catch (error) {
-      console.error("Erro ao buscar pagamento PIX:", error);
-      res.status(500).json({ error_message: "Erro ao buscar pagamento pix." });
-    }
   }
 
   async updateById(req, res) {
@@ -279,6 +260,7 @@ module.exports = class {
         userId: user_id,
         paymentId: id,
         planName: plainResults[0].plans.plan_name,
+        email: plainResults[0].user.email,
         subscriptionDate: new Date().toLocaleDateString("pt-BR"),
       };
 
