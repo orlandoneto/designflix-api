@@ -11,6 +11,12 @@ module.exports = (app) => {
     paymentStripeService.createSubscription(req, res)
   );
 
+  app.put(
+    "/update-subscription",
+    AuthenticateRoute(["user"]),
+    (req, res) => paymentStripeService.updateSubscription(req, res)
+  );
+
   app.get(
     "/retrieve-plan-stripe/:planId",
     AuthenticateRoute(["user"]),
