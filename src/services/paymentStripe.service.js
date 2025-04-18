@@ -119,6 +119,45 @@ module.exports = class {
     }
   }
 
+  async handleCreateOrUpdateSubscription(req, res) {
+    try {
+      const { userId, planId, email, paymentMethodId } = req.body;
+
+      if (!userId || !planId || !email || !paymentMethodId) {
+        return res.status(400).json({
+          message: "userId, planId, email e paymentMethodId são obrigatórios"
+        });
+      }
+
+      // Verificar se o usuário já tem um plano
+      const userPlan = await UserPlans.findOne({
+        where: { user_id: userId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["stripe_plan_id"],
+          },
+        ],
+      });
+
+      if (userPlan?.stripe_customer_id) {
+        // Se já tem um plano, atualiza
+        req.body.customerId = userPlan.stripe_customer_id;
+        req.body.newPlanId = planId;
+        return this.updateSubscription(req, res);
+      } else {
+        // Se não tem plano, cria novo
+        return this.createSubscription(req, res);
+      }
+    } catch (error) {
+      console.error("Erro ao processar assinatura:", error);
+      res.status(500).json({
+        message: error.message
+      });
+    }
+  }
+
   async retrievePlans(req, res) {
     const { planId } = req.params;
     try {
@@ -321,7 +360,6 @@ module.exports = class {
         .send({ error: "Erro ao buscar os downloads do plano do usuário" });
     }
   }
-
 
   // START EVENTOS HOOKS
 
