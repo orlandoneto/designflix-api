@@ -81,8 +81,7 @@ module.exports = class {
             id: currentItemId,
             plan: newPlanId,
           }],
-          proration_behavior: 'none',
-          billing_cycle_anchor: 'unchanged'
+          proration_behavior: 'none'
         }
       );
 
@@ -142,12 +141,10 @@ module.exports = class {
       });
 
       if (userPlan?.stripe_customer_id) {
-        // Se já tem um plano, atualiza
         req.body.customerId = userPlan.stripe_customer_id;
         req.body.newPlanId = planId;
         return this.updateSubscription(req, res);
       } else {
-        // Se não tem plano, cria novo
         return this.createSubscription(req, res);
       }
     } catch (error) {
