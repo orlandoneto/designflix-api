@@ -3,17 +3,16 @@ const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-handlebars");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
-
 const { User } = require("../models");
-
 const { sendEmail } = require("../utils/emailService");
+const stripeModule = require("../modules/stripe.module");
 
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const DIR_key = path.join(__dirname, "../middleware/private.key");
 const privateKey = fs.readFileSync(DIR_key);
 
-module.exports = class {
+class UserServices {
   async getAll(req, res) {
     const users = await User.findAll({ attributes: { exclude: ["password"] } });
 
@@ -55,11 +54,99 @@ module.exports = class {
           .json({ success: false, message: "Usuário não encontrado" });
       }
 
-      return res.status(200).json({ success: true});
+      return res.status(200).json({ success: true });
     } catch (error) {
       return res
         .status(500)
         .json({ success: false, message: "Erro interno do servidor" });
+    }
+  }
+
+  // FIXME: Criar um service único que reunina todos os metodo da carteira.
+  async userBalanceById(req, res) {
+    const { userId } = req.params;
+    try {
+      const user = await User.findOne({
+        where: { id: userId },
+        attributes: ["balance"],
+      });
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Usuário nao encontrado" });
+      }
+      const result = { success: true, data: user };
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Erro ao trazer balanço do usuário",
+        error: error.message,
+      });
+    }
+  }
+
+  // FIXME: Criar um service único que reunina todos os metodo da carteira.
+  async updateBalance(req, res) {
+    const { userId } = req.params;
+    try {
+      const result = await this._updateBalance(userId);
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(404).json(result);
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Erro ao atualizar o saldo",
+        error: error.message,
+      });
+    }
+  }
+
+  // FIXME: Criar um service único que reunina todos os metodo da carteira.
+  async _updateBalance(userId) {
+    try {
+      // Tenta encontrar o usuário
+      const user = await User.findOne({ where: { id: userId } });
+
+      if (user) {
+        // Se o saldo for null, inicializa com 0.3
+        if (user.balance === null) {
+          await User.update({ balance: 0.3 }, { where: { id: userId } });
+          return {
+            success: true,
+            message: "Saldo inicializado com sucesso",
+          };
+        } else {
+          // Caso contrário, incrementa o saldo existente
+          await User.increment("balance", {
+            by: 0.3,
+            where: { id: userId },
+          });
+          return {
+            success: true,
+            message: "Saldo atualizado com sucesso",
+          };
+        }
+      } else {
+        // Se o usuário não existir, cria um novo com saldo inicial 0.3
+        await User.create({
+          id: userId,
+          balance: 0.3, // Define o saldo inicial
+        });
+        return {
+          success: true,
+          message: "Usuário criado e saldo inicial inserido com sucesso",
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: "Erro ao atualizar o saldo",
+        error: error.message,
+      };
     }
   }
 
@@ -361,10 +448,6 @@ module.exports = class {
       let idToUpdate;
       let self = false;
 
-      if (req.params.userType === "admin") {
-        idToUpdate = req.params.userId;
-      }
-
       if (req.params.userType === "user") {
         idToUpdate = req.params.userId;
         self = true;
@@ -374,6 +457,23 @@ module.exports = class {
         const where = { id: idToUpdate };
 
         const oldUser = await User.findOne({ where });
+
+        // Criar conta conectada no Stripe
+        if (req.body.contributor) {
+          const accountId = await stripeModule.createConnectedAccount(
+            oldUser.email
+          );
+
+          req.body.stripeAccountId = accountId;
+        }
+
+        // Atualizar conta conectada para a chave pix
+        if (req.body.chavePix) {
+          await stripeModule.addPixKeyToAccount(
+            oldUser.stripeAccountId,
+            req.body.chavePix
+          );
+        }
 
         let updatedUser = { ...oldUser, ...req.body };
 
@@ -404,7 +504,7 @@ module.exports = class {
     }
   }
 
-  async updateUserContributor(req, res) {
+  async updateUserContributorInternal(req, res) {
     try {
       let idToUpdate = req.query.userId;
 
@@ -426,4 +526,5 @@ module.exports = class {
       res.status(500).send({ message: "Ocorreu um erro." });
     }
   }
-};
+}
+module.exports = new UserServices();

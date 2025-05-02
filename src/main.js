@@ -8,7 +8,12 @@ const path = require("path");
 
 require("dotenv").config();
 
+const http = require("http");
+const { setupWebSocket } = require("./config/websocket");
+
 const app = express();
+const server = http.createServer(app);
+
 app.use(helmet());
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
@@ -24,8 +29,7 @@ app.use(
   })
 );
 
-console.log("Port:", process.env.NODE_PORT);
-app.listen(process.env.NODE_PORT);
+setupWebSocket(server);
 
 const swaggerOptions = {
   swaggerDefinition: {
@@ -33,18 +37,10 @@ const swaggerOptions = {
     info: {
       title: "Design Flix API",
       description: "Design Flix API documentation",
-      contact: {
-        name: "FlixDesign",
-        email: process.env.EMAIL_HOST_SMTP,
-      },
+      contact: { name: "FlixDesign", email: process.env.EMAIL_HOST_SMTP },
       version: "1.0.0",
     },
-    servers: [
-      {
-        url: process.env.API_URL,
-        description: "API",
-      },
-    ],
+    servers: [{ url: process.env.API_URL, description: "API" }],
     components: {
       securitySchemes: {
         jwt: {
@@ -56,11 +52,7 @@ const swaggerOptions = {
         },
       },
     },
-    security: [
-      {
-        jwt: [],
-      },
-    ],
+    security: [{ jwt: [] }],
   },
   apis: ["src/main.js", "src/controller/*.controller.js"],
 };
@@ -127,6 +119,17 @@ require("./controller/user-follows.controller")(app);
 // Plans Download Limits
 require("./controller/plans-download-limit.controller")(app);
 
+// User Commissions
+require("./controller/user-commissions.controller")(app);
+
+// Plans
+require("./controller/user-plans.controller")(app);
+
 // Forgot Signup
 require("./controller/forgot.controller")(app);
-module.exports = { app };
+
+server.listen(process.env.NODE_PORT, () => {
+  console.log(`Servidor rodando na porta ${process.env.NODE_PORT}`);
+});
+
+module.exports = { app, server };

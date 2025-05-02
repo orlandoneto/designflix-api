@@ -1,4 +1,6 @@
 const { UserDownloads, sequelize } = require("../models");
+const UserService = require("./user.service");
+const UserCommissionsServices = require("./user-commissions.service");
 
 class UserDownloadsServices {
   async getUserDownloads(req, res) {
@@ -114,6 +116,25 @@ class UserDownloadsServices {
       if (!created) {
         download.total_downloads += 1;
         await download.save();
+      }
+
+      const updateBalanceResult = await UserService._updateBalance(user_id);
+
+      if (!updateBalanceResult.success) {
+        return res.status(500).json({
+          message: "Erro ao atualizar o saldo do usuário",
+          error: updateBalanceResult.error,
+        });
+      }
+
+      const createCommissionResult =
+        await UserCommissionsServices._createCommission(user_id);
+
+      if (!createCommissionResult.success) {
+        return res.status(500).json({
+          message: "Erro ao criar a comissão",
+          error: createCommissionResult.error,
+        });
       }
 
       res.status(201).json(download);

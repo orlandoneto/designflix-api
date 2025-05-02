@@ -15,7 +15,6 @@ const storageTypes = {
         if (err) cb(err);
 
         file.key = `${hash.toString("hex")}-${file.originalname}`;
-
         cb(null, file.key);
       });
     },
@@ -31,8 +30,9 @@ const storageTypes = {
     key: (req, file, cb) => {
       crypto.randomBytes(16, (err, hash) => {
         if (err) cb(err);
+
         const fileName =
-          process.env.FOLDER_NAME_COVERS_PATH +
+          process.env.FOLDER_NAME_IMAGES_PATH +
           "/" +
           `${hash.toString("hex")}-${file.originalname}`;
 
@@ -49,31 +49,8 @@ module.exports = {
     fileSize: CONST.LIMIT_SIZE_IMG,
   },
   fileFilter: (req, file, cb) => {
-    const allowedMimes = [
-      "image/jpeg",
-      "image/pjpeg",
-      "image/png",
-      "image/gif",
-      "image/svg+xml",
-      "application/postscript",
-      "application/vnd.corel-draw",
-      "image/vnd.adobe.photoshop",
-      "application/x-canva",
-      "application/zip",
-      "application/x-rar-compressed",
-      "application/x-7z-compressed",
-    ];
-
-    const allowedExtensions = [
-      ".jpg",
-      ".jpeg",
-      ".png",
-      ".gif",
-      ".svg",
-      ".zip",
-      ".rar",
-      ".7z",
-    ];
+    const allowedMimes = ["image/jpeg", "image/pjpeg"];
+    const allowedExtensions = [".jpg", ".jpeg"];
 
     // Verificar MIME type
     if (allowedMimes.includes(file.mimetype)) {
@@ -86,7 +63,7 @@ module.exports = {
     if (allowedExtensions.includes(fileExtension)) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type. Supported types: images and archives (ZIP, RAR, 7z)."));
+      cb(new Error("Invalid file type. Supported types: images, (JPEG, JPG)."));
     }
   },
 };

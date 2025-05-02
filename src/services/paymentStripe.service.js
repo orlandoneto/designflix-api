@@ -1,13 +1,7 @@
 const stripe = require("../config/stripe");
 const { sendEmail } = require("../utils/emailService");
 const { UserPlans, Plans, User } = require("../models");
-
-const planNames = {
-  free: "Gratuito",
-  monthly: "Mensal",
-  semi_annual: "Semestral",
-  annual: "Anual",
-};
+const { PLAN_NAMES } = require("../utils/constants/constants");
 
 module.exports = class {
   async createSubscription(req, res) {
@@ -39,13 +33,11 @@ module.exports = class {
         return res.status(404).send("Plano não encontrado");
       }
 
-      const userPlan = await this.createOrUpdatePlan(plan, customer, userId);
-      if (!userPlan) {
-        res.status(400).send({
-          message: "Erro ao criar ou atualizar plano via cartão - stripe",
-        });
-        return;
-      }
+      await UserPlans.create({
+        user_id: userId,
+        plan_id: plan.id,
+        stripe_customer_id: customer.id,
+      });
 
       res.status(200).json(subscription);
     } catch (error) {
@@ -56,24 +48,111 @@ module.exports = class {
     }
   }
 
-  async createOrUpdatePlan(plan, customer, userId) {
-    const userPlan = await UserPlans.findOne({ where: { user_id: userId } });
-    if (userPlan) {
-      const updateUserPlan = await userPlan.update({
-        plan_id: plan.id,
-        stripe_customer_id: customer.id,
-      });
-      if (updateUserPlan) return true;
-    } else {
-      const createUserPlan = await UserPlans.create({
-        user_id: userId,
-        plan_id: plan.id,
-        stripe_customer_id: customer.id,
-      });
-      if (createUserPlan) return true;
-    }
+  async updateSubscription(req, res) {
+    try {
+      const { customerId, newPlanId, userId } = req.body;
 
-    return false;
+      if (!customerId || !newPlanId || !userId) {
+        return res.status(400).json({
+          message: "customerId e newPlanId são obrigatórios"
+        });
+      }
+
+      // Buscar assinaturas ativas do cliente
+      const existingSubscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active'
+      });
+
+      if (existingSubscriptions.data.length === 0) {
+        return res.status(404).json({
+          message: "Nenhuma assinatura ativa encontrada para este cliente"
+        });
+      }
+
+      const currentSubscription = existingSubscriptions.data[0];
+      const currentItemId = currentSubscription.items.data[0].id;
+
+      // Atualizar a assinatura
+      const subscription = await stripe.subscriptions.update(
+        currentSubscription.id,
+        {
+          items: [{
+            id: currentItemId,
+            plan: newPlanId,
+          }],
+          proration_behavior: 'none'
+        }
+      );
+
+      // Atualizar o plano no banco de dados
+      const plan = await Plans.findOne({
+        where: { stripe_plan_id: newPlanId },
+      });
+
+      if (!plan) {
+        return res.status(404).send("Plano não encontrado");
+      }
+
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId }
+      });
+
+      if (userPlan) {
+        await userPlan.update({
+          user_id: userId,
+          plan_id: plan.id,
+          stripe_customer_id: customerId
+        });
+      }
+
+      return res.status(200).json({
+        message: "Assinatura atualizada com sucesso",
+        subscription
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar assinatura:", error);
+      res.status(500).json({
+        message: error.message
+      });
+    }
+  }
+
+  async handleCreateOrUpdateSubscription(req, res) {
+    try {
+      const { userId, planId, email, paymentMethodId } = req.body;
+
+      if (!userId || !planId || !email || !paymentMethodId) {
+        return res.status(400).json({
+          message: "userId, planId, email e paymentMethodId são obrigatórios"
+        });
+      }
+
+      // Verificar se o usuário já tem um plano
+      const userPlan = await UserPlans.findOne({
+        where: { user_id: userId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["stripe_plan_id"],
+          },
+        ],
+      });
+
+      if (userPlan?.stripe_customer_id) {
+        req.body.customerId = userPlan.stripe_customer_id;
+        req.body.newPlanId = planId;
+        return this.updateSubscription(req, res);
+      } else {
+        return this.createSubscription(req, res);
+      }
+    } catch (error) {
+      console.error("Erro ao processar assinatura:", error);
+      res.status(500).json({
+        message: error.message
+      });
+    }
   }
 
   async retrievePlans(req, res) {
@@ -173,6 +252,74 @@ module.exports = class {
       res
         .status(400)
         .send(`Erro ao criar a sessão do Portal: ${error.message}`);
+    }
+  }
+
+  async refundSubscriptionWithin7Days(req, res) {
+    const { customerId } = req.params;
+
+    try {
+      // Buscar a assinatura ativa do cliente
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "active",
+        limit: 1,
+      });
+
+      if (subscriptions.data.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Nenhuma assinatura ativa encontrada para este cliente.",
+        });
+      }
+
+      const subscription = subscriptions.data[0];
+
+      // Buscar os pagamentos associados à assinatura
+      const invoices = await stripe.invoices.list({
+        customer: customerId,
+        limit: 1,
+      });
+
+      if (invoices.data.length === 0 || !invoices.data[0].charge) {
+        return res.status(404).json({
+          success: false,
+          message: "Nenhum pagamento encontrado para reembolso.",
+        });
+      }
+
+      const chargeId = invoices.data[0].charge;
+      const charge = await stripe.charges.retrieve(chargeId);
+
+      // Verificar se o pagamento foi feito há menos de 7 dias
+      const paymentTime = charge.created;
+      const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
+
+      if (paymentTime < sevenDaysAgo) {
+        return res.status(400).json({
+          success: false,
+          message: "O período de reembolso de 7 dias já expirou.",
+        });
+      }
+
+      // Criar o reembolso
+      const refund = await stripe.refunds.create({
+        charge: chargeId,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Reembolso realizado com sucesso.",
+        refund,
+      });
+    } catch (error) {
+      console.error("Erro ao processar o reembolso:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Erro ao processar o reembolso.",
+        error: error.message,
+      });
     }
   }
 
@@ -305,7 +452,7 @@ module.exports = class {
 
       const contextParams = {
         name: userName,
-        planName: planNames?.[planName] || planName,
+        planName: PLAN_NAMES?.[planName] || planName,
         subscriptionDate: new Date().toLocaleDateString("pt-BR"),
         baseUrl: process.env.API_URL,
       };
@@ -321,7 +468,11 @@ module.exports = class {
     }
   }
 
-  async handleSubscriptionChangeDeleteOrRefund(data, emailTemplate, emailTitle) {
+  async handleSubscriptionChangeDeleteOrRefund(
+    data,
+    emailTemplate,
+    emailTitle
+  ) {
     try {
       if (!data?.customer || !data.billing_details?.email) {
         throw new Error("Dados inválidos ou incompletos.");
@@ -371,7 +522,7 @@ module.exports = class {
 
       const contextParams = {
         name: userName,
-        planName: planNames?.[planName] || planName,
+        planName: PLAN_NAMES?.[planName] || planName,
         amount:
           emailTemplate === "chargeRefund"
             ? (data.amount / 100).toFixed(2)
@@ -474,7 +625,7 @@ module.exports = class {
 
       const contextParams = {
         name: userName,
-        planName: planNames?.[planName] || planName,
+        planName: PLAN_NAMES?.[planName] || planName,
         statusPlan,
         additionalDetails,
         updatedDate: new Date().toLocaleDateString("pt-BR"),
