@@ -56,13 +56,14 @@ module.exports = class {
       );
 
       const mailOptions = {
-        from: process.env.EMAIL_TO_SEND,
+        from: process.env.EMAIL_USER_SMTP,
         to: user.email,
-        subject: "Redefinição de Senha - DesignFlix",
+        subject: "Redefinição de Senha - FlixDesign",
         template: "forgot",
         context: {
           name: user.name,
           resetLink: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`,
+          baseUrl: process.env.API_URL,
         },
       };
 

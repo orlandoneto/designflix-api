@@ -15,7 +15,6 @@ const storageTypes = {
         if (err) cb(err);
 
         file.key = `${hash.toString("hex")}-${file.originalname}`;
-
         cb(null, file.key);
       });
     },
@@ -60,15 +59,39 @@ module.exports = {
       "application/vnd.corel-draw",
       "image/vnd.adobe.photoshop",
       "application/x-canva",
-      "application/zip", // ZIP - Permitindo upload de ZIP
-      "application/x-rar-compressed", // RAR
-      "application/x-7z-compressed", // 7z
+      "application/zip",
+      "application/x-rar-compressed",
+      "application/x-7z-compressed",
+      "application/octet-stream", // Para arquivos binários
     ];
 
+    const allowedExtensions = [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".gif",
+      ".svg",
+      ".ai",
+      ".cdr",
+      ".psd",
+      ".canva",
+      ".zip",
+      ".rar",
+      ".7z",
+    ];
+
+    // Verificar MIME type
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
+      return;
+    }
+
+    // Verificar extensão do arquivo
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    if (allowedExtensions.includes(fileExtension)) {
+      cb(null, true);
     } else {
-      cb(new Error("Invalid file type."));
+      cb(new Error("Invalid file type. Supported types: images, archives (ZIP, RAR, 7z)."));
     }
   },
 };

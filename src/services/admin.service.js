@@ -137,9 +137,9 @@ module.exports = class {
       }
     );
 
-    let transporter = nodemailer.createTransport({
-      host: "email-smtp.us-east-1.amazonaws.com",
-      port: 465,
+    const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST_SMTP,
+      port: process.env.EMAIL_PORT_SMTP,
       secure: true,
       auth: {
         user: process.env.EMAIL_USER_SMTP,
@@ -162,7 +162,7 @@ module.exports = class {
 
     try {
       const mailOptions = {
-        from: process.env.EMAIL_TO_SEND,
+        from: process.env.EMAIL_USER_SMTP,
         to: admin.email,
         subject: "Reset de Senha - Design Flix",
         text: "",
@@ -170,6 +170,7 @@ module.exports = class {
         context: {
           newPassword: time,
           name: admin.name,
+          baseUrl: process.env.API_URL,
         },
       };
 

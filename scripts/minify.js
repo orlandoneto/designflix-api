@@ -32,7 +32,7 @@ const minifyFiles = (dir) => {
       }
 
       fs.writeFileSync(filePath, result.code, 'utf-8');
-      console.log(`Minificado: ${filePath}`);
+      console.log(`Buildando...: ${filePath}`);
     }
   });
 };

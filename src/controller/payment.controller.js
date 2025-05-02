@@ -1,6 +1,5 @@
 const PaymentStripeService = require("../services/paymentStripe.service");
 const PaymentMercadopagoService = require("../services/paymentMercadopago.service");
-const VerifyWebhook = require("../middleware/verifyWebhook");
 const AuthenticateRoute = require("../middleware/authentication");
 
 module.exports = (app) => {
@@ -12,8 +11,20 @@ module.exports = (app) => {
     paymentStripeService.createSubscription(req, res)
   );
 
-  app.get("/retrieve-plan/:planId", AuthenticateRoute(["user"]), (req, res) =>
-    paymentStripeService.retrievePlans(req, res)
+  app.put(
+    "/update-subscription",
+    AuthenticateRoute(["user"]),
+    (req, res) => paymentStripeService.updateSubscription(req, res)
+  );
+
+  app.post("/create-or-update-subscription", AuthenticateRoute(["user"]), (req, res) =>
+    paymentStripeService.handleCreateOrUpdateSubscription(req, res)
+  );
+
+  app.get(
+    "/retrieve-plan-stripe/:planId",
+    AuthenticateRoute(["user"]),
+    (req, res) => paymentStripeService.retrievePlans(req, res)
   );
 
   app.get("/user-plan-grouped/:id", AuthenticateRoute(["user"]), (req, res) =>
@@ -24,13 +35,17 @@ module.exports = (app) => {
     paymentStripeService.userPlan(req, res)
   );
 
+  app.get("/user-plan-all", (req, res) =>
+    paymentStripeService.getAllPlans(req, res)
+  );
+
   app.get(
     "/create-customer-portal-session",
     AuthenticateRoute(["user"]),
     (req, res) => paymentStripeService.userPlansPortalSession(req, res)
   );
 
-  app.post("/webhook", VerifyWebhook, (req, res) =>
+  app.post("/stripe/webhook", (req, res) =>
     paymentStripeService.handleWebhook(req, res)
   );
 
@@ -40,23 +55,31 @@ module.exports = (app) => {
     (req, res) => paymentStripeService.getUserPlanDownloads(req, res)
   );
 
+  app.delete(
+    "/stripe/trial/:customerId/cancel",
+    AuthenticateRoute(["user"]),
+    (req, res) => paymentStripeService.refundSubscriptionWithin7Days(req, res)
+  );
+
   /* END ENDPOITS STRIP */
 
   /* START ENDPOITS MERCADOPAGO */
   app.post("/create-mercadopago-pix", AuthenticateRoute(["user"]), (req, res) =>
-    paymentMercadopagoService.createPix(req, res)
+    paymentMercadopagoService.createMercadopagoPix(req, res)
   );
 
-  app.post("/v1/webhook", (req, res) =>
-    paymentMercadopagoService.processPaymentWebhook(req, res)
-  );
-
-  app.get("/mercadopago/pix/:id", AuthenticateRoute(["user"]), (req, res) =>
-    paymentMercadopagoService.getById(req, res)
+  app.post("/mercadopago/pix/webhook", (req, res) =>
+    paymentMercadopagoService.mercadopagoPixPaymentWebhook(req, res)
   );
 
   app.put("/mercadopago/pix/:id", AuthenticateRoute(["user"]), (req, res) =>
     paymentMercadopagoService.updateById(req, res)
+  );
+
+  app.delete(
+    "/mercadopago/trial/:userId/cancel",
+    AuthenticateRoute(["user"]),
+    (req, res) => paymentMercadopagoService.cancelTrialMercadopago(req, res)
   );
 
   /* END ENDPOITS MERCADOPAGO */

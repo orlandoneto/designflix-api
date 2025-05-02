@@ -57,10 +57,15 @@
     </div>
     <div class="content">
       <p>Olá {{name}},</p>
-      <p>Bem-vindo ao FlixDesign! Estamos muito felizes em tê-lo conosco.</p>
-      <p>Explore nossos conteúdos e aproveite ao máximo sua experiência.</p>
-      <p>Se precisar de qualquer ajuda, não hesite em nos contatar.</p>
-      <p>Atenciosamente,<br>Equipe FlixDesign</p>
+      <p>Gostaríamos de informar que o reembolso referente à sua assinatura no plano <strong>{{planName}}</strong> do FlixDesign foi concluído com sucesso.</p>
+      <p>Segue abaixo os detalhes do reembolso:</p>
+      <ul>
+        <li><strong>Plano:</strong> {{planName}}</li>
+        <li><strong>Valor reembolsado:</strong> R$ {{amount}}</li>
+        <li><strong>Data do reembolso:</strong> {{refundDate}}</li>
+      </ul>
+      <p>O valor será devolvido para o mesmo método de pagamento utilizado no momento da assinatura. Por favor, note que o prazo para o crédito do valor pode variar de acordo com o banco ou a administradora do cartão.</p>
+      <p>Caso tenha qualquer dúvida ou necessite de mais informações, não hesite em entrar em contato com nossa equipe de suporte. Estamos à disposição para ajudá-lo.</p>
     </div>
     <div class="footer">
       <p>&copy; 2024 FlixDesign. Todos os direitos reservados.</p>

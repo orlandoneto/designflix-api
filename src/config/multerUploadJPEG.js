@@ -15,7 +15,6 @@ const storageTypes = {
         if (err) cb(err);
 
         file.key = `${hash.toString("hex")}-${file.originalname}`;
-
         cb(null, file.key);
       });
     },
@@ -50,25 +49,21 @@ module.exports = {
     fileSize: CONST.LIMIT_SIZE_IMG,
   },
   fileFilter: (req, file, cb) => {
-    const allowedMimes = [
-      "image/jpeg",
-      "image/pjpeg",
-      "image/png",
-      "image/gif",
-      "image/svg+xml",
-      "application/postscript",
-      "application/vnd.corel-draw",
-      "image/vnd.adobe.photoshop",
-      "application/x-canva",
-      "application/zip", // ZIP - Permitindo upload de ZIP
-      "application/x-rar-compressed", // RAR
-      "application/x-7z-compressed", // 7z
-    ];
+    const allowedMimes = ["image/jpeg", "image/pjpeg"];
+    const allowedExtensions = [".jpg", ".jpeg"];
 
+    // Verificar MIME type
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
+      return;
+    }
+
+    // Verificar extensão do arquivo
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    if (allowedExtensions.includes(fileExtension)) {
+      cb(null, true);
     } else {
-      cb(new Error("Invalid file type."));
+      cb(new Error("Invalid file type. Supported types: images, (JPEG, JPG)."));
     }
   },
 };

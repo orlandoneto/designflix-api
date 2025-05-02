@@ -14,7 +14,13 @@ const createTransporter = () => {
   });
 };
 
-const sendEmail = async (paramsEmail, templateName , context = {}) => {
+const sendEmail = async (
+  paramsEmail,
+  templateName,
+  context = {
+    baseUrl: process.env.API_URL,
+  }
+) => {
   const transporter = createTransporter();
   transporter.use(
     "compile",
@@ -31,7 +37,7 @@ const sendEmail = async (paramsEmail, templateName , context = {}) => {
 
   try {
     const mailOptions = {
-      from: process.env.EMAIL_TO_SEND,
+      from: process.env.EMAIL_USER_SMTP,
       to: paramsEmail.email,
       subject: paramsEmail.title,
       text: paramsEmail.description,

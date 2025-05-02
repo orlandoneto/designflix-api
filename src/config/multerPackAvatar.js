@@ -41,10 +41,29 @@ module.exports = (folderName) => {
         "application/x-7z-compressed",
       ];
 
+      const allowedExtensions = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".svg",
+        ".zip",
+        ".rar",
+        ".7z",
+      ];
+
+      // Verificar MIME type
       if (allowedMimes.includes(file.mimetype)) {
         cb(null, true);
+        return;
+      }
+
+      // Verificar extensão do arquivo
+      const fileExtension = path.extname(file.originalname).toLowerCase();
+      if (allowedExtensions.includes(fileExtension)) {
+        cb(null, true);
       } else {
-        cb(new Error("Invalid file type."));
+        cb(new Error("Invalid file type. Supported types: images and archives (ZIP, RAR, 7z)."));
       }
     },
   };
