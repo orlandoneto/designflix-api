@@ -54,7 +54,7 @@ class UserServices {
           .json({ success: false, message: "Usuário não encontrado" });
       }
 
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ success: true, message: "Usuário encontrado" });
     } catch (error) {
       return res
         .status(500)
