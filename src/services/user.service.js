@@ -50,7 +50,7 @@ class UserServices {
       const user = await User.findOne({ where: { email } });
       if (!user) {
         return res
-          .status(400)
+          .status(200)
           .json({ success: false, message: "Usuário não encontrado" });
       }
 
