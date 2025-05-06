@@ -16,7 +16,7 @@
   "production": {
     "username": "flixdesign_prd",
     "password": "AKIA4TDI26WKOUZTIEGZ@Developer501q3e!QE1254k",
-    "database": "flixdesign_production",
+    "database": "flixdesign_productio",
     "host": "46.202.146.92",
     "dialect": "mysql"
   }
