@@ -14,18 +14,36 @@ const { setupWebSocket } = require("./config/websocket");
 const app = express();
 const server = http.createServer(app);
 
+// Importar o cron job
+require("./cron/upgradePlansJob")(); // Importa o cron job para agendar planos
+
+//Teste de execução do cron job:
+// setTimeout(async () => {
+//   const job = require('./cron/upgradePlansJob');
+//   await job(); // Executa imediatamente para teste
+// }, 5000);
+
+// Logar o tempo de execução do cron job
+const logger = require('./config/logger');
+app.use(morgan('combined', { stream: logger.stream }));
+
 app.use(helmet());
-app.use(cors({
-  origin: (origin, callback) => {
-    const allowedOrigins = [process.env.FRONTEND_URL, process.env.FRONTEND_URL.replace(/\/$/, '')];
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        process.env.FRONTEND_URL,
+        process.env.FRONTEND_URL.replace(/\/$/, ""),
+      ];
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(morgan("dev"));
 app.use("/", express.static(path.resolve(__dirname, "..", "public")));

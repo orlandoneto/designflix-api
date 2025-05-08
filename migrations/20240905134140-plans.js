@@ -9,7 +9,7 @@ module.exports = {
         autoIncrement: true,
         allowNull: false,
       },
-      stripe_plan_id: {
+      stripe_price_id: {
         type: Sequelize.STRING,
         allowNull: false,
       },

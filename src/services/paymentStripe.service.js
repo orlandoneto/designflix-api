@@ -26,7 +26,7 @@ module.exports = class {
       });
 
       const plan = await Plans.findOne({
-        where: { stripe_plan_id: priceId },
+        where: { stripe_price_id: priceId },
       });
 
       if (!plan) {
@@ -37,6 +37,7 @@ module.exports = class {
         user_id: userId,
         plan_id: plan.id,
         stripe_customer_id: customer.id,
+        stripe_subscription_id: subscription.id,
       });
 
       res.status(200).json(subscription);
@@ -52,13 +53,14 @@ module.exports = class {
     try {
       const { customerId, priceId, userId } = req.body;
 
+      // Validação básica
       if (!customerId || !priceId || !userId) {
         return res
           .status(400)
           .json({ message: "Campos obrigatórios ausentes." });
       }
 
-      // Buscar a assinatura ativa do cliente
+      // 1. Buscar assinatura ativa
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
         status: "active",
@@ -72,56 +74,73 @@ module.exports = class {
           .json({ message: "Assinatura ativa não encontrada." });
       }
 
+      // 2. Verificar se já está no mesmo plano
       const currentPriceId = currentSubscription.items.data[0].price.id;
-
-      // 🔒 Verifica se os dois preços têm o mesmo intervalo (ex: ambos mensais)
-      const currentPrice = await stripe.prices.retrieve(currentPriceId);
-      const newPrice = await stripe.prices.retrieve(priceId);
-
-      if (currentPrice.recurring.interval !== newPrice.recurring.interval) {
+      if (currentPriceId === priceId) {
         return res
           .status(400)
-          .json({
-            message: "Intervalos diferentes: não é possível agendar upgrade.",
-          });
+          .json({ message: "O usuário já está neste plano." });
       }
 
-      // ⏳ Agendar upgrade para o fim do ciclo atual
-      const schedule = await stripe.subscriptionSchedules.create({
-        from_subscription: currentSubscription.id,
-        end_behavior: "release",
-        phases: [
-          {
-            items: [{ price: currentPriceId }],
-            start_date: "now",
-            end_date: currentSubscription.current_period_end,
-          },
-          {
-            items: [{ price: priceId }],
-            // Começa automaticamente após o fim do ciclo atual
-          },
-        ],
-      });
-
-      // Atualiza o plano no banco se necessário
-      const plan = await Plans.findOne({
+      // 3. Buscar o novo plano no banco de dados
+      const newPlan = await Plans.findOne({
         where: { stripe_plan_id: priceId },
       });
-      const userPlan = await UserPlans.findOne({
-        where: { stripe_customer_id: customerId },
-      });
-
-      if (plan && userPlan) {
-        await userPlan.update({ user_id: userId, plan_id: plan.id });
+      if (!newPlan) {
+        return res.status(404).json({ message: "Novo plano não encontrado" });
       }
 
+      // 4. Calcular dias restantes e data de início do novo plano
+      const currentPeriodEnd = new Date(
+        currentSubscription.current_period_end * 1000
+      );
+      const daysRemaining = Math.floor(
+        (currentPeriodEnd - new Date()) / (1000 * 60 * 60 * 24)
+      );
+
+      // 5. Atualizar o registro no banco de dados com os dados agendados
+      await UserPlans.update(
+        {
+          subscription_days_left: daysRemaining,
+          scheduled_plan_id: newPlan.id,
+          scheduled_plan_start_at: currentPeriodEnd,
+          stripe_subscription_id: currentSubscription.id, // Salvar o ID da assinatura
+        },
+        {
+          where: { user_id: userId },
+        }
+      );
+
+      // 6. Atualizar a assinatura no Stripe
+      const updatedSubscription = await stripe.subscriptions.update(
+        currentSubscription.id,
+        {
+          items: [
+            {
+              id: currentSubscription.items.data[0].id,
+              price: priceId,
+            },
+          ],
+          proration_behavior: "none",
+          billing_cycle_anchor: "unchanged",
+        }
+      );
+
       return res.status(200).json({
-        message: "Upgrade agendado com sucesso para o próximo ciclo.",
-        schedule,
+        success: true,
+        message: `Upgrade agendado com sucesso. O novo plano começará em ${daysRemaining} dias.`,
+        current_plan_end_date: currentPeriodEnd,
+        new_plan: newPlan.name,
+        next_payment_date: currentPeriodEnd,
+        next_payment_amount: newPlan.price,
+        updatedSubscription,
       });
     } catch (error) {
       console.error("Erro no upgrade:", error);
-      return res.status(500).json({ message: error.message });
+      return res.status(500).json({
+        message: "Erro ao processar upgrade",
+        error: error.message,
+      });
     }
   }
 

@@ -61,7 +61,7 @@ module.exports = class {
       const updatedPaymentData = await paymentData.save();
 
       const plan = await Plans.findOne({
-        where: { stripe_plan_id: req.body.planId },
+        where: { stripe_price_id: req.body.planId },
       });
 
       if (!plan) {

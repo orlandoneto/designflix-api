@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
         primaryKey: true,
         autoIncrement: true,
       },
-      stripe_plan_id: {
+      stripe_price_id: {
         type: DataTypes.STRING,
         allowNull: false,
       },

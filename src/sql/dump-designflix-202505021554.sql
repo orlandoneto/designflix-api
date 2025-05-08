@@ -108,7 +108,7 @@ DROP TABLE IF EXISTS `plans`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `plans` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `stripe_plan_id` varchar(255) NOT NULL,
+  `stripe_price_id` varchar(255) NOT NULL,
   `plan_name` varchar(255) NOT NULL,
   `count_downloads` int NOT NULL,
   `created_at` datetime NOT NULL,
