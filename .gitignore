@@ -1,4 +1,4 @@
-# compiled output
+# Compiled output
 /dist
 /node_modules
 
@@ -9,11 +9,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+.eslintcache
 
-# OS
+# OS files
 .DS_Store
 
-# Tests
+# Test coverage
 /coverage
 /.nyc_output
 
@@ -33,13 +34,20 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Docker
 docker-compose.yml
 
+# Env files
 .env
 .env.*
 .env.development
 .env.production
 .env.test
 
+# Logs directory with keep
 /logs/*
 !/logs/.gitkeep
+
+# Lock files (keep only the one you use)
+yarn.lock
+pnpm-lock.yaml
