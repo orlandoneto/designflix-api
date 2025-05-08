@@ -6,7 +6,7 @@ const { PLAN_NAMES } = require("../utils/constants/constants");
 module.exports = class {
   async createSubscription(req, res) {
     try {
-      const { userId, planId, email, paymentMethodId } = req.body;
+      const { userId, priceId, email, paymentMethodId } = req.body;
       const customer = await stripe.customers.create({
         email,
         payment_method: paymentMethodId,
@@ -21,12 +21,12 @@ module.exports = class {
 
       const subscription = await stripe.subscriptions.create({
         customer: customer.id,
-        items: [{ plan: planId }],
+        items: [{ plan: priceId }],
         expand: ["latest_invoice.payment_intent"],
       });
 
       const plan = await Plans.findOne({
-        where: { stripe_plan_id: planId },
+        where: { stripe_plan_id: priceId },
       });
 
       if (!plan) {
@@ -50,108 +50,78 @@ module.exports = class {
 
   async updateSubscription(req, res) {
     try {
-      const { customerId, newPlanId, userId } = req.body;
+      const { customerId, priceId, userId } = req.body;
 
-      if (!customerId || !newPlanId || !userId) {
-        return res.status(400).json({
-          message: "customerId e newPlanId são obrigatórios"
-        });
+      if (!customerId || !priceId || !userId) {
+        return res
+          .status(400)
+          .json({ message: "Campos obrigatórios ausentes." });
       }
 
-      // Buscar assinaturas ativas do cliente
-      const existingSubscriptions = await stripe.subscriptions.list({
+      // Buscar a assinatura ativa do cliente
+      const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
-        status: 'active'
+        status: "active",
+        limit: 1,
       });
 
-      if (existingSubscriptions.data.length === 0) {
-        return res.status(404).json({
-          message: "Nenhuma assinatura ativa encontrada para este cliente"
-        });
+      const currentSubscription = subscriptions.data[0];
+      if (!currentSubscription) {
+        return res
+          .status(404)
+          .json({ message: "Assinatura ativa não encontrada." });
       }
 
-      const currentSubscription = existingSubscriptions.data[0];
-      const currentItemId = currentSubscription.items.data[0].id;
+      const currentPriceId = currentSubscription.items.data[0].price.id;
 
-      // Atualizar a assinatura
-      const subscription = await stripe.subscriptions.update(
-        currentSubscription.id,
-        {
-          items: [{
-            id: currentItemId,
-            plan: newPlanId,
-          }],
-          proration_behavior: 'none'
-        }
-      );
+      // 🔒 Verifica se os dois preços têm o mesmo intervalo (ex: ambos mensais)
+      const currentPrice = await stripe.prices.retrieve(currentPriceId);
+      const newPrice = await stripe.prices.retrieve(priceId);
 
-      // Atualizar o plano no banco de dados
-      const plan = await Plans.findOne({
-        where: { stripe_plan_id: newPlanId },
-      });
-
-      if (!plan) {
-        return res.status(404).send("Plano não encontrado");
+      if (currentPrice.recurring.interval !== newPrice.recurring.interval) {
+        return res
+          .status(400)
+          .json({
+            message: "Intervalos diferentes: não é possível agendar upgrade.",
+          });
       }
 
-      const userPlan = await UserPlans.findOne({
-        where: { stripe_customer_id: customerId }
-      });
-
-      if (userPlan) {
-        await userPlan.update({
-          user_id: userId,
-          plan_id: plan.id,
-          stripe_customer_id: customerId
-        });
-      }
-
-      return res.status(200).json({
-        message: "Assinatura atualizada com sucesso",
-        subscription
-      });
-    } catch (error) {
-      console.error("Erro ao atualizar assinatura:", error);
-      res.status(500).json({
-        message: error.message
-      });
-    }
-  }
-
-  async handleCreateOrUpdateSubscription(req, res) {
-    try {
-      const { userId, planId, email, paymentMethodId } = req.body;
-
-      if (!userId || !planId || !email || !paymentMethodId) {
-        return res.status(400).json({
-          message: "userId, planId, email e paymentMethodId são obrigatórios"
-        });
-      }
-
-      // Verificar se o usuário já tem um plano
-      const userPlan = await UserPlans.findOne({
-        where: { user_id: userId },
-        include: [
+      // ⏳ Agendar upgrade para o fim do ciclo atual
+      const schedule = await stripe.subscriptionSchedules.create({
+        from_subscription: currentSubscription.id,
+        end_behavior: "release",
+        phases: [
           {
-            model: Plans,
-            as: "plans",
-            attributes: ["stripe_plan_id"],
+            items: [{ price: currentPriceId }],
+            start_date: "now",
+            end_date: currentSubscription.current_period_end,
+          },
+          {
+            items: [{ price: priceId }],
+            // Começa automaticamente após o fim do ciclo atual
           },
         ],
       });
 
-      if (userPlan?.stripe_customer_id) {
-        req.body.customerId = userPlan.stripe_customer_id;
-        req.body.newPlanId = planId;
-        return this.updateSubscription(req, res);
-      } else {
-        return this.createSubscription(req, res);
-      }
-    } catch (error) {
-      console.error("Erro ao processar assinatura:", error);
-      res.status(500).json({
-        message: error.message
+      // Atualiza o plano no banco se necessário
+      const plan = await Plans.findOne({
+        where: { stripe_plan_id: priceId },
       });
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+      });
+
+      if (plan && userPlan) {
+        await userPlan.update({ user_id: userId, plan_id: plan.id });
+      }
+
+      return res.status(200).json({
+        message: "Upgrade agendado com sucesso para o próximo ciclo.",
+        schedule,
+      });
+    } catch (error) {
+      console.error("Erro no upgrade:", error);
+      return res.status(500).json({ message: error.message });
     }
   }
 
