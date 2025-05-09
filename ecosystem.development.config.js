@@ -5,7 +5,15 @@ module.exports = {
       script: "/root/api/dev/designflix-api/source/src/main.js", // Arquivo principal da aplicação
       instances: 1, // Garantindo que apenas uma instância será executada
       exec_mode: "fork", // Modo de execução "fork" (não cluster)
-      watch: false, // Desabilita o watch em produção para evitar reinicializações desnecessárias
+      autorestart: true, // Reinicia automaticamente em caso de falha
+      watch: true, // Habilita watch apenas em desenvolvimento
+      ignore_watch: [
+        // Ignora alterações nestes diretórios
+        "node_modules",
+        "logs",
+        ".git",
+      ],
+      max_memory_restart: "800M", // Limite de memória mais baixo para dev
       env: {
         NODE_ENV: "development", // Ambiente de desenvolvimento
         DOTENV_CONFIG_PATH: "/root/api/dev/designflix-api/source/.env",

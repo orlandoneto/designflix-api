@@ -14,18 +14,12 @@ const { setupWebSocket } = require("./config/websocket");
 const app = express();
 const server = http.createServer(app);
 
+// Logar o tempo de execução do cron job
+const logger = require("./config/logger");
+app.use(morgan("combined", { stream: logger.stream }));
+
 // Importar o cron job
 require("./cron/upgradePlansJob")(); // Importa o cron job para agendar planos
-
-//Teste de execução do cron job:
-// setTimeout(async () => {
-//   const job = require('./cron/upgradePlansJob');
-//   await job(); // Executa imediatamente para teste
-// }, 5000);
-
-// Logar o tempo de execução do cron job
-const logger = require('./config/logger');
-app.use(morgan('combined', { stream: logger.stream }));
 
 app.use(helmet());
 app.use(

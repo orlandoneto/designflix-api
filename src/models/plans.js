@@ -14,11 +14,7 @@ module.exports = (sequelize, DataTypes) => {
       plan_name: {
         type: DataTypes.STRING,
         allowNull: false,
-      },
-      type_plans: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
+      },    
       count_downloads: {
         type: DataTypes.INTEGER,
         allowNull: false,

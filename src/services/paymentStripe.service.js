@@ -55,56 +55,80 @@ module.exports = class {
 
       // Validação básica
       if (!customerId || !priceId || !userId) {
-        return res
-          .status(400)
-          .json({ message: "Campos obrigatórios ausentes." });
+        return res.status(400).json({
+          message: "Campos obrigatórios ausentes.",
+        });
       }
 
-      // 1. Buscar assinatura ativa
+      // Verificar plano atual do usuário no banco
+      const userPlan = await UserPlans.findOne({ where: { user_id: userId } });
+      if (!userPlan) {
+        return res.status(404).json({
+          message: "Plano do usuário não encontrado.",
+        });
+      }
+
+      // Verificar se já existe upgrade agendado
+      if (userPlan.scheduled_plan_id) {
+        return res.status(400).json({
+          message: "Já existe um upgrade agendado para este usuário.",
+        });
+      }
+
+      // 1. Buscar assinaturas ativas no Stripe
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
         status: "active",
-        limit: 1,
       });
 
-      const currentSubscription = subscriptions.data[0];
-      if (!currentSubscription) {
-        return res
-          .status(404)
-          .json({ message: "Assinatura ativa não encontrada." });
+      if (subscriptions.data.length === 0) {
+        return res.status(404).json({
+          message: "Assinatura ativa não encontrada.",
+        });
       }
+
+      if (subscriptions.data.length > 1) {
+        return res.status(400).json({
+          message: "Mais de uma assinatura ativa detectada para este cliente.",
+        });
+      }
+
+      const currentSubscription = subscriptions.data[0];
 
       // 2. Verificar se já está no mesmo plano
       const currentPriceId = currentSubscription.items.data[0].price.id;
       if (currentPriceId === priceId) {
-        return res
-          .status(400)
-          .json({ message: "O usuário já está neste plano." });
+        return res.status(400).json({
+          message: "O usuário já está neste plano.",
+        });
       }
 
-      // 3. Buscar o novo plano no banco de dados
+      // 3. Buscar novo plano no banco
       const newPlan = await Plans.findOne({
-        where: { stripe_plan_id: priceId },
+        where: { stripe_price_id: priceId },
       });
+
       if (!newPlan) {
-        return res.status(404).json({ message: "Novo plano não encontrado" });
+        return res.status(404).json({
+          message: "Novo plano não encontrado.",
+        });
       }
 
-      // 4. Calcular dias restantes e data de início do novo plano
+      // 4. Calcular dias restantes
       const currentPeriodEnd = new Date(
         currentSubscription.current_period_end * 1000
       );
       const daysRemaining = Math.floor(
-        (currentPeriodEnd - new Date()) / (1000 * 60 * 60 * 24)
+        (currentPeriodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
       );
 
-      // 5. Atualizar o registro no banco de dados com os dados agendados
+      // 5. Atualizar o banco de dados
       await UserPlans.update(
         {
           subscription_days_left: daysRemaining,
           scheduled_plan_id: newPlan.id,
           scheduled_plan_start_at: currentPeriodEnd,
-          stripe_subscription_id: currentSubscription.id, // Salvar o ID da assinatura
+          stripe_subscription_id: currentSubscription.id,
         },
         {
           where: { user_id: userId },
@@ -124,6 +148,13 @@ module.exports = class {
           proration_behavior: "none",
           billing_cycle_anchor: "unchanged",
         }
+      );
+
+      // 7. Log para auditoria
+      console.log(
+        `[UPGRADE] Usuário ${userId} agendou troca para plano ${
+          newPlan.name
+        } (ID: ${newPlan.id}) para ${currentPeriodEnd.toISOString()}`
       );
 
       return res.status(200).json({
@@ -159,14 +190,9 @@ module.exports = class {
 
   async getAllPlans(req, res) {
     try {
-      const plans = await Plans.findAll({
-        where: {
-          type_plans: process.env.STRIPE_TYPE_PLAN_ID,
-        },
-      });
-
+      const plans = await Plans.findAll();
       if (!plans) {
-        return res.status(404).send("Plano não encontrado");
+        return res.status(404).send("Planos não encontrado");
       }
 
       res.status(200).send({ data: plans });

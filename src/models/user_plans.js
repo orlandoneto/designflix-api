@@ -39,6 +39,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      cron_executed: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
       createdAt: {
         type: DataTypes.DATE,
         field: "created_at",
@@ -65,6 +70,10 @@ module.exports = (sequelize, DataTypes) => {
       UserPlans.belongsTo(models.Plans, {
         foreignKey: "plan_id",
         as: "plans",
+      }),
+      UserPlans.belongsTo(models.Plans, {
+        foreignKey: "scheduled_plan_id",
+        as: "scheduled_plan",
       });
   };
 

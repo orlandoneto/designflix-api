@@ -6,6 +6,11 @@ module.exports = {
       instances: 1, // Garantindo que apenas uma instância será executada
       exec_mode: "fork", // Modo de execução "fork" (não cluster)
       watch: false, // Desabilita o watch em produção para evitar reinicializações desnecessárias
+      autorestart: true, // Adicionado para reinício automático
+      max_memory_restart: "1G", // Limite de memória
+      min_uptime: "30s", // Tempo mínimo para considerar estável
+      listen_timeout: 5000, // Tempo de espera para a aplicação iniciar
+      kill_timeout: 5000, // Tempo para desligamento gracioso
       env: {
         NODE_ENV: "production", // Ambiente de produção
         DOTENV_CONFIG_PATH: "/root/api/prd/designflix-api/source/.env",
