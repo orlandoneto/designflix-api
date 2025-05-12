@@ -22,6 +22,7 @@ async function processUpgrades() {
 
     const upgradeIds = pendingUpgrades.map(up => up.id);
     logger.info(`[Upgrade Plans Job] ${upgradeIds.length} upgrades pendentes encontrados`);
+    console.log(`[Upgrade Plans Job] ${upgradeIds.length} upgrades pendentes encontrados`);
 
     if (upgradeIds.length === 0) {
       return;
@@ -41,12 +42,18 @@ async function processUpgrades() {
     });
 
     logger.info(`[Upgrade Plans Job] ${affectedRows} registros atualizados com sucesso`);
+    console.log(`[Upgrade Plans Job] ${affectedRows} registros atualizados com sucesso`);
 
     // 3. Log dos IDs processados (opcional para auditoria)
     logger.debug(`[Upgrade Plans Job] IDs processados: ${upgradeIds.join(', ')}`);
+    console.log(`[Upgrade Plans Job] IDs processados: ${upgradeIds.join(', ')}`);
 
   } catch (error) {
     logger.error('[Upgrade Plans Job] Erro no processamento:', {
+      error: error.message,
+      stack: error.stack
+    });
+    console.error('[Upgrade Plans Job] Erro no processamento:', {
       error: error.message,
       stack: error.stack
     });
@@ -55,28 +62,32 @@ async function processUpgrades() {
 }
 
 function upgradePlansJob() {
-  // Executa a cada 2 minutos '*/2 * * * *' para testes - alterar para '0 0 * * *' em produção
-  cron.schedule('0 0 * * *', async () => {
+  // Agendamento para rodar a cada 2 minutos
+  cron.schedule('*/2 * * * *', async () => {  // <- Alteração principal aqui
     try {
+      logger.info('[Cron] Executando verificação agendada (a cada 2 minutos)...');
+      console.log('[Cron] Executando verificação agendada (a cada 2 minutos)...');
       await processUpgrades();
     } catch (error) {
-      logger.error('[Upgrade Plans Job] Erro no agendamento:', error);
-    } finally {
-      logger.info('[Upgrade Plans Job] Verificação concluída');
+      logger.error('[Cron] Erro no agendamento:', error);
+      console.error('[Cron] Erro no agendamento:', error);
     }
+  }, {
+    scheduled: true,
+    timezone: "America/Sao_Paulo" // Ajuste para seu fuso horário
   });
 
-  // Executa imediatamente ao iniciar
+  // Execução imediata ao iniciar (opcional)
   (async () => {
     try {
-      logger.info('[Upgrade Plans Job] Verificando upgrades pendentes ao iniciar...');
+      logger.info('[Cron] Executando verificação inicial...');
+      console.log('[Cron] Executando verificação inicial...');
       await processUpgrades();
     } catch (error) {
-      logger.error('[Upgrade Plans Job] Erro na verificação inicial:', error);
+      logger.error('[Cron] Erro na execução inicial:', error);
+      console.error('[Cron] Erro na execução inicial:', error);
     }
   })();
-
-  logger.info('Cron job para upgrades de planos iniciado com sucesso');
 }
 
 module.exports = upgradePlansJob;

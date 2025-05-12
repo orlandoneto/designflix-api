@@ -90,23 +90,33 @@ module.exports = class {
   }
 
   async createOrUpdatePlan(planId, customerId, userId) {
-    const userPlan = await UserPlans.findOne({ where: { user_id: userId } });
-    if (userPlan) {
-      const updateUserPlan = await userPlan.update({
-        plan_id: planId,
-        mercadopago_customer_id: customerId,
-      });
-      if (updateUserPlan) return true;
-    } else {
-      const createUserPlan = await UserPlans.create({
-        user_id: userId,
-        plan_id: planId,
-        mercadopago_customer_id: customerId,
-      });
-      if (createUserPlan) return true;
-    }
+    try {
+      const userPlan = await UserPlans.findOne({ where: { user_id: userId } });
+      const now = new Date();
+      const planFinishAt = new Date(now);
+      planFinishAt.setDate(now.getDate() + 30);
 
-    return false;
+      if (userPlan) {
+        const updatedPlan = await userPlan.update({
+          plan_id: planId,
+          mercadopago_customer_id: customerId,
+          plan_finish_at: planFinishAt,
+          created_at: now,
+        });
+        return !!updatedPlan;
+      } else {
+        const newPlan = await UserPlans.create({
+          user_id: userId,
+          plan_id: planId,
+          mercadopago_customer_id: customerId,
+          plan_finish_at: planFinishAt,
+        });
+        return !!newPlan;
+      }
+    } catch (error) {
+      console.error("Erro ao criar/atualizar plano:", error);
+      return false;
+    }
   }
 
   async cancelTrialMercadopago(req, res) {

@@ -39,6 +39,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      plan_finish_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
       cron_executed: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
