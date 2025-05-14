@@ -12,29 +12,26 @@ const { PLAN_NAMES, PLAN_VALUES } = require("../utils/constants/constants");
 
 module.exports = class {
   async createMercadopagoPix(req, res) {
-    const body = {
+    const paymentData = {
       transaction_amount: req.body.transaction_amount,
-      description: req.body.description,
+      description: req.body.payer?.description,
       payment_method_id: "pix",
       payer: {
         email: req.body.payer?.email,
       },
       notification_url: process.env.MERCADOPAGO_WEB_HOOK,
+      external_reference: `${req.body.payer?.email}-${Date.now()}`,
     };
 
-    payment
-      .create({ body })
-      .then((response) => {
-        res
-          .status(201)
-          .json({ data: response, collector_id: response?.collector_id });
-      })
-      .catch((error) => {
-        console.error("Erro ao criar transação PIX:", error);
-        const errorStatus = error.status || 500;
-        const errorMessage = error.message || "Erro ao processar transação";
-        res.status(errorStatus).json({ error_message: errorMessage });
-      });
+    const response = await payment.create({ body: paymentData });
+    return res.status(201).json({
+      pixData: response.point_of_interaction.transaction_data,
+      qrCodeBase64:
+        response.point_of_interaction.transaction_data.qr_code_base64,
+      qrCode: response.point_of_interaction.transaction_data.qr_code,
+      ticketUrl: response.point_of_interaction?.transaction_data?.ticket_url,
+      paymentId: response.id,
+    });
   }
 
   async updateById(req, res) {

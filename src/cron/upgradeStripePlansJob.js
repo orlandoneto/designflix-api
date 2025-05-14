@@ -61,7 +61,7 @@ async function processUpgrades() {
   }
 }
 
-function upgradePlansJob() {
+function upgradeStripePlansJob() {
   // Agendamento para rodar a cada 2 minutos
   cron.schedule('*/2 * * * *', async () => {  // <- Alteração principal aqui
     try {
@@ -90,4 +90,4 @@ function upgradePlansJob() {
   })();
 }
 
-module.exports = upgradePlansJob;
+module.exports = upgradeStripePlansJob;

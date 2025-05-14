@@ -663,8 +663,6 @@ module.exports = class {
     }
   }
 
-  
-
   // END EVENTOS HOOKS
 
   handleCreatedSendEmail(paramsEmail, template, context) {
