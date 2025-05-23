@@ -499,6 +499,31 @@ class UserServices {
 
         const user = await User.findOne({ where });
 
+        // Verifica se o usuário está solicitando ser contribuidor
+        if (req.body.contributor === 1 && oldUser.contributor !== 1) {
+          const paramsEmail = {
+            email: user.email,
+            name: user.name,
+            title: "Solicitação de Contribuidor - FlixDesign",
+            description: "Recebemos sua solicitação para ser um contribuidor!",
+          };
+
+          const contextParams = {
+            name: user.name,
+            requestDate: new Date().toLocaleDateString("pt-BR"),
+            baseUrl: process.env.API_URL,
+          };
+
+          // Envia o email de confirmação
+          sendEmail(paramsEmail, "contributorRequest", contextParams)
+            .then((response) => {
+              console.log("Email de solicitação de contribuidor enviado com sucesso:", response);
+            })
+            .catch((error) => {
+              console.error("Erro ao enviar email de solicitação de contribuidor:", error);
+            });
+        }
+
         res.status(200).send({
           data: user,
           statusUpdate: codeUpdate,
