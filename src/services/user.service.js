@@ -459,7 +459,9 @@ class UserServices {
         const oldUser = await User.findOne({ where });
 
         // Criar conta conectada no Stripe
-        if (req.body.contributor) {
+        //FIXME: Stripe com problema na conta conectada
+
+       /* if (req.body.contributor) {
           const accountId = await stripeModule.createConnectedAccount(
             oldUser.email
           );
@@ -473,7 +475,7 @@ class UserServices {
             oldUser.stripeAccountId,
             req.body.chavePix
           );
-        }
+        }*/
 
         let updatedUser = { ...oldUser, ...req.body };
 
