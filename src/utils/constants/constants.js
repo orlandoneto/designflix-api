@@ -25,4 +25,9 @@ const PLAN_VALUES = {
   "20_downloads": "72,90",
 };
 
-module.exports = { ROLES, CONST, PLAN_NAMES, PLAN_VALUES };
+const PALN_COMMISSION = {
+  comission_contributor: 10, // R$ 0,10 (10 centavos) em centavos
+  payout_contributor: 10000, // R$ 100,00 em centavos
+};
+
+module.exports = { ROLES, CONST, PLAN_NAMES, PLAN_VALUES, PALN_COMMISSION };

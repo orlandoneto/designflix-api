@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const { User } = require("../models");
 const { sendEmail } = require("../utils/emailService");
 const stripeModule = require("../modules/stripe.module");
+const { PALN_COMMISSION } = require("../utils/constants/constants");
 
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
@@ -112,9 +113,9 @@ class UserServices {
       const user = await User.findOne({ where: { id: userId } });
 
       if (user) {
-        // Se o saldo for null, inicializa com 0.3
+        // Se o saldo for null, inicializa com 0.10
         if (user.balance === null) {
-          await User.update({ balance: 0.3 }, { where: { id: userId } });
+          await User.update({ balance: PALN_COMMISSION.comission_contributor / 100 }, { where: { id: userId } });
           return {
             success: true,
             message: "Saldo inicializado com sucesso",
@@ -122,7 +123,7 @@ class UserServices {
         } else {
           // Caso contrário, incrementa o saldo existente
           await User.increment("balance", {
-            by: 0.3,
+            by: PALN_COMMISSION.comission_contributor / 100,
             where: { id: userId },
           });
           return {
@@ -131,10 +132,10 @@ class UserServices {
           };
         }
       } else {
-        // Se o usuário não existir, cria um novo com saldo inicial 0.3
+        // Se o usuário não existir, cria um novo com saldo inicial 0.10
         await User.create({
           id: userId,
-          balance: 0.3, // Define o saldo inicial
+          balance: PALN_COMMISSION.comission_contributor / 100,
         });
         return {
           success: true,
@@ -442,42 +443,47 @@ class UserServices {
     }
   }
 
-  async update(req, res) {
+  async updateUser(req, res) {
     try {
+      const { userId, userType } = req.params;
+
+      if (!userId || !userType) {
+        return res.status(400).send({ message: "userId e userType são obrigatórios" });
+      }
+
       let shouldUpdate = true;
-      let idToUpdate;
       let self = false;
 
-      if (req.params.userType === "user") {
-        idToUpdate = req.params.userId;
+      if (userType === "user") {
         self = true;
       }
 
       if (shouldUpdate) {
-        const where = { id: idToUpdate };
+        const where = { id: userId };
 
         const oldUser = await User.findOne({ where });
 
-        // Criar conta conectada no Stripe
-        //FIXME: Stripe com problema na conta conectada
-
-       /* if (req.body.contributor) {
-          const accountId = await stripeModule.createConnectedAccount(
-            oldUser.email
-          );
-
-          req.body.stripeAccountId = accountId;
+        if (!oldUser) {
+          return res.status(404).send({ message: "Usuário não encontrado" });
         }
 
-        // Atualizar conta conectada para a chave pix
-        if (req.body.chavePix) {
-          await stripeModule.addPixKeyToAccount(
-            oldUser.stripeAccountId,
-            req.body.chavePix
-          );
-        }*/
+        //FIXME: Stripe com problema na conta conectada
+        // Criar conta conectada no Stripe
+        /* if (req.body.contributor) {
+           const accountId = await stripeModule.createConnectedAccount(
+             oldUser.email
+           );
+ 
+           req.body.stripeAccountId = accountId;
+         // Atualizar conta conectada para a chave pix
+         if (req.body.chavePix) {
+           await stripeModule.addPixKeyToAccount(
+             oldUser.stripeAccountId,
+             req.body.chavePix
+           );
+         }*/
 
-        let updatedUser = { ...oldUser, ...req.body };
+        let updatedUser = { ...oldUser.dataValues, ...req.body };
 
         let codeUpdate = 1;
 

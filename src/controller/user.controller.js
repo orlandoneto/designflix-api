@@ -50,8 +50,8 @@ module.exports = (app) => {
     UserService.resetPassword(req, res)
   );
 
-  app.put("/user", AuthenticateRoute(["user"]), (req, res) =>
-    UserService.update(req, res)
+  app.put("/user/:userId/:userType", AuthenticateRoute(["user"]), (req, res) =>
+    UserService.updateUser(req, res)
   );
 
   app.put("/user/internal", AuthenticateRoute(["internal_user"]), (req, res) =>
