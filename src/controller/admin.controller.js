@@ -1,5 +1,6 @@
 const Admin = require("../services/admin.service");
 const AuthenticateRoute = require("../middleware/authentication");
+const verifyRecaptcha = require("../middleware/recaptcha");
 
 module.exports = (app) => {
   const AdminService = new Admin();
@@ -27,15 +28,20 @@ module.exports = (app) => {
    *                type: string
    *              password:
    *                type: string
+   *              recaptchaToken:
+   *                type: string
+   *                description: Token do reCAPTCHA v2
    *    responses:
    *      '200':
    *        description: Login efetuado com sucesso.
+   *      '400':
+   *        description: Dados inválidos ou falha na verificação do reCAPTCHA.
    *      '401':
    *        description: Não autorizado.
    *      '500':
-   *        description: Erro.
+   *        description: Erro interno do servidor.
    */
-  app.post("/admin/authenticate", (req, res) =>
+  app.post("/admin/authenticate", verifyRecaptcha('admin-login'), (req, res) =>
     AdminService.authenticate(req, res)
   );
 
@@ -63,7 +69,7 @@ module.exports = (app) => {
    *      '500':
    *        description: Erro. E-mail não enviado.
    */
-  app.post("/admin/reset-password", (req, res) =>
+  app.post("/admin/reset-password", verifyRecaptcha('recover-password'), (req, res) =>
     AdminService.resetPassword(req, res)
   );
 

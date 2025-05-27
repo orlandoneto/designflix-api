@@ -1,5 +1,6 @@
 const UserService = require("../services/user.service");
 const AuthenticateRoute = require("../middleware/authentication");
+const verifyRecaptcha = require("../middleware/recaptcha");
 
 module.exports = (app) => {
   app.get(
@@ -34,7 +35,9 @@ module.exports = (app) => {
     (req, res) => UserService.updateBalance(req, res)
   );
 
-  app.post("/user", (req, res) => UserService.create(req, res));
+  app.post("/user", verifyRecaptcha('register'), (req, res) =>
+    UserService.create(req, res)
+  );
 
   app.post(
     "/admin/user",
@@ -42,11 +45,42 @@ module.exports = (app) => {
     (req, res) => UserService.createFromAdmin(req, res)
   );
 
-  app.post("/user/authenticate", (req, res) =>
+  /**
+   * @openapi
+   * /user/authenticate:
+   *  post:
+   *    description: Endpoint de autenticação do usuário! Retorna o Token para ser usado em outras requests.
+   *    security: []
+   *    tags: ["Auth"]
+   *    requestBody:
+   *      required: true
+   *      content:
+   *        application/json:
+   *          schema:
+   *            type: object
+   *            properties:
+   *              email:
+   *                type: string
+   *              password:
+   *                type: string
+   *              recaptchaToken:
+   *                type: string
+   *                description: Token do reCAPTCHA v2
+   *    responses:
+   *      '200':
+   *        description: Login efetuado com sucesso.
+   *      '400':
+   *        description: Dados inválidos ou falha na verificação do reCAPTCHA.
+   *      '401':
+   *        description: Não autorizado.
+   *      '500':
+   *        description: Erro interno do servidor.
+   */
+  app.post("/user/authenticate", verifyRecaptcha('login'), (req, res) =>
     UserService.authenticate(req, res)
   );
 
-  app.post("/user/reset-password", (req, res) =>
+  app.post("/user/reset-password", verifyRecaptcha('reset-password'), (req, res) =>
     UserService.resetPassword(req, res)
   );
 

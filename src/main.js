@@ -1,3 +1,6 @@
+// Carrega as variáveis de ambiente primeiro
+require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') });
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -6,10 +9,15 @@ const swaggerJsDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
 const path = require("path");
 
-require("dotenv").config();
-
 const http = require("http");
 const { setupWebSocket } = require("./config/websocket");
+
+// Log das variáveis de ambiente importantes
+console.log('\n=== Configuração do Ambiente ===');
+console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`NODE_PORT: ${process.env.NODE_PORT}`);
+console.log(`LOG_LEVEL: ${process.env.LOG_LEVEL}`);
+console.log('===============================\n');
 
 const app = express();
 const server = http.createServer(app);
@@ -151,7 +159,8 @@ require("./controller/user-plans.controller")(app);
 require("./controller/forgot.controller")(app);
 
 server.listen(process.env.NODE_PORT, () => {
+  console.log('\n=== Servidor Iniciado ===');
   console.log(`Servidor rodando na porta ${process.env.NODE_PORT}`);
+  console.log(`Ambiente: ${process.env.NODE_ENV}`);
+  console.log('========================\n');
 });
-
-module.exports = { app, server };

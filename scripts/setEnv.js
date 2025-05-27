@@ -48,13 +48,13 @@ try {
 
   // Copia o arquivo de configuração
   fs.copyFileSync(sourceEnvFile, targetEnvFile);
-  
+
   // Lê e exibe um resumo das variáveis
   const envContent = fs.readFileSync(sourceEnvFile, 'utf8');
   const varCount = envContent.split('\n')
     .filter(line => line.trim() && !line.trim().startsWith('#'))
     .length;
-  
+
   console.log(colors.green(`
   ✔ ${colors.bold('Ambiente configurado para:')} ${env}
   ✔ ${colors.bold('Arquivo:')} ${sourceEnvFile}
