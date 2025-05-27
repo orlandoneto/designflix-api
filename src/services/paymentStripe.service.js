@@ -152,8 +152,7 @@ module.exports = class {
 
       // 7. Log para auditoria
       console.log(
-        `[UPGRADE] Usuário ${userId} agendou troca para plano ${
-          newPlan.name
+        `[UPGRADE] Usuário ${userId} agendou troca para plano ${newPlan.name
         } (ID: ${newPlan.id}) para ${currentPeriodEnd.toISOString()}`
       );
 
@@ -322,9 +321,17 @@ module.exports = class {
         charge: chargeId,
       });
 
+      // Remvo o plano
+      await UserPlans.destroy({
+        where: {
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscription.id
+        }
+      });
+
       return res.status(200).json({
         success: true,
-        message: "Reembolso realizado com sucesso.",
+        message: "Reembolso realizado com sucesso e plano marcado como cancelado.",
         refund,
       });
     } catch (error) {
@@ -453,8 +460,7 @@ module.exports = class {
       const planName = userPlan.plans?.plan_name;
       if (!userName || !planName) {
         console.error(
-          `Dados incompletos no plano ou usuário. Usuário: ${userName}`
-        );
+          `Dados incompletos no plano ou usuário. Usuário: ${userName}`);
         return null;
       }
 
@@ -525,8 +531,6 @@ module.exports = class {
         );
         return null;
       }
-
-      await userPlan.destroy();
 
       const paramsEmail = {
         email: emailUser,
@@ -697,3 +701,4 @@ module.exports = class {
 
   // END EVENTOS EMAILS HOOKS
 };
+
