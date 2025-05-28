@@ -1,6 +1,12 @@
 const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-handlebars");
 const path = require("path");
+const handlebars = require("handlebars");
+
+// Adiciona o helper eq para comparação de igualdade
+handlebars.registerHelper('eq', function (v1, v2) {
+  return v1 === v2;
+});
 
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -29,6 +35,7 @@ const sendEmail = async (
         extName: ".hbs",
         partialsDir: path.resolve(__dirname, "../views"),
         defaultLayout: false,
+        helpers: handlebars.helpers
       },
       viewPath: path.resolve(__dirname, "../views"),
       extName: ".hbs",

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bem-vindo ao FlixDesign</title>
+  <title>Reembolso Processado - FlixDesign</title>
   <style>
     @import url('https://fonts.googleapis.com/css?family=Rubik:300,400,500,700|Open+Sans:300,400,600,700');
     body {
@@ -47,26 +47,57 @@
       font-size: 12px;
       margin-top: 20px;
     }
+
+    .highlight-box {
+      background-color: #f8f9fa;
+      border-left: 4px solid #28a745;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .amount {
+      font-size: 24px;
+      color: #28a745;
+      font-weight: bold;
+      margin: 10px 0;
+    }
   </style>
 </head>
 
 <body>
   <div class="container">
     <div class="header">
-       <img src="{{baseUrl}}/logo.png" title="logo do FlixDesign" alt="logo do FlixDesign">
+      <img src="{{baseUrl}}/logo.png" title="logo do FlixDesign" alt="logo do FlixDesign">
     </div>
     <div class="content">
       <p>Olá {{name}},</p>
-      <p>Gostaríamos de informar que o reembolso referente à sua assinatura no plano <strong>{{planName}}</strong> do FlixDesign foi concluído com sucesso.</p>
-      <p>Segue abaixo os detalhes do reembolso:</p>
+      
+      <p>Confirmamos que o reembolso da sua assinatura no FlixDesign foi processado com sucesso.</p>
+
+      <div class="highlight-box">
+        <p><strong>Detalhes do Reembolso:</strong></p>
+        <ul>
+          <li><strong>Plano:</strong> {{planName}}</li>
+          <li><strong>Data do Reembolso:</strong> {{refundDate}}</li>
+        </ul>
+        <p class="amount">Valor Reembolsado: R$ {{amount}}</p>
+      </div>
+
+      <p><strong>Informações Importantes:</strong></p>
       <ul>
-        <li><strong>Plano:</strong> {{planName}}</li>
-        <li><strong>Valor reembolsado:</strong> R$ {{amount}}</li>
-        <li><strong>Data do reembolso:</strong> {{refundDate}}</li>
+        <li>O valor será creditado no mesmo método de pagamento utilizado na assinatura</li>
+        <li>O prazo para o crédito pode variar de acordo com sua instituição financeira</li>
+        <li>Seu acesso ao plano foi encerrado conforme solicitado</li>
       </ul>
-      <p>O valor será devolvido para o mesmo método de pagamento utilizado no momento da assinatura. Por favor, note que o prazo para o crédito do valor pode variar de acordo com o banco ou a administradora do cartão.</p>
-      <p>Caso tenha qualquer dúvida ou necessite de mais informações, não hesite em entrar em contato com nossa equipe de suporte. Estamos à disposição para ajudá-lo.</p>
+
+      <p>Se você tiver qualquer dúvida sobre o reembolso ou desejar retornar ao FlixDesign no futuro, nossa equipe de suporte está à disposição para ajudar.</p>
+
+      <p>Agradecemos por ter escolhido o FlixDesign. Esperamos poder atendê-lo novamente!</p>
+
+      <p>Atenciosamente,<br>Equipe FlixDesign</p>
     </div>
+
     <div class="footer">
       <p>&copy; 2024 FlixDesign. Todos os direitos reservados.</p>
     </div>

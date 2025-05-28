@@ -320,14 +320,12 @@ module.exports = class {
       const refund = await stripe.refunds.create({
         charge: chargeId,
       });
-
-      // Remvo o plano
+     
       await UserPlans.destroy({
-        where: {
-          stripe_customer_id: customerId,
-          stripe_subscription_id: subscription.id
-        }
+        where: { stripe_customer_id: customerId }
       });
+      
+      console.log(`[REEMBOLSO] Plano removido para cliente ${customerId}`);
 
       return res.status(200).json({
         success: true,
@@ -395,20 +393,20 @@ module.exports = class {
         );
         break;
 
-      case "customer.subscription.deleted": // Evento de cancelamento de assinatura
-        await this.handleSubscriptionChangeDeleteOrRefund(
+      case "customer.subscription.updated": // Evento de atualização de assinaturas
+        await this.handleSubscriptionUpdated(eventData);
+        break;
+
+      case "customer.subscription.deleted": // Evento de cancelamento de assinaturas
+        await this.handleSubscriptionDeleted(
           eventData,
           "customerSubscriptionDeleted",
           "Cancelamento de plano"
         );
         break;
 
-      case "customer.subscription.updated": // Evento de atualização de assinatura
-        await this.handleSubscriptionUpdated(eventData);
-        break;
-
-      case "charge.refunded": // Evento de reembolso de assinatura
-        await this.handleSubscriptionChangeDeleteOrRefund(
+      case "charge.refunded": // Evento de reembolso de assinatura após 7 dias
+        await this.handleChangeRefund(
           eventData,
           "chargeRefund",
           "Reembolso de plano"
@@ -489,100 +487,18 @@ module.exports = class {
     }
   }
 
-  async handleSubscriptionChangeDeleteOrRefund(
-    data,
-    emailTemplate,
-    emailTitle
-  ) {
-    try {
-      if (!data?.customer || !data.billing_details?.email) {
-        throw new Error("Dados inválidos ou incompletos.");
-      }
-
-      const customerId = data.customer;
-      const emailUser = data.billing_details.email;
-
-      const userPlan = await UserPlans.findOne({
-        where: { stripe_customer_id: customerId },
-        include: [
-          {
-            model: Plans,
-            as: "plans",
-            attributes: ["plan_name"],
-          },
-          {
-            model: User,
-            as: "user",
-            attributes: ["name"],
-          },
-        ],
-      });
-
-      if (!userPlan) {
-        console.warn(`Nenhum plano encontrado para o cliente: ${customerId}`);
-        return null;
-      }
-
-      const userName = userPlan.user?.name;
-      const planName = userPlan.plans?.plan_name;
-      if (!userName || !planName) {
-        console.error(
-          `Dados incompletos no plano ou usuário. Plano: ${planName}, Usuário: ${userName}`
-        );
-        return null;
-      }
-
-      const paramsEmail = {
-        email: emailUser,
-        name: userName,
-        title: emailTitle,
-        description: emailTitle, // FIXME:  Analisr se é passdo
-      };
-
-      const contextParams = {
-        name: userName,
-        planName: PLAN_NAMES?.[planName] || planName,
-        amount:
-          emailTemplate === "chargeRefund"
-            ? (data.amount / 100).toFixed(2)
-            : undefined,
-        cancellationDate:
-          emailTemplate === "customerSubscriptionDeleted"
-            ? new Date().toLocaleDateString("pt-BR")
-            : undefined,
-        refundDate:
-          emailTemplate === "chargeRefund"
-            ? new Date().toLocaleDateString("pt-BR")
-            : undefined,
-        baseUrl: process.env.API_URL,
-      };
-
-      this.handleRefudedOrCanceledSendEmail(
-        paramsEmail,
-        emailTemplate,
-        contextParams
-      );
-      return userPlan;
-    } catch (error) {
-      console.error(
-        "Erro ao processar alteração na assinatura:",
-        error.message
-      );
-      throw error;
-    }
-  }
-
   async handleSubscriptionUpdated(data) {
     try {
       if (!data?.customer) {
         throw new Error("Dados inválidos ou incompletos.");
       }
 
-      const customerId = data.customer;
-      const customer = await stripe.customers.retrieve(customerId);
+     const customerId = data.customer;
+     const customer = await stripe.customers.retrieve(customerId);
       if (!customer || !customer.email) {
         throw new Error("Não foi possível obter o e-mail do cliente.");
       }
+      
       const emailUser = customer.email;
 
       const userPlan = await UserPlans.findOne({
@@ -617,21 +533,42 @@ module.exports = class {
 
       let statusPlan;
       let additionalDetails = "";
+      // FIXME: Checar amanha se os planos de teste e produção são sem 
+      // trial para facilitar a manipulação e cobrança.
+      let isTrial = data.trial_end !== null;
 
-      if (
-        data.cancel_at_period_end &&
-        data.cancellation_details?.reason === "cancellation_requested"
-      ) {
-        const cancelDate = new Date(data.cancel_at * 1000).toLocaleDateString(
-          "pt-BR"
-        );
-        statusPlan = "Cancelamento solicitado";
-        additionalDetails = cancelDate;
-      } else if (
-        !data.cancel_at_period_end &&
-        !data.cancellation_details?.reason
-      ) {
+      // Verifica se é um trial e foi cancelado
+      if (data.cancel_at_period_end) {
+        const cancelDate = new Date(data.cancel_at * 1000).toLocaleDateString("pt-BR");
+        const periodEndDate = new Date(data.current_period_end * 1000).toLocaleDateString("pt-BR");
+
+        if (isTrial) {
+          statusPlan = "Trial cancelado";
+          additionalDetails = `Acesso até: ${periodEndDate}`;
+          console.log(`✅ Trial cancelado. Usuário tem acesso até: ${periodEndDate}`);
+        } else {
+          statusPlan = "Cancelamento solicitado";
+          additionalDetails = `Cancelamento em: ${cancelDate}, Acesso até: ${periodEndDate}`;
+          console.log(`🔵 Plano pago cancelado. Acesso até: ${periodEndDate}`);
+
+          // Update user plan status in database
+          await UserPlans.update(
+            {
+              plan_finish_at: data.current_period_end * 1000,
+              subscription_days_left: Math.floor((data.current_period_end - Date.now() / 1000) / (24 * 60 * 60)),
+              plan_canceled: 1,
+            },
+            {
+              where: { stripe_customer_id: customerId }
+            }
+
+          );
+        }
+      } else if (!data.cancel_at_period_end && !data.cancellation_details?.reason) {
         statusPlan = "Plano ativo";
+        if (isTrial) {
+          additionalDetails = "Período de trial";
+        }
       } else {
         statusPlan = "Status indefinido";
       }
@@ -648,6 +585,7 @@ module.exports = class {
         statusPlan,
         additionalDetails,
         updatedDate: new Date().toLocaleDateString("pt-BR"),
+        isTrial,
         baseUrl: process.env.API_URL,
       };
 
@@ -661,6 +599,179 @@ module.exports = class {
     } catch (error) {
       console.error(
         "Erro ao processar atualização de assinatura:",
+        error.message
+      );
+      throw error;
+    }
+  }
+
+  async handleSubscriptionDeleted(
+    data,
+    emailTemplate,
+    emailTitle
+  ) {
+    try {
+      if (!data?.customer) {
+        throw new Error("Dados inválidos ou incompletos.");
+      }
+
+      const customerId = data.customer;
+      const customer = await stripe.customers.retrieve(customerId);
+      if (!customer || !customer.email) {
+        throw new Error("Não foi possível obter o e-mail do cliente.");
+      }
+      const emailUser = customer.email;
+
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["plan_name"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["name"],
+          },
+        ],
+      });
+
+      if (!userPlan) {
+        console.warn(`Nenhum plano encontrado para o cliente: ${customerId}`);
+        return null;
+      }
+
+      const userName = userPlan.user?.name;
+      const planName = userPlan.plans?.plan_name;
+      if (!userName || !planName) {
+        console.error(
+          `Dados incompletos no plano ou usuário. Plano: ${planName}, Usuário: ${userName}`
+        );
+        return null;
+      }
+
+      // Se era um plano pago que terminou
+      if (emailTemplate === "customerSubscriptionDeleted") {
+        if (data.status === 'canceled') {
+          console.log('🔴 Plano pago terminou. Removendo acesso.');
+
+          // Remove o plano do usuário no banco de dados
+          await userPlan.destroy();
+
+          // Log para auditoria
+          console.log(`[CANCELAMENTO] Plano removido para usuário ${userName} (ID: ${userPlan.user_id})`);
+        }
+      }
+
+      const paramsEmail = {
+        email: emailUser,
+        name: userName,
+        title: emailTitle,
+        description: emailTitle,
+      };
+
+      const contextParams = {
+        name: userName,
+        planName: PLAN_NAMES?.[planName] || planName,
+        amount:
+          emailTemplate === "chargeRefund"
+            ? (data.amount / 100).toFixed(2)
+            : undefined,
+        cancellationDate:
+          emailTemplate === "customerSubscriptionDeleted"
+            ? new Date().toLocaleDateString("pt-BR")
+            : undefined,
+        refundDate:
+          emailTemplate === "chargeRefund"
+            ? new Date().toLocaleDateString("pt-BR")
+            : undefined,
+        baseUrl: process.env.API_URL,
+      };
+
+      this.handleRefudedOrCanceledSendEmail(
+        paramsEmail,
+        emailTemplate,
+        contextParams
+      );
+
+      return userPlan;
+    } catch (error) {
+      console.error(
+        "Erro ao processar alteração na assinatura:",
+        error.message
+      );
+      throw error;
+    }
+  }
+
+  async handleChangeRefund(data, emailTemplate, emailTitle) {
+    try {
+      // Validação específica para eventos de reembolso do Stripe
+      if (!data?.id || !data?.object || data.object !== 'charge' || !data?.refunded) {
+        throw new Error("Evento de reembolso inválido ou incompleto.");
+      }
+      
+      // Busca a cobrança original com todas as informações necessárias
+      const charge = await stripe.charges.retrieve(data.id, {
+        expand: ['customer', 'invoice', 'invoice.subscription', 'invoice.subscription.items.data.price.product']
+      });
+
+      if (!charge?.customer?.id) {
+        throw new Error("Não foi possível identificar o cliente do reembolso.");
+      }
+
+      const customerId = charge.customer.id;
+      const customer = charge.customer;
+      const emailUser = customer.email;
+      const userName = customer.name || "Cliente";
+
+      if (!emailUser) {
+        throw new Error("Não foi possível obter o e-mail do cliente.");
+      }
+
+      // Obtém informações do plano através da assinatura
+      let planName = "Plano";
+      if (charge.invoice?.subscription?.items?.data?.[0]?.price?.product) {
+        const product = charge.invoice.subscription.items.data[0].price.product;
+        planName = product.name || "Plano";
+      }
+
+      // Log para auditoria
+      console.log(`[REEMBOLSO STRIPE] Reembolso processado para cliente ${userName} (ID: ${customerId}). Valor: R$ ${(data.amount / 100).toFixed(2)}`);
+
+      const paramsEmail = {
+        email: emailUser,
+        name: userName,
+        title: emailTitle,
+        description: "Reembolso processado com sucesso",
+      };
+
+      const contextParams = {
+        name: userName,
+        planName: PLAN_NAMES?.[planName] || planName,
+        amount: (data.amount / 100).toFixed(2),
+        refundDate: new Date().toLocaleDateString("pt-BR"),
+        baseUrl: process.env.API_URL,
+      };
+
+      this.handleRefudedOrCanceledSendEmail(
+        paramsEmail,
+        emailTemplate,
+        contextParams
+      );
+
+      return {
+        customer_id: customerId,
+        email: emailUser,
+        name: userName,
+        plan_name: planName,
+        amount: data.amount
+      };
+    } catch (error) {
+      console.error(
+        "Erro ao processar reembolso do Stripe:",
         error.message
       );
       throw error;
