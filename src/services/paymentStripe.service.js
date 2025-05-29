@@ -287,8 +287,6 @@ module.exports = class {
         });
       }
 
-      const subscription = subscriptions.data[0];
-
       // Buscar os pagamentos associados à assinatura
       const invoices = await stripe.invoices.list({
         customer: customerId,
@@ -303,7 +301,9 @@ module.exports = class {
       }
 
       const chargeId = invoices.data[0].charge;
-      const charge = await stripe.charges.retrieve(chargeId);
+      const charge = await stripe.charges.retrieve(chargeId, {
+        expand: ['customer']
+      });
 
       // Verificar se o pagamento foi feito há menos de 7 dias
       const paymentTime = charge.created;
@@ -316,6 +316,23 @@ module.exports = class {
         });
       }
 
+      // Buscar informações do plano no banco de dados
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["plan_name"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["name", "email"],
+          }
+        ]
+      });
+
       // Criar o reembolso
       const refund = await stripe.refunds.create({
         charge: chargeId,
@@ -327,6 +344,38 @@ module.exports = class {
 
       console.log(`[REEMBOLSO] Plano removido para cliente ${customerId}`);
 
+      // Preparar e enviar email de reembolso
+      if (userPlan?.user?.email) {
+        const emailUser = userPlan.user.email;
+        const userName = userPlan.user.name || charge.customer.name || "Cliente";
+        const planName = userPlan.plans?.plan_name || "Plano";
+
+        const paramsEmail = {
+          email: emailUser,
+          name: userName,
+          title: "Reembolso de plano",
+          description: "Reembolso processado com sucesso",
+        };
+
+        const contextParams = {
+          name: userName,
+          planName: PLAN_NAMES?.[planName] || planName,
+          amount: (charge.amount / 100).toFixed(2),
+          refundDate: new Date().toLocaleDateString("pt-BR"),
+          baseUrl: process.env.API_URL,
+        };
+
+        // Enviar email usando o template chargeRefund
+        this.handleRefudedOrCanceledSendEmail(
+          paramsEmail,
+          "chargeRefund",
+          contextParams
+        );
+
+        // Log para auditoria
+        console.log(`[REEMBOLSO MANUAL] Reembolso processado para cliente ${userName} (ID: ${customerId}). Valor: R$ ${(charge.amount / 100).toFixed(2)}`);
+      }
+
       return res.status(200).json({
         success: true,
         message: "Reembolso realizado com sucesso e plano marcado como cancelado.",
@@ -334,7 +383,6 @@ module.exports = class {
       });
     } catch (error) {
       console.error("Erro ao processar o reembolso:", error);
-
       return res.status(500).json({
         success: false,
         message: "Erro ao processar o reembolso.",
@@ -713,9 +761,9 @@ module.exports = class {
         throw new Error("Evento de reembolso inválido ou incompleto.");
       }
 
-      // Busca a cobrança original com todas as informações necessárias
+      // Busca a cobrança original apenas com customer
       const charge = await stripe.charges.retrieve(data.id, {
-        expand: ['customer', 'invoice', 'invoice.subscription', 'invoice.subscription.items.data.price.product']
+        expand: ['customer']
       });
 
       if (!charge?.customer?.id) {
@@ -731,11 +779,21 @@ module.exports = class {
         throw new Error("Não foi possível obter o e-mail do cliente.");
       }
 
-      // Obtém informações do plano através da assinatura
+      // Busca informações do plano no banco de dados
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["plan_name"],
+          }
+        ]
+      });
+
       let planName = "Plano";
-      if (charge.invoice?.subscription?.items?.data?.[0]?.price?.product) {
-        const product = charge.invoice.subscription.items.data[0].price.product;
-        planName = product.name || "Plano";
+      if (userPlan?.plans?.plan_name) {
+        planName = userPlan.plans.plan_name;
       }
 
       // Log para auditoria
