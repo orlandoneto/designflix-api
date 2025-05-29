@@ -27,7 +27,8 @@ const logger = require("./config/logger");
 app.use(morgan("combined", { stream: logger.stream }));
 
 // Importar o cron job
-require("./cron/upgradeStripePlansJob")(); // Importa o cron job para agendar planos
+require("./cron/upgradeStripePlansJob")();
+require("./cron/removeStripeExpiredPlansJob")();
 
 app.use(helmet());
 app.use(

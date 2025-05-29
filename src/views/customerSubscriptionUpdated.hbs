@@ -64,23 +64,16 @@
         <ul>       
             <li><strong>Plano:</strong> {{planName}}</li> 
             <li><strong>Status:</strong> {{statusPlan}}</li> 
-            {{#if isTrial}}
-            <li><strong>Tipo:</strong> Período de Trial</li>
-            {{/if}}
             {{#if additionalDetails}}
             <li><strong>Detalhes:</strong> {{additionalDetails}}</li>  
             {{/if}}             
         </ul>
 
         {{#if statusPlan}}
-            {{#if (eq statusPlan "Trial cancelado")}}
-            <p>Seu período de trial foi cancelado, mas você ainda tem acesso até a data mencionada acima. Aproveite para explorar todos os recursos disponíveis!</p>
+            {{#if (eq statusPlan "Cancelamento solicitado")}}
+            <p>Sua assinatura foi cancelada conforme solicitado. Você continuará tendo acesso aos benefícios do plano até a data mencionada acima.</p>
             {{else}}
-                {{#if (eq statusPlan "Cancelamento solicitado")}}
-                <p>Sua assinatura foi cancelada conforme solicitado. Você continuará tendo acesso aos benefícios do plano até a data mencionada acima.</p>
-                {{else}}
-                <p>Se você não reconhece essas alterações ou se tem alguma dúvida, nossa equipe de suporte está disponível para ajudá-lo.</p>
-                {{/if}}
+            <p>Se você não reconhece essas alterações ou se tem alguma dúvida, nossa equipe de suporte está disponível para ajudá-lo.</p>
             {{/if}}
         {{/if}}
 

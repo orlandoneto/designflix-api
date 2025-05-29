@@ -2,10 +2,16 @@ const cron = require('node-cron');
 const { UserPlans, Sequelize } = require('../models');
 const logger = require('../config/logger');
 
+const SHOW_LOGS = false; // Flag para controlar logs no console
+const IS_TESTING = true; // Controla o schedule do cron job
+
+// Schedule baseado no ambiente
+const CRON_SCHEDULE = IS_TESTING ? '*/2 * * * *' : '0 0 * * *';
+
 async function processUpgrades() {
   const now = new Date();
   logger.info(`[Upgrade Plans Job] Iniciando verificação em ${now.toISOString()}`);
-  console.log(`[Upgrade Plans Job] Iniciando verificação em ${now.toISOString()}`);
+  if (SHOW_LOGS) console.log(`[Upgrade Plans Job] Iniciando verificação em ${now.toISOString()}`);
 
   try {
     // 1. Buscar os upgrades pendentes que ainda não foram processados
@@ -22,7 +28,7 @@ async function processUpgrades() {
 
     const upgradeIds = pendingUpgrades.map(up => up.id);
     logger.info(`[Upgrade Plans Job] ${upgradeIds.length} upgrades pendentes encontrados`);
-    console.log(`[Upgrade Plans Job] ${upgradeIds.length} upgrades pendentes encontrados`);
+    if (SHOW_LOGS) console.log(`[Upgrade Plans Job] ${upgradeIds.length} upgrades pendentes encontrados`);
 
     if (upgradeIds.length === 0) {
       return;
@@ -42,18 +48,18 @@ async function processUpgrades() {
     });
 
     logger.info(`[Upgrade Plans Job] ${affectedRows} registros atualizados com sucesso`);
-    console.log(`[Upgrade Plans Job] ${affectedRows} registros atualizados com sucesso`);
+    if (SHOW_LOGS) console.log(`[Upgrade Plans Job] ${affectedRows} registros atualizados com sucesso`);
 
     // 3. Log dos IDs processados (opcional para auditoria)
     logger.debug(`[Upgrade Plans Job] IDs processados: ${upgradeIds.join(', ')}`);
-    console.log(`[Upgrade Plans Job] IDs processados: ${upgradeIds.join(', ')}`);
+    if (SHOW_LOGS) console.log(`[Upgrade Plans Job] IDs processados: ${upgradeIds.join(', ')}`);
 
   } catch (error) {
     logger.error('[Upgrade Plans Job] Erro no processamento:', {
       error: error.message,
       stack: error.stack
     });
-    console.error('[Upgrade Plans Job] Erro no processamento:', {
+    if (SHOW_LOGS) console.error('[Upgrade Plans Job] Erro no processamento:', {
       error: error.message,
       stack: error.stack
     });
@@ -62,30 +68,31 @@ async function processUpgrades() {
 }
 
 function upgradeStripePlansJob() {
-  // Agendamento para rodar a cada 2 minutos
-  cron.schedule('*/2 * * * *', async () => {  // <- Alteração principal aqui
+  // Em produção: '0 0 * * *' (todos os dias à meia-noite)
+  // Em teste: '*/2 * * * *' (a cada 2 minutos)
+  cron.schedule(CRON_SCHEDULE, async () => {
     try {
-      logger.info('[Cron] Executando verificação agendada (a cada 2 minutos)...');
-      console.log('[Cron] Executando verificação agendada (a cada 2 minutos)...');
+      logger.info('[Cron] Executando verificação agendada...');
+      if (SHOW_LOGS) console.log('[Cron] Executando verificação agendada...');
       await processUpgrades();
     } catch (error) {
       logger.error('[Cron] Erro no agendamento:', error);
-      console.error('[Cron] Erro no agendamento:', error);
+      if (SHOW_LOGS) console.error('[Cron] Erro no agendamento:', error);
     }
   }, {
     scheduled: true,
-    timezone: "America/Sao_Paulo" // Ajuste para seu fuso horário
+    timezone: "America/Sao_Paulo"
   });
 
   // Execução imediata ao iniciar (opcional)
   (async () => {
     try {
       logger.info('[Cron] Executando verificação inicial...');
-      console.log('[Cron] Executando verificação inicial...');
+      if (SHOW_LOGS) console.log('[Cron] Executando verificação inicial...');
       await processUpgrades();
     } catch (error) {
       logger.error('[Cron] Erro na execução inicial:', error);
-      console.error('[Cron] Erro na execução inicial:', error);
+      if (SHOW_LOGS) console.error('[Cron] Erro na execução inicial:', error);
     }
   })();
 }

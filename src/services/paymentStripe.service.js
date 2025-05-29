@@ -320,11 +320,11 @@ module.exports = class {
       const refund = await stripe.refunds.create({
         charge: chargeId,
       });
-     
+
       await UserPlans.destroy({
         where: { stripe_customer_id: customerId }
       });
-      
+
       console.log(`[REEMBOLSO] Plano removido para cliente ${customerId}`);
 
       return res.status(200).json({
@@ -493,12 +493,12 @@ module.exports = class {
         throw new Error("Dados inválidos ou incompletos.");
       }
 
-     const customerId = data.customer;
-     const customer = await stripe.customers.retrieve(customerId);
+      const customerId = data.customer;
+      const customer = await stripe.customers.retrieve(customerId);
       if (!customer || !customer.email) {
         throw new Error("Não foi possível obter o e-mail do cliente.");
       }
-      
+
       const emailUser = customer.email;
 
       const userPlan = await UserPlans.findOne({
@@ -533,42 +533,34 @@ module.exports = class {
 
       let statusPlan;
       let additionalDetails = "";
-      // FIXME: Checar amanha se os planos de teste e produção são sem 
-      // trial para facilitar a manipulação e cobrança.
-      let isTrial = data.trial_end !== null;
 
-      // Verifica se é um trial e foi cancelado
+      // Verifica se é um cancelamento
       if (data.cancel_at_period_end) {
         const cancelDate = new Date(data.cancel_at * 1000).toLocaleDateString("pt-BR");
         const periodEndDate = new Date(data.current_period_end * 1000).toLocaleDateString("pt-BR");
 
-        if (isTrial) {
-          statusPlan = "Trial cancelado";
-          additionalDetails = `Acesso até: ${periodEndDate}`;
-          console.log(`✅ Trial cancelado. Usuário tem acesso até: ${periodEndDate}`);
-        } else {
-          statusPlan = "Cancelamento solicitado";
-          additionalDetails = `Cancelamento em: ${cancelDate}, Acesso até: ${periodEndDate}`;
-          console.log(`🔵 Plano pago cancelado. Acesso até: ${periodEndDate}`);
+        statusPlan = "Cancelamento solicitado";
+        additionalDetails = `Cancelamento em: ${cancelDate}, Acesso até: ${periodEndDate}`;
+        console.log(`🔵 Plano pago cancelado. Acesso até: ${periodEndDate}`);
 
-          // Update user plan status in database
-          await UserPlans.update(
-            {
-              plan_finish_at: data.current_period_end * 1000,
-              subscription_days_left: Math.floor((data.current_period_end - Date.now() / 1000) / (24 * 60 * 60)),
-              plan_canceled: 1,
-            },
-            {
-              where: { stripe_customer_id: customerId }
-            }
+        // Update user plan status in database
+        const endDate = new Date(data.current_period_end * 1000);
+        const now = new Date();
+        const daysLeft = Math.floor((endDate - now) / (1000 * 60 * 60 * 24));
 
-          );
-        }
+        await UserPlans.update(
+          {
+            subscription_days_left: daysLeft,
+            plan_finish_at: data.current_period_end * 1000,
+            plan_canceled: 1,
+          },
+          {
+            where: { stripe_customer_id: customerId }
+          }
+        );
+
       } else if (!data.cancel_at_period_end && !data.cancellation_details?.reason) {
         statusPlan = "Plano ativo";
-        if (isTrial) {
-          additionalDetails = "Período de trial";
-        }
       } else {
         statusPlan = "Status indefinido";
       }
@@ -585,7 +577,6 @@ module.exports = class {
         statusPlan,
         additionalDetails,
         updatedDate: new Date().toLocaleDateString("pt-BR"),
-        isTrial,
         baseUrl: process.env.API_URL,
       };
 
@@ -652,17 +643,26 @@ module.exports = class {
         return null;
       }
 
-      // Se era um plano pago que terminou
-      if (emailTemplate === "customerSubscriptionDeleted") {
-        if (data.status === 'canceled') {
-          console.log('🔴 Plano pago terminou. Removendo acesso.');
+      // Verifica se o plano está expirado
+      const now = new Date();
+      const isExpired =
+        userPlan.subscription_days_left <= 0 ||
+        (userPlan.plan_finish_at && new Date(userPlan.plan_finish_at) <= now);
 
-          // Remove o plano do usuário no banco de dados
-          await userPlan.destroy();
+      // Se era um plano pago que terminou e está expirado
+      if (data.status === 'canceled' && isExpired) {
+        console.log('🔴 Plano pago expirado. Removendo acesso.');
 
-          // Log para auditoria
-          console.log(`[CANCELAMENTO] Plano removido para usuário ${userName} (ID: ${userPlan.user_id})`);
-        }
+        // Remove o plano do usuário no banco de dados
+        await userPlan.destroy();
+
+        // Log para auditoria
+        console.log(`[CANCELAMENTO] Plano removido para usuário ${userName} (ID: ${userPlan.user_id}) - Motivo: Plano expirado`);
+      } else if (data.status === 'canceled') {
+        // Se o plano foi cancelado mas ainda não expirou, apenas marca como cancelado
+        console.log('🟡 Plano cancelado mas ainda não expirado. Mantendo acesso até o vencimento.');
+        await userPlan.update({ plan_canceled: true });
+        console.log(`[CANCELAMENTO] Plano marcado como cancelado para usuário ${userName} (ID: ${userPlan.user_id}) - Aguardando expiração`);
       }
 
       const paramsEmail = {
@@ -712,7 +712,7 @@ module.exports = class {
       if (!data?.id || !data?.object || data.object !== 'charge' || !data?.refunded) {
         throw new Error("Evento de reembolso inválido ou incompleto.");
       }
-      
+
       // Busca a cobrança original com todas as informações necessárias
       const charge = await stripe.charges.retrieve(data.id, {
         expand: ['customer', 'invoice', 'invoice.subscription', 'invoice.subscription.items.data.price.product']

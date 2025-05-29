@@ -30,6 +30,24 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: true,
       },
+      subscription_days_left: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+      },
+      plan_finish_at: {
+        type: Sequelize.DATE,
+        allowNull: true,
+      },
+      cron_executed: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      plan_canceled: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
