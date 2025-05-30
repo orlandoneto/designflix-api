@@ -3,7 +3,7 @@ const { UserPlans, Sequelize } = require('../models');
 const logger = require('../config/logger');
 
 const SHOW_LOGS = false; // Flag para controlar logs no console
-const IS_TESTING = true; // Controla o schedule do cron job
+const IS_TESTING = false; // Controla o schedule do cron job
 
 // Schedule baseado no ambiente
 const CRON_SCHEDULE = IS_TESTING ? '*/2 * * * *' : '0 0 * * *';

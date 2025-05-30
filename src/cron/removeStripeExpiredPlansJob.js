@@ -5,7 +5,7 @@ const { sendEmail } = require('../utils/emailService');
 const { PLAN_NAMES } = require("../utils/constants/constants");
 
 const SHOW_LOGS = false;
-const IS_TESTING = true; // Controla o schedule do cron job
+const IS_TESTING = false; // Controla o schedule do cron job
 
 // Schedule baseado no ambiente
 const CRON_SCHEDULE = IS_TESTING ? '*/2 * * * *' : '0 0 * * *';
