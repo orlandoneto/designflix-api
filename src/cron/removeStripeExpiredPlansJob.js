@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const { UserPlans, Plans, User, Sequelize } = require('../models');
 const logger = require('../config/logger');
 const { sendEmail } = require('../utils/emailService');
+const { PLAN_NAMES } = require("../utils/constants/constants");
 
 const SHOW_LOGS = false;
 const IS_TESTING = true; // Controla o schedule do cron job
@@ -52,8 +53,9 @@ async function processExpiredPlans() {
 
         const contextParams = {
           name: plan.user.name,
-          planName: plan.plans.plan_name,
+          planName: PLAN_NAMES?.[plan.plans.plan_name] || plan.plans.plan_name,
           expirationDate: new Date(plan.plan_finish_at).toLocaleDateString('pt-BR'),
+          cancellationDate: new Date().toLocaleDateString('pt-BR'),
           baseUrl: process.env.API_URL
         };
 

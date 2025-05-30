@@ -43,6 +43,9 @@ const sendEmail = async (
   );
 
   try {
+    console.log('[Email Debug] Template:', templateName);
+    console.log('[Email Debug] Context:', JSON.stringify(context, null, 2));
+
     const mailOptions = {
       from: process.env.EMAIL_USER_SMTP,
       to: paramsEmail.email,
@@ -55,9 +58,10 @@ const sendEmail = async (
     };
 
     const info = await transporter.sendMail(mailOptions);
+    console.log('[Email Debug] Email sent successfully:', info.messageId);
     return info;
   } catch (error) {
-    console.error("Erro ao enviar email:", error);
+    console.error("[Email Debug] Error sending email:", error);
     throw error;
   }
 };
