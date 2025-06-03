@@ -35,7 +35,7 @@ module.exports = (app) => {
     (req, res) => UserService.updateBalance(req, res)
   );
 
-  app.post("/user", verifyRecaptcha('register'), (req, res) =>
+  app.post("/user", (req, res) =>
     UserService.create(req, res)
   );
 
@@ -80,7 +80,7 @@ module.exports = (app) => {
     UserService.authenticate(req, res)
   );
 
-  app.post("/user/reset-password", verifyRecaptcha('reset-password'), (req, res) =>
+  app.post("/user/reset-password", (req, res) =>
     UserService.resetPassword(req, res)
   );
 

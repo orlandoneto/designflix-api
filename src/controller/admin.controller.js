@@ -69,7 +69,7 @@ module.exports = (app) => {
    *      '500':
    *        description: Erro. E-mail não enviado.
    */
-  app.post("/admin/reset-password", verifyRecaptcha('recover-password'), (req, res) =>
+  app.post("/admin/reset-password", (req, res) =>
     AdminService.resetPassword(req, res)
   );
 

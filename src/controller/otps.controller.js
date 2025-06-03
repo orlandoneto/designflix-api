@@ -6,7 +6,7 @@ module.exports = (app) => {
 
   app.get("/otps/send", (req, res) => OTPService.sendOTP(req, res));
 
-  app.get("/otps/verify", verifyRecaptcha('verify-code'), (req, res) =>
+  app.get("/otps/verify", (req, res) =>
     OTPService.verifyOTP(req, res)
   );
 };
