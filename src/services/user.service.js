@@ -162,13 +162,11 @@ class UserServices {
   async create(req, res) {
     try {
       let {
-        name,
+        fullName,
         email,
         password,
-        phone,
-        country_code,
-        privacy_policy,
-        plan_type,
+        whatsapp,
+        countryCode,
       } = req.body;
 
       const hasUserEmail = await this.getByEmail(email);
@@ -186,14 +184,12 @@ class UserServices {
 
       const status = "CACTIVE";
       const user = await User.create({
-        name,
+        name: fullName,
         email,
         password,
-        phone,
-        countryCode: country_code,
-        privacyPolicy: privacy_policy,
+        phone: whatsapp,
+        countryCode,
         status,
-        planType: plan_type,
       });
 
       const userData = user.dataValues;
@@ -203,7 +199,7 @@ class UserServices {
 
       const paramsEmail = {
         email: email,
-        name: name,
+        name: fullName,
         title: "FlixDesign - Usuário criado",
         description: "Sua conta foi criada com sucesso!",
       };

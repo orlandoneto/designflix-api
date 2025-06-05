@@ -70,6 +70,8 @@ module.exports = class {
         res.status(200).json({ success: false, message: "Código inválido ou expirado!" });
       }
     } catch (error) {
+      const where = { email: email };
+      await Otps.destroy({ where });
       console.error("Error verifying OTP:", error);
       res
         .status(500)
