@@ -290,7 +290,10 @@ class UserServices {
       };
     }
 
-    const validatePassword = await bcrypt.compareSync(password, user.password);
+    const validatePassword = await bcrypt.compare(
+      password,
+      user.password
+    );
 
     if (!validatePassword) {
       return {
@@ -329,7 +332,7 @@ class UserServices {
         return;
       }
 
-      const validatePassword = await bcrypt.compareSync(
+      const validatePassword = await bcrypt.compare(
         password,
         user.password
       );
