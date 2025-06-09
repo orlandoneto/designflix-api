@@ -174,6 +174,136 @@ module.exports = class {
     }
   }
 
+  async refundSubscriptionWithin7Days(req, res) {
+    const { customerId } = req.params;
+
+    try {
+      // Buscar a assinatura ativa do cliente
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "active",
+        limit: 1,
+      });
+
+      if (subscriptions.data.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Nenhuma assinatura ativa encontrada para este cliente.",
+        });
+      }
+
+      // Buscar os pagamentos associados à assinatura
+      const invoices = await stripe.invoices.list({
+        customer: customerId,
+        limit: 1,
+      });
+
+      if (invoices.data.length === 0 || !invoices.data[0].charge) {
+        return res.status(404).json({
+          success: false,
+          message: "Nenhum pagamento encontrado para reembolso.",
+        });
+      }
+
+      const chargeId = invoices.data[0].charge;
+      const charge = await stripe.charges.retrieve(chargeId, {
+        expand: ['customer']
+      });
+
+      // Verificar se o pagamento foi feito há menos de 7 dias
+      const paymentTime = charge.created;
+      const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
+
+      if (paymentTime < sevenDaysAgo) {
+        return res.status(400).json({
+          success: false,
+          message: "O período de reembolso de 7 dias já expirou.",
+        });
+      }
+
+      // Cancelar a assinatura no Stripe
+      const subscription = subscriptions.data[0];
+      await stripe.subscriptions.cancel(subscription.id, {
+        prorate: false,
+        invoice_now: false
+      });
+      console.log(`[CANCELAMENTO] Assinatura ${subscription.id} cancelada imediatamente para cliente ${customerId}`);
+
+      // Buscar informações do plano no banco de dados
+      const userPlan = await UserPlans.findOne({
+        where: { stripe_customer_id: customerId },
+        include: [
+          {
+            model: Plans,
+            as: "plans",
+            attributes: ["plan_name"],
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["name", "email"],
+          }
+        ]
+      });
+
+      // Criar o reembolso
+      const refund = await stripe.refunds.create({
+        charge: chargeId,
+      });
+
+      await UserPlans.destroy({
+        where: { stripe_customer_id: customerId }
+      });
+
+      console.log(`[REEMBOLSO] Plano removido para cliente ${customerId}`);
+
+      // Preparar e enviar email de reembolso
+      if (userPlan?.user?.email) {
+        const emailUser = userPlan.user.email;
+        const userName = userPlan.user.name || charge.customer.name || "Cliente";
+        const planName = userPlan.plans?.plan_name || "Plano";
+
+        const paramsEmail = {
+          email: emailUser,
+          name: userName,
+          title: "Reembolso de plano",
+          description: "Reembolso processado com sucesso",
+        };
+
+        const contextParams = {
+          name: userName,
+          planName: PLAN_NAMES?.[planName] || planName,
+          amount: (charge.amount / 100).toFixed(2),
+          refundDate: new Date().toLocaleDateString("pt-BR"),
+          baseUrl: process.env.API_URL,
+        };
+
+        // Enviar email usando o template chargeRefund
+        this.handleRefudedOrCanceledSendEmail(
+          paramsEmail,
+          "chargeRefund",
+          contextParams
+        );
+
+        // Log para auditoria
+        console.log(`[REEMBOLSO MANUAL] Reembolso processado para cliente ${userName} (ID: ${customerId}). Valor: R$ ${(charge.amount / 100).toFixed(2)}`);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Reembolso realizado com sucesso e plano marcado como cancelado.",
+        refund,
+      });
+    } catch (error) {
+      console.error("Erro ao processar o reembolso:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erro ao processar o reembolso.",
+        error: error.message,
+      });
+    }
+  }
+
   async retrievePlans(req, res) {
     const { planId } = req.params;
     try {
@@ -266,128 +396,6 @@ module.exports = class {
       res
         .status(400)
         .send(`Erro ao criar a sessão do Portal: ${error.message}`);
-    }
-  }
-
-  async refundSubscriptionWithin7Days(req, res) {
-    const { customerId } = req.params;
-
-    try {
-      // Buscar a assinatura ativa do cliente
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customerId,
-        status: "active",
-        limit: 1,
-      });
-
-      if (subscriptions.data.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "Nenhuma assinatura ativa encontrada para este cliente.",
-        });
-      }
-
-      // Buscar os pagamentos associados à assinatura
-      const invoices = await stripe.invoices.list({
-        customer: customerId,
-        limit: 1,
-      });
-
-      if (invoices.data.length === 0 || !invoices.data[0].charge) {
-        return res.status(404).json({
-          success: false,
-          message: "Nenhum pagamento encontrado para reembolso.",
-        });
-      }
-
-      const chargeId = invoices.data[0].charge;
-      const charge = await stripe.charges.retrieve(chargeId, {
-        expand: ['customer']
-      });
-
-      // Verificar se o pagamento foi feito há menos de 7 dias
-      const paymentTime = charge.created;
-      const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
-
-      if (paymentTime < sevenDaysAgo) {
-        return res.status(400).json({
-          success: false,
-          message: "O período de reembolso de 7 dias já expirou.",
-        });
-      }
-
-      // Buscar informações do plano no banco de dados
-      const userPlan = await UserPlans.findOne({
-        where: { stripe_customer_id: customerId },
-        include: [
-          {
-            model: Plans,
-            as: "plans",
-            attributes: ["plan_name"],
-          },
-          {
-            model: User,
-            as: "user",
-            attributes: ["name", "email"],
-          }
-        ]
-      });
-
-      // Criar o reembolso
-      const refund = await stripe.refunds.create({
-        charge: chargeId,
-      });
-
-      await UserPlans.destroy({
-        where: { stripe_customer_id: customerId }
-      });
-
-      console.log(`[REEMBOLSO] Plano removido para cliente ${customerId}`);
-
-      // Preparar e enviar email de reembolso
-      if (userPlan?.user?.email) {
-        const emailUser = userPlan.user.email;
-        const userName = userPlan.user.name || charge.customer.name || "Cliente";
-        const planName = userPlan.plans?.plan_name || "Plano";
-
-        const paramsEmail = {
-          email: emailUser,
-          name: userName,
-          title: "Reembolso de plano",
-          description: "Reembolso processado com sucesso",
-        };
-
-        const contextParams = {
-          name: userName,
-          planName: PLAN_NAMES?.[planName] || planName,
-          amount: (charge.amount / 100).toFixed(2),
-          refundDate: new Date().toLocaleDateString("pt-BR"),
-          baseUrl: process.env.API_URL,
-        };
-
-        // Enviar email usando o template chargeRefund
-        this.handleRefudedOrCanceledSendEmail(
-          paramsEmail,
-          "chargeRefund",
-          contextParams
-        );
-
-        // Log para auditoria
-        console.log(`[REEMBOLSO MANUAL] Reembolso processado para cliente ${userName} (ID: ${customerId}). Valor: R$ ${(charge.amount / 100).toFixed(2)}`);
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: "Reembolso realizado com sucesso e plano marcado como cancelado.",
-        refund,
-      });
-    } catch (error) {
-      console.error("Erro ao processar o reembolso:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Erro ao processar o reembolso.",
-        error: error.message,
-      });
     }
   }
 
