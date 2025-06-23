@@ -37,11 +37,12 @@ module.exports = class {
             model: Category,
             as: "category", // Assegure-se de que o alias esteja correto
             required: true,
+            attributes: ["name"],
           },
           {
             model: UserMainGrid,
             as: "user_main_grid",
-            attributes: ["name", "format", "url_cover"],
+            attributes: ["format", "url_cover"],
           },
         ],
         order: [["createdAt", "DESC"]],
