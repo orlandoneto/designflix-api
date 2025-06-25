@@ -41,7 +41,7 @@ module.exports = (app) => {
    *      '500':
    *        description: Erro interno do servidor.
    */
-  app.post("/admin/authenticate", verifyRecaptcha('admin-login'), (req, res) =>
+  app.post("/admin/authenticate", (req, res) =>
     AdminService.authenticate(req, res)
   );
 
