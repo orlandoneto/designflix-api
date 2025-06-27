@@ -34,11 +34,19 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowedOrigins = [
-        process.env.FRONTEND_URL,
-        process.env.FRONTEND_URL.replace(/\/$/, ""),
-      ];
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Lê as URLs do env, separa por vírgula e remove espaços extras
+      const allowedOrigins = (process.env.FRONTEND_URLS || "")
+        .split(",")
+        .map(url => url.trim().replace(/\/$/, "")) // remove barra final
+        .filter(Boolean);
+
+      // Permite também as URLs com barra no final
+      const allowedOriginsWithSlash = allowedOrigins.map(url => url + "/");
+
+      // Junta as duas listas
+      const allAllowed = [...allowedOrigins, ...allowedOriginsWithSlash];
+
+      if (!origin || allAllowed.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
