@@ -3,7 +3,7 @@ const path = require("path");
 const crypto = require("crypto");
 const aws = require("aws-sdk");
 const sharp = require("sharp");
-const { CONST, FOLDER_IMAGE_PREVIEWS_PATH } = require("../utils/constants/constants");
+const { CONST, FOLDER_NAME_THUMBS_PATH } = require("../utils/constants/constants");
 
 const s3 = new aws.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -59,7 +59,7 @@ const uploadToS3 = async (fileName, processedImage, mimeType) => {
   return `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
 };
 
-const addWatermarkFull = async (req, res, next) => {
+const addWatermarkSoft = async (req, res, next) => {
   if (!req.file) {
     return next();
   }
@@ -93,13 +93,13 @@ const addWatermarkFull = async (req, res, next) => {
           left: left,
           top: top,
           blend: "overlay",
-          opacity: 0.5,
+          opacity: 0.15, // Marca d'água bem suave
         },
       ])
       .toBuffer();
     const webpImage = await convertToWebP(processedImage);
 
-    const fileName = `${FOLDER_IMAGE_PREVIEWS_PATH}/${crypto
+    const fileName = `${FOLDER_NAME_THUMBS_PATH}/${crypto
       .randomBytes(16)
       .toString("hex")}-${Date.now()}.webp`;
 
@@ -123,6 +123,6 @@ const convertToWebP = async (imageBuffer) => {
 };
 
 module.exports = {
-  uploadPreview: upload,
-  addWatermarkFull,
+  uploadThumb: upload,
+  addWatermarkSoft,
 };

@@ -39,7 +39,7 @@ module.exports = class {
           {
             model: UserMainGrid,
             as: "user_main_grid",
-            attributes: ["format", "url_cover"],
+            attributes: ["format", "url_thumb", "url_cover"],
           },
         ],
         order: [["createdAt", "DESC"]], // Ordenar por mais recente

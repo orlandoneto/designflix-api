@@ -20,6 +20,7 @@ module.exports = class UserMainGridController {
         user_id,
         name,
         format,
+        url_thumb,
         url_cover,
         url,
         categories,
@@ -33,6 +34,7 @@ module.exports = class UserMainGridController {
           user_id,
           name,
           format,
+          url_thumb,
           url_cover,
           url,
           terms,
@@ -128,6 +130,7 @@ module.exports = class UserMainGridController {
           contributor_admin_id: r.admin_id,
           name: r.name,
           format: r.format,
+          url_thumb: r.url_thumb,
           url_cover: r.url_cover,
           url: r.url,
           user: {
@@ -313,6 +316,7 @@ module.exports = class UserMainGridController {
           contributor_admin_id: grid.admin_id,
           name: grid.name,
           format: grid.format,
+          url_thumb: grid.url_thumb,
           url_cover: grid.url_cover,
           url: grid.url,
           user: {
@@ -401,6 +405,7 @@ module.exports = class UserMainGridController {
         id: grid.id,
         name: grid.name,
         format: grid.format,
+        url_thumb: grid.url_thumb,
         url_cover: grid.url_cover,
         url: grid.url,
         user: {
@@ -475,6 +480,7 @@ module.exports = class UserMainGridController {
         id: grid.id,
         name: grid.name,
         format: grid.format,
+        url_thumb: grid.url_thumb,
         url_cover: grid.url_cover,
         url: grid.url,
         categories: grid.user_main_grid_categories.map((item) => ({

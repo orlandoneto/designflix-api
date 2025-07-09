@@ -30,4 +30,20 @@ const PALN_COMMISSION = {
   payout_contributor: 10000, // R$ 100,00 em centavos
 };
 
-module.exports = { ROLES, CONST, PLAN_NAMES, PLAN_VALUES, PALN_COMMISSION };
+// S3 FOLDERS
+const FOLDER_NAME_IMAGES_PATH = "images";
+const FOLDER_NAME_THUMBS_PATH = "thumbs";
+const FOLDER_IMAGE_PREVIEWS_PATH = "preview";
+const FOLDER_NAME_PACK_IMAGES_PATH = "pack_images";
+
+module.exports = {
+  ROLES,
+  CONST,
+  PLAN_NAMES,
+  PLAN_VALUES,
+  PALN_COMMISSION,
+  FOLDER_NAME_IMAGES_PATH,
+  FOLDER_NAME_THUMBS_PATH,
+  FOLDER_IMAGE_PREVIEWS_PATH,
+  FOLDER_NAME_PACK_IMAGES_PATH,
+};

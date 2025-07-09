@@ -37,6 +37,10 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
+      url_thumb: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
       url_cover: {
         type: Sequelize.STRING,
         allowNull: true,
