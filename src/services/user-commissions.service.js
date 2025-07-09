@@ -1,4 +1,5 @@
 const { UserCommission, User, Sequelize } = require("../models");
+const { PALN_COMMISSION } = require("../utils/constants/constants");
 
 class UserCommissionsServices {
   // FIXME: Criar um service único que reunina todos os metodo da carteira.
@@ -114,7 +115,7 @@ class UserCommissionsServices {
     try {
       const commission = await UserCommission.create({
         user_id: userId,
-        amount: 0.3,
+        amount: PALN_COMMISSION.comission_contributor / 100, // Converte centavos para reais
         created_at: new Date(),
         status: "pending",
       });

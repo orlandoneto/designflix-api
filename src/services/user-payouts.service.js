@@ -1,10 +1,11 @@
 const { UserPayout, User } = require("../models");
 const stripeModule = require("../modules/stripe.module");
+const { PALN_COMMISSION } = require("../utils/constants/constants");
 
 class UserPayoutsServices {
   async requestPayout(req, res) {
     const { userId, amount } = req.body; // O usuário escolhe o valor do saque
-    
+
 
     try {
       // Verifica o saldo do usuário
@@ -26,11 +27,12 @@ class UserPayoutsServices {
           .json({ success: false, message: "Saldo insuficiente para saque." });
       }
 
-      // Verifica se o valor do saque é maior ou igual a R$ 100,00
-      if (amount < 100) {
+      // Verifica se o valor do saque é maior ou igual ao mínimo definido
+      const minPayoutAmount = PALN_COMMISSION.payout_contributor; // Valor já está em centavos
+      if (amount < minPayoutAmount) {
         return res.status(400).json({
           success: false,
-          message: "O valor do saque deve ser maior ou igual a R$ 100,00.",
+          message: `O valor do saque deve ser maior ou igual a R$ ${(minPayoutAmount / 100).toFixed(2)}.`,
         });
       }
 

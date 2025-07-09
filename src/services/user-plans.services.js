@@ -49,11 +49,15 @@ class UserPlansServices {
         currentPlan = {
           provider: "Stripe",
           customerId: userPlan.stripe_customer_id,
+          created_at: userPlan.createdAt || null,
+          plan_finish_at: userPlan.plan_finish_at || null,
         };
       } else if (userPlan.mercadopago_customer_id) {
         currentPlan = {
           provider: "MercadoPago",
           customerId: userPlan.mercadopago_customer_id,
+          created_at: userPlan.createdAt || null,
+          plan_finish_at: userPlan.plan_finish_at || null,
         };
       } else {
         return res.status(404).json({

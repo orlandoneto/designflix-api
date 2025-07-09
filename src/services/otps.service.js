@@ -23,7 +23,7 @@ module.exports = class {
         email: email,
         name: "FlixDesign",
         title: "FlixDesign - Código de Verificação",
-        description: `<p>Your OTP is: <strong>${otp}</strong></p>`,
+        description: `<p>Seu código é: <strong>${otp}</strong></p>`,
       };
 
       const context = {
@@ -40,7 +40,7 @@ module.exports = class {
           console.error("Erro ao enviar email:", error);
         });
 
-      res.status(200).json({ success: true, message: "OTP sent successfully" });
+      res.status(200).json({ success: true, message: "Código enviado com sucesso" });
     } catch (error) {
       console.error("Error sending OTP:", error);
       res
@@ -67,9 +67,11 @@ module.exports = class {
           .status(200)
           .json({ success: true, message: "OTP verification successful" });
       } else {
-        res.status(400).json({ success: false, message: "Invalid OTP" });
+        res.status(200).json({ success: false, message: "Código inválido ou expirado!" });
       }
     } catch (error) {
+      const where = { email: email };
+      await Otps.destroy({ where });
       console.error("Error verifying OTP:", error);
       res
         .status(500)

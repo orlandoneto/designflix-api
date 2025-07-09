@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const { User } = require("../models");
 const { sendEmail } = require("../utils/emailService");
 const stripeModule = require("../modules/stripe.module");
+const { PALN_COMMISSION } = require("../utils/constants/constants");
 
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
@@ -50,11 +51,11 @@ class UserServices {
       const user = await User.findOne({ where: { email } });
       if (!user) {
         return res
-          .status(400)
+          .status(200)
           .json({ success: false, message: "Usuário não encontrado" });
       }
 
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ success: true, message: "Usuário encontrado" });
     } catch (error) {
       return res
         .status(500)
@@ -112,9 +113,9 @@ class UserServices {
       const user = await User.findOne({ where: { id: userId } });
 
       if (user) {
-        // Se o saldo for null, inicializa com 0.3
+        // Se o saldo for null, inicializa com 0.10
         if (user.balance === null) {
-          await User.update({ balance: 0.3 }, { where: { id: userId } });
+          await User.update({ balance: PALN_COMMISSION.comission_contributor / 100 }, { where: { id: userId } });
           return {
             success: true,
             message: "Saldo inicializado com sucesso",
@@ -122,7 +123,7 @@ class UserServices {
         } else {
           // Caso contrário, incrementa o saldo existente
           await User.increment("balance", {
-            by: 0.3,
+            by: PALN_COMMISSION.comission_contributor / 100,
             where: { id: userId },
           });
           return {
@@ -131,10 +132,10 @@ class UserServices {
           };
         }
       } else {
-        // Se o usuário não existir, cria um novo com saldo inicial 0.3
+        // Se o usuário não existir, cria um novo com saldo inicial 0.10
         await User.create({
           id: userId,
-          balance: 0.3, // Define o saldo inicial
+          balance: PALN_COMMISSION.comission_contributor / 100,
         });
         return {
           success: true,
@@ -161,13 +162,11 @@ class UserServices {
   async create(req, res) {
     try {
       let {
-        name,
+        fullName,
         email,
         password,
-        phone,
-        country_code,
-        privacy_policy,
-        plan_type,
+        whatsapp,
+        countryCode,
       } = req.body;
 
       const hasUserEmail = await this.getByEmail(email);
@@ -185,14 +184,12 @@ class UserServices {
 
       const status = "CACTIVE";
       const user = await User.create({
-        name,
+        name: fullName,
         email,
         password,
-        phone,
-        countryCode: country_code,
-        privacyPolicy: privacy_policy,
+        phone: whatsapp,
+        countryCode,
         status,
-        planType: plan_type,
       });
 
       const userData = user.dataValues;
@@ -202,7 +199,7 @@ class UserServices {
 
       const paramsEmail = {
         email: email,
-        name: name,
+        name: fullName,
         title: "FlixDesign - Usuário criado",
         description: "Sua conta foi criada com sucesso!",
       };
@@ -289,7 +286,10 @@ class UserServices {
       };
     }
 
-    const validatePassword = await bcrypt.compareSync(password, user.password);
+    const validatePassword = await bcrypt.compare(
+      password,
+      user.password
+    );
 
     if (!validatePassword) {
       return {
@@ -328,7 +328,7 @@ class UserServices {
         return;
       }
 
-      const validatePassword = await bcrypt.compareSync(
+      const validatePassword = await bcrypt.compare(
         password,
         user.password
       );
@@ -442,40 +442,47 @@ class UserServices {
     }
   }
 
-  async update(req, res) {
+  async updateUser(req, res) {
     try {
+      const { userId, userType } = req.params;
+
+      if (!userId || !userType) {
+        return res.status(400).send({ message: "userId e userType são obrigatórios" });
+      }
+
       let shouldUpdate = true;
-      let idToUpdate;
       let self = false;
 
-      if (req.params.userType === "user") {
-        idToUpdate = req.params.userId;
+      if (userType === "user") {
         self = true;
       }
 
       if (shouldUpdate) {
-        const where = { id: idToUpdate };
+        const where = { id: userId };
 
         const oldUser = await User.findOne({ where });
 
+        if (!oldUser) {
+          return res.status(404).send({ message: "Usuário não encontrado" });
+        }
+
+        //FIXME: Stripe com problema na conta conectada
         // Criar conta conectada no Stripe
-        if (req.body.contributor) {
-          const accountId = await stripeModule.createConnectedAccount(
-            oldUser.email
-          );
+        /* if (req.body.contributor) {
+           const accountId = await stripeModule.createConnectedAccount(
+             oldUser.email
+           );
+ 
+           req.body.stripeAccountId = accountId;
+         // Atualizar conta conectada para a chave pix
+         if (req.body.chavePix) {
+           await stripeModule.addPixKeyToAccount(
+             oldUser.stripeAccountId,
+             req.body.chavePix
+           );
+         }*/
 
-          req.body.stripeAccountId = accountId;
-        }
-
-        // Atualizar conta conectada para a chave pix
-        if (req.body.chavePix) {
-          await stripeModule.addPixKeyToAccount(
-            oldUser.stripeAccountId,
-            req.body.chavePix
-          );
-        }
-
-        let updatedUser = { ...oldUser, ...req.body };
+        let updatedUser = { ...oldUser.dataValues, ...req.body };
 
         let codeUpdate = 1;
 
@@ -490,6 +497,31 @@ class UserServices {
         await User.update(updatedUser, { where });
 
         const user = await User.findOne({ where });
+
+        // Verifica se o usuário está solicitando ser contribuidor
+        if (req.body.contributor === 1 && oldUser.contributor !== 1) {
+          const paramsEmail = {
+            email: user.email,
+            name: user.name,
+            title: "Solicitação de Contribuidor - FlixDesign",
+            description: "Recebemos sua solicitação para ser um contribuidor!",
+          };
+
+          const contextParams = {
+            name: user.name,
+            requestDate: new Date().toLocaleDateString("pt-BR"),
+            baseUrl: process.env.API_URL,
+          };
+
+          // Envia o email de confirmação
+          sendEmail(paramsEmail, "contributorRequest", contextParams)
+            .then((response) => {
+              console.log("Email de solicitação de contribuidor enviado com sucesso:", response);
+            })
+            .catch((error) => {
+              console.error("Erro ao enviar email de solicitação de contribuidor:", error);
+            });
+        }
 
         res.status(200).send({
           data: user,

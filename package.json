@@ -6,17 +6,17 @@
   "main": "src/main.js",
   "scripts": {
     "minify": "node scripts/minify.js",
-    "test": "node scripts/setEnv.js test && nodemon src/main.js",
-    "dev": "node scripts/setEnv.js development && nodemon src/main.js",
-    "start": "node scripts/setEnv.js production && node src/main.js",
+    "test": "cross-env NODE_ENV=test LOG_LEVEL=verbose node scripts/setEnv.js && cross-env NODE_ENV=test node src/main.js",
+    "dev": "cross-env NODE_ENV=development LOG_LEVEL=debug node scripts/setEnv.js && cross-env NODE_ENV=development nodemon src/main.js",
+    "start": "cross-env NODE_ENV=production LOG_LEVEL=info node scripts/setEnv.js && cross-env NODE_ENV=production node src/main.js",
     "build-stg": "node scripts/setEnv.js development && babel src --out-dir dist && npm run minify",
     "build-prd": "node scripts/setEnv.js production && babel src --out-dir dist && npm run minify",
-    "migrate": "cd src && npx sequelize-cli db:migrate && cd ..",
     "deploy-stg": "pm2 deploy ecosystem.development.config.js staging",
     "deploy-prd": "pm2 deploy ecosystem.production.config.js production",
     "deploy": "yarn run deploy-stg && yarn run deploy-prd",
     "copy-keys": "cp ./src/middleware/private.key ./dist/middleware/",
-    "build": "babel src --out-dir dist && npm run copy-keys"
+    "build": "babel src --out-dir dist && npm run copy-keys",
+    "migrate": "cd src && npx sequelize-cli db:migrate && cd .."
   },
   "author": "FlixDesign",
   "dependencies": {
@@ -27,6 +27,7 @@
     "axios": "^1.7.7",
     "bcrypt": "^5.0.1",
     "body-parser": "^1.19.0",
+    "chalk": "4.1.2",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "express": "^4.17.1",
@@ -40,6 +41,7 @@
     "multer": "^1.4.4",
     "multer-s3": "^2.10.0",
     "mysql2": "^3.11.3",
+    "node-cron": "^3.0.3",
     "node-schedule": "^2.0.0",
     "nodemailer": "^6.6.2",
     "nodemailer-handlebars": "^1.0.0",
@@ -52,6 +54,8 @@
     "swagger-jsdoc": "^6.1.0",
     "swagger-ui-express": "^4.1.6",
     "uuid": "^10.0.0",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.18.1"
   },
   "devDependencies": {
@@ -60,6 +64,7 @@
     "@babel/preset-env": "^7.26.0",
     "babel-cli": "^6.26.0",
     "babel-loader": "^9.2.1",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.4.5",
     "esbuild": "^0.24.0",
     "eslint": "^7.21.0",

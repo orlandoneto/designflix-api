@@ -65,11 +65,17 @@
             <li><strong>Plano:</strong> {{planName}}</li> 
             <li><strong>Status:</strong> {{statusPlan}}</li> 
             {{#if additionalDetails}}
-            <li><strong>Data de cancelamento:</strong> {{additionalDetails}}</li>  
+            <li><strong>Detalhes:</strong> {{additionalDetails}}</li>  
             {{/if}}             
         </ul>
 
-        <p>Se você não reconhece essas alterações ou se tem alguma dúvida, nossa equipe de suporte está disponível para ajudá-lo.</p>
+        {{#if statusPlan}}
+            {{#if (eq statusPlan "Cancelamento solicitado")}}
+            <p>Sua assinatura foi cancelada conforme solicitado. Você continuará tendo acesso aos benefícios do plano até a data mencionada acima.</p>
+            {{else}}
+            <p>Se você não reconhece essas alterações ou se tem alguma dúvida, nossa equipe de suporte está disponível para ajudá-lo.</p>
+            {{/if}}
+        {{/if}}
 
         <p>Agradecemos por escolher o FlixDesign. Estamos comprometidos em oferecer o melhor serviço para você!</p>
 

@@ -1,3 +1,6 @@
+// Carrega as variáveis de ambiente primeiro
+require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') });
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -6,16 +9,52 @@ const swaggerJsDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
 const path = require("path");
 
-require("dotenv").config();
-
 const http = require("http");
 const { setupWebSocket } = require("./config/websocket");
+
+// Log das variáveis de ambiente importantes
+console.log('\n=== Configuração do Ambiente ===');
+console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`NODE_PORT: ${process.env.NODE_PORT}`);
+console.log(`LOG_LEVEL: ${process.env.LOG_LEVEL}`);
+console.log('===============================\n');
 
 const app = express();
 const server = http.createServer(app);
 
+// Logar o tempo de execução do cron job
+const logger = require("./config/logger");
+app.use(morgan("combined", { stream: logger.stream }));
+
+// Importar o cron job
+require("./cron/upgradeStripePlansJob")();
+require("./cron/removeStripeExpiredPlansJob")();
+
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Lê as URLs do env, separa por vírgula e remove espaços extras
+      const allowedOrigins = (process.env.FRONTEND_URLS || "")
+        .split(",")
+        .map(url => url.trim().replace(/\/$/, "")) // remove barra final
+        .filter(Boolean);
+
+      // Permite também as URLs com barra no final
+      const allowedOriginsWithSlash = allowedOrigins.map(url => url + "/");
+
+      // Junta as duas listas
+      const allAllowed = [...allowedOrigins, ...allowedOriginsWithSlash];
+
+      if (!origin || allAllowed.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(morgan("dev"));
 app.use("/", express.static(path.resolve(__dirname, "..", "public")));
@@ -129,7 +168,8 @@ require("./controller/user-plans.controller")(app);
 require("./controller/forgot.controller")(app);
 
 server.listen(process.env.NODE_PORT, () => {
+  console.log('\n=== Servidor Iniciado ===');
   console.log(`Servidor rodando na porta ${process.env.NODE_PORT}`);
+  console.log(`Ambiente: ${process.env.NODE_ENV}`);
+  console.log('========================\n');
 });
-
-module.exports = { app, server };

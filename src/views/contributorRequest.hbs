@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reembolso Processado - FlixDesign</title>
+  <title>Solicitação de Contribuidor - FlixDesign</title>
   <style>
     @import url('https://fonts.googleapis.com/css?family=Rubik:300,400,500,700|Open+Sans:300,400,600,700');
     body {
@@ -48,19 +48,11 @@
       margin-top: 20px;
     }
 
-    .highlight-box {
+    .highlight {
       background-color: #f8f9fa;
-      border-left: 4px solid #28a745;
       padding: 15px;
+      border-radius: 5px;
       margin: 20px 0;
-      border-radius: 0 4px 4px 0;
-    }
-
-    .amount {
-      font-size: 24px;
-      color: #28a745;
-      font-weight: bold;
-      margin: 10px 0;
     }
   </style>
 </head>
@@ -73,35 +65,29 @@
     <div class="content">
       <p>Olá {{name}},</p>
       
-      <p>Confirmamos que o reembolso da sua assinatura no FlixDesign foi processado com sucesso.</p>
-
-      <div class="highlight-box">
-        <p><strong>Detalhes do Reembolso:</strong></p>
-        <ul>
-          <li><strong>Plano:</strong> {{planName}}</li>
-          <li><strong>Data do Reembolso:</strong> {{refundDate}}</li>
-        </ul>
-        <p class="amount">Valor Reembolsado: R$ {{amount}}</p>
+      <p>Recebemos sua solicitação para se tornar um contribuidor do FlixDesign! Estamos muito felizes com seu interesse em fazer parte da nossa comunidade.</p>
+      
+      <div class="highlight">
+        <p><strong>Próximos passos:</strong></p>
+        <p>Nossa equipe irá analisar sua solicitação e entrará em contato em breve com mais informações sobre o processo de aprovação.</p>
+        <p>Data da solicitação: {{requestDate}}</p>
       </div>
 
-      <p><strong>Informações Importantes:</strong></p>
+      <p>Enquanto isso, você pode:</p>
       <ul>
-        <li>O valor será creditado no mesmo método de pagamento utilizado na assinatura</li>
-        <li>O prazo para o crédito pode variar de acordo com sua instituição financeira</li>
-        <li>Seu acesso ao plano foi encerrado conforme solicitado</li>
+        <li>Explorar nossa plataforma e conhecer melhor nosso conteúdo</li>
+        <li>Verificar nossa seção de FAQ para contribuidores</li>
+        <li>Preparar seus melhores trabalhos para quando sua conta for aprovada</li>
       </ul>
 
-      <p>Se você tiver qualquer dúvida sobre o reembolso ou desejar retornar ao FlixDesign no futuro, nossa equipe de suporte está à disposição para ajudar.</p>
-
-      <p>Agradecemos por ter escolhido o FlixDesign. Esperamos poder atendê-lo novamente!</p>
-
+      <p>Se tiver alguma dúvida, não hesite em nos contatar.</p>
+      
       <p>Atenciosamente,<br>Equipe FlixDesign</p>
     </div>
-
     <div class="footer">
       <p>&copy; 2024 FlixDesign. Todos os direitos reservados.</p>
     </div>
   </div>
 </body>
 
-</html>
+</html> 

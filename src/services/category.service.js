@@ -27,61 +27,48 @@ module.exports = class {
 
   async getCategoriesInGroups(req, res) {
     try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = 4; // Número máximo de categorias por grupo
-
-      // Obter todas as categorias associadas a UserMainGridCategories
+      // Buscar todas as categorias com suas imagens (UserMainGridCategories)
       const categoriesWithGrids = await UserMainGridCategories.findAll({
         include: [
           {
             model: Category,
-            as: "category", // Assegure-se de que o alias esteja correto
+            as: "category",
             required: true,
+            attributes: ["id", "name"],
           },
           {
             model: UserMainGrid,
             as: "user_main_grid",
-            attributes: ["name", "format", "url_cover"],
+            attributes: ["format", "url_thumb", "url_cover"],
           },
         ],
-        order: [["createdAt", "DESC"]],
+        order: [["createdAt", "DESC"]], // Ordenar por mais recente
       });
 
-      // Agrupar categorias pelo ID
-      const categoriesMap = {};
+      // Agrupar por categoria
+      const categoryMap = {};
       categoriesWithGrids.forEach((item) => {
-        const categoryId = item.category.id; // Usar o ID da categoria
-        if (!categoriesMap[categoryId]) {
-          categoriesMap[categoryId] = {
-            category: item.category,
+        const cat = item.category;
+        if (!categoryMap[cat.id]) {
+          categoryMap[cat.id] = {
+            category: cat,
             user_main_grid_categories: [],
           };
         }
-        categoriesMap[categoryId].user_main_grid_categories.push(item);
+        categoryMap[cat.id].user_main_grid_categories.push(item);
       });
 
-      // Criar grupos de até 4 categorias iguais
-      const categoriesInGroups = [];
-      for (const group of Object.values(categoriesMap)) {
-        const items = group.user_main_grid_categories;
-        for (let i = 0; i < items.length; i += limit) {
-          categoriesInGroups.push({
-            category: group.category,
-            user_main_grid_categories: items.slice(i, i + limit),
-          });
-        }
-      }
-
-      // Se a página solicitada for maior que o número de grupos, retornar erro
-      if (page > categoriesInGroups.length) {
-        return res.status(404).send({ message: "Página não encontrada" });
-      }
+      // Para cada categoria, pegar até 4 imagens mais recentes
+      const categoriesInGroups = Object.values(categoryMap).map((group) => {
+        return {
+          category: group.category,
+          user_main_grid_categories: group.user_main_grid_categories.slice(0, 4),
+        };
+      });
 
       res.status(200).json({
         data: categoriesInGroups,
         totalGroups: categoriesInGroups.length,
-        currentPage: page,
-        hasMore: page < categoriesInGroups.length,
       });
     } catch (err) {
       res.status(400).send({ message: err.message });

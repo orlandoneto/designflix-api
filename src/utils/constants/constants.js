@@ -12,17 +12,38 @@ const CONST = {
 };
 
 const PLAN_NAMES = {
-  free: "Gratuito",
-  monthly: "Mensal",
-  semi_annual: "Semestral",
-  annual: "Anual",
+  free_1_downloads: "Gratuito",
+  "5_downloads": "5 Downloads",
+  "10_downloads": "10 Downloads",
+  "20_downloads": "20 Downloads",
 };
 
 const PLAN_VALUES = {
-  free: "0,00",
-  monthly: "29,90",
-  semi_annual: "161,46",
-  annual: "284,04",
+  free_1_downloads: "0,00",
+  "5_downloads": "29,90",
+  "10_downloads": "42,90",
+  "20_downloads": "72,90",
 };
 
-module.exports = { ROLES, CONST, PLAN_NAMES, PLAN_VALUES };
+const PALN_COMMISSION = {
+  comission_contributor: 10, // R$ 0,10 (10 centavos) em centavos
+  payout_contributor: 10000, // R$ 100,00 em centavos
+};
+
+// S3 FOLDERS
+const FOLDER_NAME_IMAGES_PATH = "images";
+const FOLDER_NAME_THUMBS_PATH = "thumbs";
+const FOLDER_IMAGE_PREVIEWS_PATH = "preview";
+const FOLDER_NAME_PACK_IMAGES_PATH = "pack_images";
+
+module.exports = {
+  ROLES,
+  CONST,
+  PLAN_NAMES,
+  PLAN_VALUES,
+  PALN_COMMISSION,
+  FOLDER_NAME_IMAGES_PATH,
+  FOLDER_NAME_THUMBS_PATH,
+  FOLDER_IMAGE_PREVIEWS_PATH,
+  FOLDER_NAME_PACK_IMAGES_PATH,
+};

@@ -19,9 +19,39 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      stripe_subscription_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       mercadopago_customer_id: {
         type: DataTypes.STRING,
         allowNull: true,
+      },
+      subscription_days_left: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      scheduled_plan_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      scheduled_plan_start_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      plan_finish_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      cron_executed: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      plan_canceled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       createdAt: {
         type: DataTypes.DATE,
@@ -49,6 +79,10 @@ module.exports = (sequelize, DataTypes) => {
       UserPlans.belongsTo(models.Plans, {
         foreignKey: "plan_id",
         as: "plans",
+      }),
+      UserPlans.belongsTo(models.Plans, {
+        foreignKey: "scheduled_plan_id",
+        as: "scheduled_plan",
       });
   };
 

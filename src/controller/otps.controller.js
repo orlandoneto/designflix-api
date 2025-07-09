@@ -1,8 +1,12 @@
 const OTPS = require("../services/otps.service");
+const verifyRecaptcha = require("../middleware/recaptcha");
 
 module.exports = (app) => {
   const OTPService = new OTPS();
 
   app.get("/otps/send", (req, res) => OTPService.sendOTP(req, res));
-  app.get("/otps/verify", (req, res) => OTPService.verifyOTP(req, res));
+
+  app.get("/otps/verify", (req, res) =>
+    OTPService.verifyOTP(req, res)
+  );
 };

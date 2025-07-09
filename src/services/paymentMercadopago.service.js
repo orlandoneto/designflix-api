@@ -12,29 +12,26 @@ const { PLAN_NAMES, PLAN_VALUES } = require("../utils/constants/constants");
 
 module.exports = class {
   async createMercadopagoPix(req, res) {
-    const body = {
+    const paymentData = {
       transaction_amount: req.body.transaction_amount,
-      description: req.body.description,
+      description: req.body.payer?.description,
       payment_method_id: "pix",
       payer: {
         email: req.body.payer?.email,
       },
       notification_url: process.env.MERCADOPAGO_WEB_HOOK,
+      external_reference: `${req.body.payer?.email}-${Date.now()}`,
     };
 
-    payment
-      .create({ body })
-      .then((response) => {
-        res
-          .status(201)
-          .json({ data: response, collector_id: response?.collector_id });
-      })
-      .catch((error) => {
-        console.error("Erro ao criar transação PIX:", error);
-        const errorStatus = error.status || 500;
-        const errorMessage = error.message || "Erro ao processar transação";
-        res.status(errorStatus).json({ error_message: errorMessage });
-      });
+    const response = await payment.create({ body: paymentData });
+    return res.status(201).json({
+      pixData: response.point_of_interaction.transaction_data,
+      qrCodeBase64:
+        response.point_of_interaction.transaction_data.qr_code_base64,
+      qrCode: response.point_of_interaction.transaction_data.qr_code,
+      ticketUrl: response.point_of_interaction?.transaction_data?.ticket_url,
+      paymentId: response.id,
+    });
   }
 
   async updateById(req, res) {
@@ -61,7 +58,7 @@ module.exports = class {
       const updatedPaymentData = await paymentData.save();
 
       const plan = await Plans.findOne({
-        where: { stripe_plan_id: req.body.planId },
+        where: { stripe_price_id: req.body.planId },
       });
 
       if (!plan) {
@@ -90,23 +87,33 @@ module.exports = class {
   }
 
   async createOrUpdatePlan(planId, customerId, userId) {
-    const userPlan = await UserPlans.findOne({ where: { user_id: userId } });
-    if (userPlan) {
-      const updateUserPlan = await userPlan.update({
-        plan_id: planId,
-        mercadopago_customer_id: customerId,
-      });
-      if (updateUserPlan) return true;
-    } else {
-      const createUserPlan = await UserPlans.create({
-        user_id: userId,
-        plan_id: planId,
-        mercadopago_customer_id: customerId,
-      });
-      if (createUserPlan) return true;
-    }
+    try {
+      const userPlan = await UserPlans.findOne({ where: { user_id: userId } });
+      const now = new Date();
+      const planFinishAt = new Date(now);
+      planFinishAt.setDate(now.getDate() + 30);
 
-    return false;
+      if (userPlan) {
+        const updatedPlan = await userPlan.update({
+          plan_id: planId,
+          mercadopago_customer_id: customerId,
+          plan_finish_at: planFinishAt,
+          created_at: now,
+        });
+        return !!updatedPlan;
+      } else {
+        const newPlan = await UserPlans.create({
+          user_id: userId,
+          plan_id: planId,
+          mercadopago_customer_id: customerId,
+          plan_finish_at: planFinishAt,
+        });
+        return !!newPlan;
+      }
+    } catch (error) {
+      console.error("Erro ao criar/atualizar plano:", error);
+      return false;
+    }
   }
 
   async cancelTrialMercadopago(req, res) {
