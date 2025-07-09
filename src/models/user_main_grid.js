@@ -23,10 +23,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      url_cover: {
+      url_thumb: {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      url_cover: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },      
       url: {
         type: DataTypes.STRING,
         allowNull: true,

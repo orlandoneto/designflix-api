@@ -1,25 +1,35 @@
 const multer = require("multer");
 const Upload = require("../services/upload.service");
 const {
+  uploadThumb,
+  addWatermarkSoft,
+} = require("../config/multerUploadThumb");
+const {
   uploadPreview,
-  addWatermark,
+  addWatermarkFull,
 } = require("../config/multerUploadPreview");
 const multerUploadJPEG = require("../config/multerUploadJPEG");
 const multerUploadZip = require("../config/multerUploadZip");
-const multerPackImagesConfig = require("../config/multerPackImagem");
-const multerPackCoverConfig = require("../config/multerPackCover");
 const multerPackAvatarConfig = require("../config/multerPackAvatar");
 const path = require("path");
+const { FOLDER_NAME_PACK_IMAGES_PATH } = require("../utils/constants/constants");
 
 module.exports = (app) => {
   const UploadService = new Upload();
 
-  const foldAvatar = process.env.FOLDER_NAME_PACK_IMAGES_PATH;
+  const foldAvatar = FOLDER_NAME_PACK_IMAGES_PATH;
+
+  app.post(
+    "/upload/thumb",
+    multer(uploadThumb).single("file"),
+    addWatermarkSoft,
+    (req, res) => UploadService.file(req, res)
+  );
 
   app.post(
     "/upload/preview",
     multer(uploadPreview).single("file"),
-    addWatermark,
+    addWatermarkFull,
     (req, res) => UploadService.file(req, res)
   );
 
@@ -40,19 +50,4 @@ module.exports = (app) => {
       UploadService.file(req, res);
     }
   );
-
-  /* Checar uso */
-  app.post(
-    "/upload/pack/image",
-    multer(multerPackImagesConfig).single("file"),
-    (req, res) => UploadService.file(req, res)
-  );
-
-  app.post(
-    "/upload/pack/cover",
-    multer(multerPackCoverConfig).single("file"),
-    (req, res) => UploadService.file(req, res)
-  );
-
-  /* Checar uso */
 };
