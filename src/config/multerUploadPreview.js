@@ -8,11 +8,12 @@ const { CONST, FOLDER_IMAGE_PREVIEWS_PATH } = require("../utils/constants/consta
 const s3 = new aws.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  correctClockSkew: true,
 });
 
 const storage = multer.memoryStorage();
 
-const upload = multer({
+const uploadPreview = multer({
   storage: storage,
   limits: {
     fileSize: CONST.LIMIT_SIZE_IMG,
@@ -43,7 +44,7 @@ const upload = multer({
       }
     }
   },
-});
+}).single("file");
 
 const uploadToS3 = async (fileName, processedImage, mimeType) => {
   await s3
@@ -67,37 +68,38 @@ const addWatermarkFull = async (req, res, next) => {
   try {
     const watermarkPath = path.resolve(__dirname, "../assets/watermark.png");
     const image = sharp(req.file.buffer);
-    const { width, height } = await image.metadata();
 
-    // Redimensiona a imagem para largura máxima de 1200px mantendo proporção
-    const resizedImageBuffer = await image.resize({ width: 1200, withoutEnlargement: true }).toBuffer();
+    // Redimensiona imagem original
+    const resizedImageBuffer = await image
+      .resize({ width: 1200, withoutEnlargement: true })
+      .toBuffer();
+
     const resizedImage = sharp(resizedImageBuffer);
-    const { width: resizedWidth, height: resizedHeight } = await resizedImage.metadata();
+    const { width: imgW, height: imgH } = await resizedImage.metadata();
 
-    // Redimensiona a marca d'água para ocupar 40% da largura da imagem redimensionada
-    const watermarkWidth = Math.floor(resizedWidth * 0.4);
+    // Redimensiona a marca d'água para cobrir tudo
     const watermark = await sharp(watermarkPath)
-      .resize({ width: watermarkWidth })
+      .resize({
+        width: imgW,
+        height: imgH,
+        fit: "cover",
+      })
       .png()
       .toBuffer();
 
-    // Obtém altura da marca d'água redimensionada
-    const watermarkMeta = await sharp(watermark).metadata();
-    const left = Math.floor((resizedWidth - watermarkMeta.width) / 2);
-    const top = Math.floor((resizedHeight - watermarkMeta.height) / 2);
-
-    const processedImage = await resizedImage
+    // Aplica a marca d'água com opacidade
+    const finalBuffer = await resizedImage
       .composite([
         {
           input: watermark,
-          left: left,
-          top: top,
-          blend: "overlay",
-          opacity: 0.5,
+          blend: "over",
+          opacity: 0.3, // ajuste a transparência aqui
         },
       ])
       .toBuffer();
-    const webpImage = await convertToWebP(processedImage);
+
+    // Converte para WebP
+    const webpImage = await convertToWebP(finalBuffer);
 
     const fileName = `${FOLDER_IMAGE_PREVIEWS_PATH}/${crypto
       .randomBytes(16)
@@ -106,9 +108,11 @@ const addWatermarkFull = async (req, res, next) => {
     req.file.location = await uploadToS3(fileName, webpImage, "image/webp");
     next();
   } catch (error) {
+    console.error("Erro ao processar marca d'água grande:", error);
     next(error);
   }
 };
+
 
 const convertToWebP = async (imageBuffer) => {
   try {
@@ -123,6 +127,6 @@ const convertToWebP = async (imageBuffer) => {
 };
 
 module.exports = {
-  uploadPreview: upload,
+  uploadPreview,
   addWatermarkFull,
 };

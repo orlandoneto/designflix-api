@@ -5,8 +5,6 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const swaggerJsDoc = require("swagger-jsdoc");
-const swaggerUi = require("swagger-ui-express");
 const path = require("path");
 
 const http = require("http");
@@ -69,39 +67,6 @@ app.use(
 );
 
 setupWebSocket(server);
-
-const swaggerOptions = {
-  swaggerDefinition: {
-    openapi: "3.0.0",
-    info: {
-      title: "Design Flix API",
-      description: "Design Flix API documentation",
-      contact: { name: "FlixDesign", email: process.env.EMAIL_HOST_SMTP },
-      version: "1.0.0",
-    },
-    servers: [{ url: process.env.API_URL, description: "API" }],
-    components: {
-      securitySchemes: {
-        jwt: {
-          type: "http",
-          scheme: "bearer",
-          in: "header",
-          name: "Authorization",
-          bearerFormat: "JWT",
-        },
-      },
-    },
-    security: [{ jwt: [] }],
-  },
-  apis: ["src/main.js", "src/controller/*.controller.js"],
-};
-
-const swaggerDocs = swaggerJsDoc(swaggerOptions);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-
-app.get("/favicon.ico", (req, res) => {
-  res.sendStatus(204);
-});
 
 // user main grid
 require("./controller/user-main-grid.controller")(app);
