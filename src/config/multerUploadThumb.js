@@ -26,25 +26,15 @@ const uploadThumb = multer({
       "image/gif",
       "image/webp",
       "image/svg+xml",
-      "application/vnd.corel-draw",
-      "image/vnd.adobe.photoshop",
-      "application/x-canva",
     ];
-
-    const allowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".svg"];
 
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      const fileExtension = path.extname(file.originalname).toLowerCase();
-      if (allowedExtensions.includes(fileExtension)) {
-        cb(null, true);
-      } else {
-        cb(new Error("Invalid file type. Supported types: images."));
-      }
+      cb(new Error("Invalid file type. Supported types: jpeg, png, gif, webp."));
     }
   },
-}).single("file"); // Adicione .single() aqui
+}).single("file");
 
 const uploadToS3 = async (fileName, processedImage, mimeType) => {
   await s3
@@ -62,73 +52,136 @@ const uploadToS3 = async (fileName, processedImage, mimeType) => {
 
 const addWatermarkSoft = async (req, res, next) => {
   try {
-    if (!req.file) {
-      console.log("Nenhum arquivo recebido para marca d'água");
+    if (!req.file || !req.file.buffer) {
+      console.log("No file or buffer received");
       return next();
     }
 
-    const watermarkPath = path.resolve(__dirname, "../assets/watermark.png");
-    const image = sharp(req.file.buffer);
-    const metadata = await image.metadata();
+    // Generate filename first
+    const fileName = `${FOLDER_NAME_THUMBS_PATH}/${crypto.randomBytes(16).toString("hex")}-${Date.now()}.webp`;
 
-    // Verifique se a imagem é válida
-    if (!metadata.width || !metadata.height) {
-      console.log("Metadados da imagem não disponíveis");
+    // Process main image
+    let imageMetadata;
+    try {
+      imageMetadata = await sharp(req.file.buffer).metadata();
+    } catch (err) {
+      console.error("Error processing image metadata:", err);
       return next();
     }
 
-    // Redimensiona a imagem para largura máxima de 400px mantendo proporção
-    const resizedWidth = Math.min(metadata.width, 400);
-    const resizedImage = sharp(req.file.buffer)
-      .resize({ width: resizedWidth, withoutEnlargement: true });
-
-    // Usa as dimensões da imagem redimensionada para o padrão
-    const { width: imgW, height: imgH } = await resizedImage.metadata();
-    const watermarkWidth = Math.floor(imgW * 0.2);
-    const watermark = await sharp(watermarkPath)
-      .resize({ width: watermarkWidth })
-      .toBuffer();
-    const watermarkMeta = await sharp(watermark).metadata();
-    const watermarkHeight = watermarkMeta.height;
-    // Calcula quantas marcas d'água cabem na imagem
-    const cols = Math.ceil(imgW / (watermarkWidth + 10));
-    const rows = Math.ceil(imgH / (watermarkHeight + 10));
-    // Cria array de composições para cobrir toda a imagem
-    const composites = [];
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const left = col * (watermarkWidth + 10);
-        const top = row * (watermarkHeight + 10);
-        composites.push({
-          input: watermark,
-          left,
-          top,
-          blend: "overlay",
-          opacity: 0.3,
-        });
+    if (!imageMetadata || !imageMetadata.width || !imageMetadata.height) {
+      console.log("Invalid image metadata");
+      // Upload original as WebP if metadata is invalid
+      try {
+        req.file.location = await uploadToS3(
+          fileName,
+          await sharp(req.file.buffer).webp({ quality: 80 }).toBuffer(),
+          "image/webp"
+        );
+        return next();
+      } catch (err) {
+        console.error("Error uploading original image:", err);
+        return next(err);
       }
     }
-    // Aplica a marca d'água em padrão
-    const processedImage = await resizedImage
-      .composite(composites)
-      .toBuffer();
 
-    // Converte para WebP
-    const webpImage = await sharp(processedImage)
-      .webp({ quality: 80 })
-      .toBuffer();
+    // Resize main image (max width 400px)
+    const targetWidth = Math.min(imageMetadata.width, 400);
+    let resizedBuffer;
+    try {
+      const resized = await sharp(req.file.buffer)
+        .resize({ width: targetWidth, withoutEnlargement: true })
+        .toBuffer();
+      resizedBuffer = resized;
+      const resizedMetadata = await sharp(resized).metadata();
+      finalWidth = resizedMetadata.width;
+      finalHeight = resizedMetadata.height;
+    } catch (err) {
+      console.error("Error resizing image:", err);
+      return next(err);
+    }
 
-    // Gera nome do arquivo
-    const fileName = `${FOLDER_NAME_THUMBS_PATH}/${crypto
-      .randomBytes(16)
-      .toString("hex")}-${Date.now()}.webp`;
+    try {
+      const watermarkPath = path.resolve(__dirname, "../assets/watermark.png");
+      const watermarkMetadata = await sharp(watermarkPath).metadata();
 
-    // Faz upload para S3
-    req.file.location = await uploadToS3(fileName, webpImage, "image/webp");
-    console.log("Marca d'água aplicada com sucesso");
-    next();
+      // Calculate watermark size (max 20% of image width, min 30px)
+      const maxWatermarkWidth = Math.max(30, Math.floor(finalWidth * 0.2));
+      const watermarkHeight = Math.floor(
+        maxWatermarkWidth * (watermarkMetadata.height / watermarkMetadata.width)
+      );
+
+      // Ensure watermark is not larger than the image
+      if (maxWatermarkWidth > finalWidth || watermarkHeight > finalHeight) {
+        throw new Error("Watermark too large for image");
+      }
+
+      // Resize watermark
+      const watermarkBuffer = await sharp(watermarkPath)
+        .resize({
+          width: maxWatermarkWidth,
+          height: watermarkHeight,
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        })
+        .toBuffer();
+
+      // Calculate grid positions
+      const cols = Math.max(1, Math.floor(finalWidth / (maxWatermarkWidth * 1.5)));
+      const rows = Math.max(1, Math.floor(finalHeight / (watermarkHeight * 1.5)));
+
+      const composites = [];
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const left = Math.floor(col * (maxWatermarkWidth * 1.5));
+          const top = Math.floor(row * (watermarkHeight * 1.5));
+          if (left >= 0 && top >= 0 && left + maxWatermarkWidth <= finalWidth && top + watermarkHeight <= finalHeight) {
+            composites.push({
+              input: watermarkBuffer,
+              left,
+              top,
+              blend: "overlay",
+              opacity: 0.3,
+            });
+          }
+        }
+      }
+
+      let outputBuffer;
+      if (composites.length > 0) {
+        // Só faz composite se houver posições válidas
+        outputBuffer = await sharp(resizedBuffer)
+          .composite(composites)
+          .webp({ quality: 80 })
+          .toBuffer();
+        console.log("Watermark applied successfully");
+      } else {
+        // Apenas converte para webp, sem composite
+        outputBuffer = await sharp(resizedBuffer)
+          .webp({ quality: 80 })
+          .toBuffer();
+        console.log("No valid watermark positions, uploaded without watermark");
+      }
+
+      req.file.location = await uploadToS3(fileName, outputBuffer, "image/webp");
+      return next();
+
+    } catch (err) {
+      // Fallback: apenas converte para webp, sem composite
+      try {
+        const fallbackBuffer = await sharp(resizedBuffer)
+          .webp({ quality: 80 })
+          .toBuffer();
+        req.file.location = await uploadToS3(fileName, fallbackBuffer, "image/webp");
+        console.error("Watermark processing failed, uploaded without watermark:", err);
+        return next();
+      } catch (uploadError) {
+        console.error("Error uploading fallback image:", uploadError);
+        return next(uploadError);
+      }
+    }
   } catch (error) {
-    console.error("Erro ao processar marca d'água:", error);
+    console.error("Unexpected error in addWatermarkSoft:", error);
     next(error);
   }
 };
