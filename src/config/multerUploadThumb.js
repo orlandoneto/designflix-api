@@ -85,12 +85,16 @@ const addWatermarkSoft = async (req, res, next) => {
       }
     }
 
-    // Resize main image (max width 400px)
-    const targetWidth = Math.min(imageMetadata.width, 400);
+    // ALTERAÇÃO: Limitar a altura a 300px, largura proporcional (liberada)
+    const targetHeight = Math.min(imageMetadata.height, 300);
     let resizedBuffer;
+    let finalWidth, finalHeight;
     try {
       const resized = await sharp(req.file.buffer)
-        .resize({ width: targetWidth, withoutEnlargement: true })
+        .resize({
+          height: targetHeight,  // Limita a altura
+          withoutEnlargement: true
+        })
         .toBuffer();
       resizedBuffer = resized;
       const resizedMetadata = await sharp(resized).metadata();
