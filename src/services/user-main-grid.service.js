@@ -88,13 +88,13 @@ module.exports = class UserMainGridController {
     try {
       const { searchTerm, format } = req.query;
 
-      // Se ambos têm valores e não são 'null'
       if (searchTerm && searchTerm !== 'null' && format && format !== 'null') {
         let whereClauses = [];
         let replacements = {};
 
         whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN NATURAL LANGUAGE MODE)`);
         whereClauses.push(`MATCH (umg.terms) AGAINST (:format IN NATURAL LANGUAGE MODE)`);
+        whereClauses.push(`umg.activite = 0`);
         replacements.search = searchTerm;
         replacements.format = format;
 
@@ -133,6 +133,7 @@ module.exports = class UserMainGridController {
           url_thumb: r.url_thumb,
           url_cover: r.url_cover,
           url: r.url,
+          activite: r.activite,
           user: {
             id: r.user_id,
             name: r.user_name,
@@ -155,6 +156,7 @@ module.exports = class UserMainGridController {
         let replacements = {};
 
         whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN NATURAL LANGUAGE MODE)`);
+        whereClauses.push(`umg.activite = 0`);
         replacements.search = searchTerm;
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -191,6 +193,7 @@ module.exports = class UserMainGridController {
           format: r.format,
           url_cover: r.url_cover,
           url: r.url,
+          activite: r.activite,
           user: {
             id: r.user_id,
             name: r.user_name,
@@ -213,6 +216,7 @@ module.exports = class UserMainGridController {
         let replacements = {};
 
         whereClauses.push(`MATCH (umg.terms) AGAINST (:format IN NATURAL LANGUAGE MODE)`);
+        whereClauses.push(`umg.activite = 0`);
         replacements.format = format;
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -249,6 +253,7 @@ module.exports = class UserMainGridController {
           format: r.format,
           url_cover: r.url_cover,
           url: r.url,
+          activite: r.activite,
           user: {
             id: r.user_id,
             name: r.user_name,
@@ -268,6 +273,7 @@ module.exports = class UserMainGridController {
       // Se nenhum filtro (ambos são null/undefined ou 'null')
       else {
         const userMainGrids = await UserMainGrid.findAll({
+          where: { activite: 0 },
           include: [
             {
               model: User,
@@ -319,6 +325,7 @@ module.exports = class UserMainGridController {
           url_thumb: grid.url_thumb,
           url_cover: grid.url_cover,
           url: grid.url,
+          activite: grid.activite,
           user: {
             id: grid.user?.id,
             name: grid.user?.name,
@@ -349,7 +356,6 @@ module.exports = class UserMainGridController {
       const { searchTerm, format, userId } = req.params;
 
       const whereCondition = {};
-
       if (searchTerm) {
         whereCondition.terms = {
           [Sequelize.Op.like]: `%${searchTerm}%`,
@@ -408,6 +414,7 @@ module.exports = class UserMainGridController {
         url_thumb: grid.url_thumb,
         url_cover: grid.url_cover,
         url: grid.url,
+        activite: grid.activite,
         user: {
           id: grid.user?.id,
           name: grid.user?.name,
@@ -435,15 +442,13 @@ module.exports = class UserMainGridController {
     try {
       const { categoryId } = req.query;
 
-      const whereCondition = categoryId
-        ? {
-          user_main_grid_categories: {
-            category_id: categoryId,
-          },
-        }
-        : {};
+      const whereCondition = { activite: 0 };
+      if (categoryId) {
+        whereCondition["$user_main_grid_categories.category_id$"] = categoryId;
+      }
 
       const userMainGrids = await UserMainGrid.findAll({
+        where: whereCondition,
         include: [
           {
             model: UserMainGridCategories,
@@ -504,7 +509,7 @@ module.exports = class UserMainGridController {
   async getOne(req, res) {
     try {
       const userMainGrid = await UserMainGrid.findOne({
-        where: { id: req.params.id },
+        where: { id: req.params.id, activite: 0 },
         include: [
           {
             model: UserMainGridCategories,
