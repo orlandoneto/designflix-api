@@ -1,5 +1,4 @@
-const { where } = require("sequelize");
-const { Category, UserMainGrid, UserMainGridCategories } = require("../models");
+const { Category, UserMainGrid, UserMainGridCategories, Sequelize } = require("../models");
 
 module.exports = class {
   async create(req, res) {
@@ -40,9 +39,15 @@ module.exports = class {
             model: UserMainGrid,
             as: "user_main_grid",
             attributes: ["format", "url_thumb", "url_cover"],
+            where: {
+              [Sequelize.Op.or]: [
+                { activite: false },
+                { activite: null },
+              ],
+            },
           },
         ],
-        order: [["createdAt", "DESC"]], // Ordenar por mais recente
+        order: [["createdAt", "DESC"]],
       });
 
       // Agrupar por categoria
