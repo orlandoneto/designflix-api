@@ -31,7 +31,7 @@ const PALN_COMMISSION = {
 };
 
 // S3 FOLDERS
-const FOLDER_NAME_IMAGES_PATH = "images";
+const FOLDER_NAME_IMAGES_PATH = "downloads";
 const FOLDER_NAME_THUMBS_PATH = "thumbs";
 const FOLDER_IMAGE_PREVIEWS_PATH = "preview";
 const FOLDER_NAME_PACK_IMAGES_PATH = "pack_images";
