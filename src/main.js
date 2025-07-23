@@ -114,9 +114,6 @@ require("./controller/downloadS3.controller")(app);
 // User Downloads
 require("./controller/user-downloads.controller")(app);
 
-// User Uploads
-require("./controller/user-uploads.controller")(app);
-
 // User Follows
 require("./controller/user-follows.controller")(app);
 

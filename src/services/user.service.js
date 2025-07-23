@@ -33,7 +33,8 @@ class UserServices {
           {
             model: UserMainGrid,
             attributes: [],
-            required: false
+            required: false,
+            where: { activite: 0 },
           }
         ],
         group: ["User.id", "User.photo"],
