@@ -3,7 +3,6 @@ const {
   UserMainGridCategories,
   UserMainGridTags,
   Category,
-  UserUploads,
   Tags,
   User,
   Sequelize,
@@ -104,7 +103,6 @@ module.exports = class UserMainGridController {
                 SELECT
                     umg.*,
                     u.id as user_id, u.name as user_name, u.photo as user_photo,
-                    MAX(uu.total_uploads) as user_total_uploads,
                     GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
                     GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
                 FROM user_main_grid umg
@@ -138,7 +136,6 @@ module.exports = class UserMainGridController {
             id: r.user_id,
             name: r.user_name,
             photo: r.user_photo,
-            total_uploads: r.user_total_uploads || 0,
           },
           categories: r.categories
             ? JSON.parse(`[${r.categories}]`)
@@ -165,7 +162,6 @@ module.exports = class UserMainGridController {
                 SELECT
                     umg.*,
                     u.id as user_id, u.name as user_name, u.photo as user_photo,
-                    MAX(uu.total_uploads) as user_total_uploads,
                     GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
                     GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
                 FROM user_main_grid umg
@@ -199,7 +195,6 @@ module.exports = class UserMainGridController {
             id: r.user_id,
             name: r.user_name,
             photo: r.user_photo,
-            total_uploads: r.user_total_uploads || 0,
           },
           categories: r.categories
             ? JSON.parse(`[${r.categories}]`)
@@ -226,7 +221,6 @@ module.exports = class UserMainGridController {
                 SELECT
                     umg.*,
                     u.id as user_id, u.name as user_name, u.photo as user_photo,
-                    MAX(uu.total_uploads) as user_total_uploads,
                     GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
                     GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
                 FROM user_main_grid umg
@@ -260,7 +254,6 @@ module.exports = class UserMainGridController {
             id: r.user_id,
             name: r.user_name,
             photo: r.user_photo,
-            total_uploads: r.user_total_uploads || 0,
           },
           categories: r.categories
             ? JSON.parse(`[${r.categories}]`)
@@ -281,13 +274,6 @@ module.exports = class UserMainGridController {
               model: User,
               as: "user",
               attributes: ["id", "name", "photo"],
-              include: [
-                {
-                  model: UserUploads,
-                  as: "user_uploads",
-                  attributes: ["total_uploads"],
-                },
-              ],
             },
             {
               model: UserMainGridCategories,
@@ -332,7 +318,6 @@ module.exports = class UserMainGridController {
             id: grid.user?.id,
             name: grid.user?.name,
             photo: grid.user?.photo,
-            total_uploads: grid.user?.user_uploads?.total_uploads || 0,
           },
           categories: grid.user_main_grid_categories.map((item) => ({
             id: item.category.id,
@@ -636,6 +621,19 @@ module.exports = class UserMainGridController {
     } catch (err) {
       console.log(err);
       res.status(500).send({ message: err.message });
+    }
+  }
+
+  async countByUserId(req, res) {
+    try {
+      const { user_id } = req.params;
+      if (!user_id) {
+        return res.status(400).json({ message: "user_id é obrigatório" });
+      }
+      const count = await UserMainGrid.count({ where: { user_id, activite: 0 } });
+      return res.status(200).json({ count });
+    } catch (err) {
+      res.status(500).json({ message: "Erro ao contar registros", error: err.message });
     }
   }
 };
