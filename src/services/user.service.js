@@ -3,7 +3,7 @@ const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-handlebars");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
-const { User } = require("../models");
+const { User, UserMainGrid, Sequelize } = require("../models");
 const { sendEmail } = require("../utils/emailService");
 const { PALN_COMMISSION } = require("../utils/constants/constants");
 
@@ -20,15 +20,26 @@ class UserServices {
 
   async getAllAvatars(req, res) {
     try {
-      const userPhotos = await User.findAll({
-        attributes: ["photo"],
+      const users = await User.findAll({
+        attributes: [
+          "photo",
+          [Sequelize.fn("COUNT", Sequelize.col("UserMainGrids.id")), "totalFiles"]
+        ],
         where: {
           contributor: 1,
           acceptTerms: 1,
-        }
+        },
+        include: [
+          {
+            model: UserMainGrid,
+            attributes: [],
+            required: false
+          }
+        ],
+        group: ["User.id", "User.photo"],
+        raw: true
       });
-
-      res.status(200).send({ data: userPhotos });
+      res.status(200).send({ data: users });
     } catch (err) {
       res.status(500).send({ message: "Erro ao buscar fotos dos usuários.", error: err.message });
     }
