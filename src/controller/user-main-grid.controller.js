@@ -23,6 +23,9 @@ module.exports = (app) => {
     AuthenticateRoute(["admin", "user"]),
     (req, res) => UserMainGridService.getOne(req, res)
   );
+  app.get("/user-main-grid/:user_id/count", (req, res) =>
+    UserMainGridService.countByUserId(req, res)
+  );
   app.put(
     "/user-main-grid/:id",
     AuthenticateRoute(["admin", "user"]),
