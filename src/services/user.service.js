@@ -5,7 +5,6 @@ const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 const { User } = require("../models");
 const { sendEmail } = require("../utils/emailService");
-const stripeModule = require("../modules/stripe.module");
 const { PALN_COMMISSION } = require("../utils/constants/constants");
 
 const jwt = require("jsonwebtoken");
@@ -16,8 +15,23 @@ const privateKey = fs.readFileSync(DIR_key);
 class UserServices {
   async getAll(req, res) {
     const users = await User.findAll({ attributes: { exclude: ["password"] } });
-
     res.status(200).send({ data: users });
+  }
+
+  async getAllAvatars(req, res) {
+    try {
+      const userPhotos = await User.findAll({
+        attributes: ["photo"],
+        where: {
+          contributor: 1,
+          acceptTerms: 1,
+        }
+      });
+
+      res.status(200).send({ data: userPhotos });
+    } catch (err) {
+      res.status(500).send({ message: "Erro ao buscar fotos dos usuários.", error: err.message });
+    }
   }
 
   async getAllUserContributor(req, res) {

@@ -23,10 +23,14 @@ module.exports = (app) => {
     UserService.getUserByEmail(req, res)
   );
 
-  app.get(
-    "/user/balance/:userId",
+  app.get("/user/balance/:userId",
     AuthenticateRoute(["user"]),
     (req, res) => UserService.userBalanceById(req, res)
+  );
+
+  app.get("/user-photos",
+    AuthenticateRoute(["user"]),
+    (req, res) => UserService.getAllAvatars(req, res)
   );
 
   app.patch(
