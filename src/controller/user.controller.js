@@ -29,7 +29,6 @@ module.exports = (app) => {
   );
 
   app.get("/user-photos",
-    AuthenticateRoute(["user"]),
     (req, res) => UserService.getAllAvatars(req, res)
   );
 

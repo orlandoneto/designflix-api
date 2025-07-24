@@ -84,7 +84,6 @@ class UserDownloadsServices {
       const {
         user_id,
         contributor_image_user_id,
-        contributor_image_admin_id,
         user_main_grid_id,
       } = req.body;
 
@@ -94,13 +93,7 @@ class UserDownloadsServices {
           .json({ message: "Parâmetros obrigatórios ausentes" });
       }
 
-      const contributorField = contributor_image_user_id
-        ? "contributor_image_user_id"
-        : "contributor_image_admin_id";
-      const contributorId =
-        contributor_image_user_id || contributor_image_admin_id;
-
-      if (!contributorId) {
+      if (!contributor_image_user_id) {
         return res.status(400).json({ message: "ID do contribuidor ausente" });
       }
 
@@ -108,7 +101,7 @@ class UserDownloadsServices {
         where: {
           user_id,
           user_main_grid_id,
-          [contributorField]: contributorId,
+          contributor_image_user_id,
         },
         defaults: { total_downloads: 1 },
       });
@@ -128,7 +121,7 @@ class UserDownloadsServices {
       }
 
       const createCommissionResult =
-        await UserCommissionsServices._createCommission(user_id);
+        await UserCommissionsServices._createCommission(contributor_image_user_id);
 
       if (!createCommissionResult.success) {
         return res.status(500).json({
