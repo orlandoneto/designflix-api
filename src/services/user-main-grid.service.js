@@ -107,7 +107,6 @@ module.exports = class UserMainGridController {
                     GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
                 FROM user_main_grid umg
                 LEFT JOIN user u ON umg.user_id = u.id
-                LEFT JOIN user_uploads uu ON uu.user_id = u.id
                 LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
                 LEFT JOIN categories c ON c.id = umgc.category_id
                 LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
@@ -166,7 +165,6 @@ module.exports = class UserMainGridController {
                     GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
                 FROM user_main_grid umg
                 LEFT JOIN user u ON umg.user_id = u.id
-                LEFT JOIN user_uploads uu ON uu.user_id = u.id
                 LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
                 LEFT JOIN categories c ON c.id = umgc.category_id
                 LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
@@ -225,7 +223,6 @@ module.exports = class UserMainGridController {
                     GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
                 FROM user_main_grid umg
                 LEFT JOIN user u ON umg.user_id = u.id
-                LEFT JOIN user_uploads uu ON uu.user_id = u.id
                 LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
                 LEFT JOIN categories c ON c.id = umgc.category_id
                 LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
