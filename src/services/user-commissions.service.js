@@ -67,6 +67,28 @@ class UserCommissionsServices {
         raw: true,
       });
 
+      // Obtém os registros dos últimos 30 dias com created_at
+      const commissionsLast30Days = await UserCommission.findAll({
+        where: {
+          user_id: userId,
+          created_at: {
+            [Sequelize.Op.gte]: Sequelize.literal("DATE_SUB(CURDATE(), INTERVAL 30 DAY)"),
+          },
+        },
+        attributes: ["amount", "created_at"],
+        order: [["created_at", "DESC"]],
+        raw: true,
+      });
+
+      // Obtém o total geral de comissões do usuário
+      const totalGeneral = await UserCommission.findOne({
+        where: { user_id: userId },
+        attributes: [
+          [Sequelize.fn("SUM", Sequelize.col("amount")), "total"]
+        ],
+        raw: true,
+      });
+
       // Resposta formatada
       const response = {
         today: {
@@ -81,7 +103,10 @@ class UserCommissionsServices {
           total: parseFloat(last30DaysCommissions.total) || 0,
           downloads: parseInt(last30DaysCommissions.downloads) || 0,
         },
-        availableBalance: parseFloat(availableBalance),
+        availableBalance: parseFloat(totalGeneral.total) || 0, // Soma de tudo que foi vendido
+        totalGeneral: parseFloat(totalGeneral.total) || 0, // Total geral
+        commissionsLast30Days, // Array com amount e created_at
+        commissionsLast30DaysCount: commissionsLast30Days.length, // Quantidade de registros dos últimos 30 dias
       };
 
       res.status(200).json({ success: true, data: response });
