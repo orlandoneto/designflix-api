@@ -697,6 +697,72 @@ module.exports = {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
+      {
+        name: "JULHO AMARELO",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "DIA DO AMIGO",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "DIA MUNDIAL DA AMIZADE",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "COLÔNIA DE FÉRIAS",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "EXCURSÃO",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "TURISMO",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "DIA DO AGRICULTOR",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "DIA MUNDIAL DA AMAMENTAÇÃO",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "BEACH TENNIS",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "DIA DO ADVOGADO",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "DIA DO COLONO",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     ];
 
     await queryInterface.bulkInsert("categories", categories, {});

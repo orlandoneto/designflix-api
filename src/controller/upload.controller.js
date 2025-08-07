@@ -11,12 +11,9 @@ const {
 const multerUploadJPEG = require("../config/multerUploadJPEG");
 const multerUploadZip = require("../config/multerUploadZip");
 const multerPackAvatarConfig = require("../config/multerPackAvatar");
-const { FOLDER_NAME_PACK_IMAGES_PATH } = require("../utils/constants/constants");
 
 module.exports = (app) => {
   const UploadService = new Upload();
-
-  const foldAvatar = FOLDER_NAME_PACK_IMAGES_PATH;
 
   app.post(
     "/upload/thumb",
@@ -44,7 +41,7 @@ module.exports = (app) => {
 
   app.post(
     "/upload/avatar/site",
-    multer(multerPackAvatarConfig(foldAvatar)).single("file"),
+    multer(multerPackAvatarConfig()).single("file"),
     (req, res) => {
       UploadService.file(req, res);
     }
