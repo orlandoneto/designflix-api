@@ -1,11 +1,10 @@
-const multer = require("multer");
 const crypto = require("crypto");
 const aws = require("aws-sdk");
 const multerS3 = require("multer-s3");
-const { CONST } = require("../utils/constants/constants");
+const { CONST, FOLDER_IMAGES_PROFILE } = require("../utils/constants/constants");
 
 const storageTypes = {
-  s3: (folderName) => multerS3({
+  s3: () => multerS3({
     s3: new aws.S3({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -18,16 +17,16 @@ const storageTypes = {
       crypto.randomBytes(16, (err, hash) => {
         if (err) cb(err);
 
-        const fileName = `${folderName}/${hash.toString("hex")}-${file.originalname}`;
+        const fileName = `${FOLDER_IMAGES_PROFILE}/${hash.toString("hex")}-${file.originalname}`;
         cb(null, fileName);
       });
     },
   }),
 };
 
-module.exports = (folderName) => {
+module.exports = () => {
   return {
-    storage: storageTypes.s3(folderName),
+    storage: storageTypes.s3(),
     limits: {
       fileSize: CONST.LIMIT_SIZE_IMG,
     },
@@ -60,6 +59,7 @@ module.exports = (folderName) => {
       }
 
       // Verificar extensão do arquivo
+      const path = require("path");
       const fileExtension = path.extname(file.originalname).toLowerCase();
       if (allowedExtensions.includes(fileExtension)) {
         cb(null, true);
