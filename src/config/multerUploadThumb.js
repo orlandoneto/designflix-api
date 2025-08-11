@@ -88,7 +88,7 @@ const addWatermarkSoft = async (req, res, next) => {
     }
 
     // ALTERAÇÃO: Limitar a altura a 300px, largura proporcional (liberada)
-    const targetHeight = Math.min(imageMetadata.height, 300);
+    const targetHeight = Math.min(imageMetadata.height, 600);
     let resizedBuffer;
     let finalWidth, finalHeight;
     try {
