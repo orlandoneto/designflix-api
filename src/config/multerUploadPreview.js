@@ -5,8 +5,7 @@ const aws = require("aws-sdk");
 const sharp = require("sharp");
 const { CONST, FOLDER_IMAGE_PREVIEWS_PATH_TEST } = require("../utils/constants/constants");
 
-const OPACITY_WATERMARK = 0.15;
-
+const OPACITY_WATERMARK = 0.1;
 const s3 = new aws.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
