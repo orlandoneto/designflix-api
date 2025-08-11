@@ -3,9 +3,10 @@ const path = require("path");
 const crypto = require("crypto");
 const aws = require("aws-sdk");
 const sharp = require("sharp");
-const { CONST, FOLDER_NAME_THUMBS_PATH_TEST } = require("../utils/constants/constants");
+const { CONST, FOLDER_NAME_THUMBS_PATH } = require("../utils/constants/constants");
 
 const WEBP_QUALITY_IMAGE = 95;
+const HEIGHT_IMAGE = 600;
 
 const s3 = new aws.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -60,7 +61,7 @@ const addWatermarkSoft = async (req, res, next) => {
     }
 
     // Generate filename first
-    const fileName = `${FOLDER_NAME_THUMBS_PATH_TEST}/${crypto.randomBytes(16).toString("hex")}-${Date.now()}.webp`;
+    const fileName = `${FOLDER_NAME_THUMBS_PATH}/${crypto.randomBytes(16).toString("hex")}-${Date.now()}.webp`;
 
     // Process main image
     let imageMetadata;
@@ -88,7 +89,7 @@ const addWatermarkSoft = async (req, res, next) => {
     }
 
     // ALTERAÇÃO: Limitar a altura a 300px, largura proporcional (liberada)
-    const targetHeight = Math.min(imageMetadata.height, 600);
+    const targetHeight = Math.min(imageMetadata.height, HEIGHT_IMAGE);
     let resizedBuffer;
     let finalWidth, finalHeight;
     try {

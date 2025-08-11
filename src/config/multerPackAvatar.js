@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const aws = require("aws-sdk");
 const multerS3 = require("multer-s3");
-const { CONST, FOLDER_IMAGES_PROFILE_TEST } = require("../utils/constants/constants");
+const { CONST, FOLDER_IMAGES_PROFILE } = require("../utils/constants/constants");
 
 const storageTypes = {
   s3: () => multerS3({
@@ -17,7 +17,7 @@ const storageTypes = {
       crypto.randomBytes(16, (err, hash) => {
         if (err) cb(err);
 
-        const fileName = `${FOLDER_IMAGES_PROFILE_TEST}/${hash.toString("hex")}-${file.originalname}`;
+        const fileName = `${FOLDER_IMAGES_PROFILE}/${hash.toString("hex")}-${file.originalname}`;
         cb(null, fileName);
       });
     },
