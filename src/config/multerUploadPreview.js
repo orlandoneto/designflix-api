@@ -5,6 +5,8 @@ const aws = require("aws-sdk");
 const sharp = require("sharp");
 const { CONST, FOLDER_IMAGE_PREVIEWS_PATH_TEST } = require("../utils/constants/constants");
 
+const OPACITY_WATERMARK = 0.15;
+
 const s3 = new aws.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -93,7 +95,7 @@ const addWatermarkFull = async (req, res, next) => {
         {
           input: watermark,
           blend: "over",
-          opacity: 0.3, // ajuste a transparência aqui
+          opacity: OPACITY_WATERMARK, // ajuste a transparência aqui
         },
       ])
       .toBuffer();
