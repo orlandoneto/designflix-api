@@ -75,7 +75,7 @@ const addWatermarkSoft = async (req, res, next) => {
       try {
         req.file.location = await uploadToS3(
           fileName,
-          await sharp(req.file.buffer).webp({ quality: 80 }).toBuffer(),
+          await sharp(req.file.buffer).webp({ quality: 90 }).toBuffer(),
           "image/webp"
         );
         return next();
