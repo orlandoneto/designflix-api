@@ -3,7 +3,7 @@ const path = require("path");
 const crypto = require("crypto");
 const aws = require("aws-sdk");
 const multerS3 = require("multer-s3");
-const { CONST, FOLDER_NAME_IMAGES_PATH } = require("../utils/constants/constants");
+const { CONST, FOLDER_NAME_IMAGES_PATH_TEST } = require("../utils/constants/constants");
 
 const storageTypes = {
   local: multer.diskStorage({
@@ -33,7 +33,7 @@ const storageTypes = {
         if (err) cb(err);
 
         const fileName =
-          FOLDER_NAME_IMAGES_PATH +
+          FOLDER_NAME_IMAGES_PATH_TEST +
           "/" +
           `${hash.toString("hex")}-${file.originalname}`;
 
