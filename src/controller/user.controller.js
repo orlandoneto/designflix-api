@@ -1,6 +1,7 @@
 const UserService = require("../services/user.service");
 const AuthenticateRoute = require("../middleware/authentication");
 const verifyRecaptcha = require("../middleware/recaptcha");
+const removeAvatarFromS3 = require("../middleware/removeAvatarFromS3");
 
 module.exports = (app) => {
   app.get(
@@ -67,6 +68,7 @@ module.exports = (app) => {
   app.delete(
     "/user/:userId/photo",
     AuthenticateRoute(["user"]),
+    removeAvatarFromS3,
     (req, res) => UserService.removeUserPhoto(req, res)
   );
 };
