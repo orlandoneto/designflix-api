@@ -584,5 +584,43 @@ class UserServices {
       res.status(500).send({ message: "Ocorreu um erro." });
     }
   }
+
+  async removeUserPhoto(req, res) {
+    const userId = req.params.userId;
+    const aws = require("aws-sdk");
+    const s3 = new aws.S3({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      correctClockSkew: true,
+    });
+
+    try {
+      // 1. Buscar usuário
+      const user = await User.findOne({ where: { id: userId } });
+      if (!user || !user.photo) {
+        return res.status(404).json({ success: false, message: "Usuário não encontrado ou sem foto" });
+      }
+      // 2. Extrair o key do S3
+      const photoUrl = user.photo;
+      let key;
+      try {
+        const url = new URL(photoUrl);
+        key = url.pathname.startsWith('/') ? url.pathname.slice(1) : url.pathname;
+      } catch (err) {
+        return res.status(400).json({ success: false, message: "URL da foto inválida" });
+      }
+      // 3. Remover do S3
+      await s3.deleteObject({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key,
+      }).promise();
+      // 4. Atualizar o campo photo
+      await User.update({ photo: null }, { where: { id: userId } });
+      return res.status(200).json({ success: true, message: "Foto removida com sucesso" });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
 }
 module.exports = new UserServices();
