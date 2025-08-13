@@ -11,6 +11,7 @@ const {
 const multerUploadJPEG = require("../config/multerUploadJPEG");
 const multerUploadZip = require("../config/multerUploadZip");
 const multerPackAvatarConfig = require("../config/multerPackAvatar");
+const removeAvatarFromS3 = require("../middleware/removeAvatarFromS3");
 
 module.exports = (app) => {
   const UploadService = new Upload();
@@ -41,6 +42,7 @@ module.exports = (app) => {
 
   app.post(
     "/upload/avatar/site",
+    removeAvatarFromS3,
     multer(multerPackAvatarConfig()).single("file"),
     (req, res) => {
       UploadService.file(req, res);
