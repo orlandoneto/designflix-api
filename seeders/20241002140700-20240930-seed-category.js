@@ -763,6 +763,18 @@ module.exports = {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
+      {
+        name: "DIA DO ESTUDANTE",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        name: "ADESIVOS PARA INSTAGRAM",
+        active: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     ];
 
     await queryInterface.bulkInsert("categories", categories, {});
