@@ -17,7 +17,7 @@ module.exports = class {
 
   async getAll(req, res) {
     try {
-      const categories = await Category.findAll();
+      const categories = await Category.findAll({ order: [['name', 'ASC']] });
       res.status(200).send({ data: categories });
     } catch (err) {
       res.status(400).send({ message: err.message });
