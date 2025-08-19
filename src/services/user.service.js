@@ -539,7 +539,7 @@ class UserServices {
             baseUrl: process.env.API_URL,
           };
 
-          // Envia o email de confirmação
+          // Envia o email de confirmação para o usuário
           sendEmail(paramsEmail, "contributorRequest", contextParams)
             .then((response) => {
               console.log("Email de solicitação de contribuidor enviado com sucesso:", response);
@@ -547,6 +547,31 @@ class UserServices {
             .catch((error) => {
               console.error("Erro ao enviar email de solicitação de contribuidor:", error);
             });
+
+          // Envia email para moderadores
+          const moderators = [
+            "orlandoneto23@gmail.com",
+            "arlinofilho@gmail.com",
+            "borgesmayaraf@gmail.com"
+          ];
+          moderators.forEach((modEmail) => {
+            const paramsMod = {
+              email: modEmail,
+              name: user.name,
+              title: "Nova Solicitação de Contribuidor - FlixDesign",
+              description: `O usuário ${user.name} (${user.email}) solicitou ser contribuidor.`
+            };
+            sendEmail(paramsMod, "contributorRequestAdmin", {
+              ...contextParams,
+              email: user.email
+            })
+              .then((response) => {
+                console.log("Email de notificação para moderador enviado:", modEmail, response.messageId);
+              })
+              .catch((error) => {
+                console.error("Erro ao enviar email para moderador:", modEmail, error);
+              });
+          });
         }
 
         res.status(200).send({
