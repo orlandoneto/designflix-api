@@ -22,7 +22,10 @@ class UserServices {
     try {
       const users = await User.findAll({
         attributes: [
+          "id",
+          "name",
           "photo",
+          "createdAt",
           [Sequelize.fn("COUNT", Sequelize.col("UserMainGrids.id")), "totalFiles"]
         ],
         where: {
@@ -37,11 +40,22 @@ class UserServices {
             where: { activite: 0 },
           }
         ],
-        group: ["User.id", "User.photo"],
-        raw: true
+        group: ["User.id"],
+        order: [["createdAt", "DESC"]]
       });
-      res.status(200).send({ data: users });
+
+      // Converter para formato simples
+      const formattedUsers = users.map(user => ({
+        id: user.id,
+        name: user.name,
+        photo: user.photo,
+        createdAt: user.createdAt,
+        totalFiles: parseInt(user.dataValues.totalFiles) || 0
+      }));
+
+      res.status(200).send({ data: formattedUsers });
     } catch (err) {
+      console.error("Erro em getAllAvatars:", err);
       res.status(500).send({ message: "Erro ao buscar fotos dos usuários.", error: err.message });
     }
   }
