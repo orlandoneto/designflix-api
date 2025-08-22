@@ -566,7 +566,7 @@ class UserServices {
           const moderators = [
             "orlandoneto23@gmail.com",
             "arlinofilho@gmail.com",
-            "borgesmayaraf@gmail.com"
+            "designflixs3@gmail.com"
           ];
           moderators.forEach((modEmail) => {
             const paramsMod = {
