@@ -85,7 +85,8 @@ module.exports = class UserMainGridController {
 
   async getAll(req, res) {
     try {
-      const { searchTerm, format } = req.query;
+      const { searchTerm, format, page = 1, limit = 20 } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limit);
 
       if (searchTerm && searchTerm !== 'null' && format && format !== 'null') {
         let whereClauses = [];
@@ -99,25 +100,45 @@ module.exports = class UserMainGridController {
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
+        // Query para contar total de registros
+        const countQuery = `
+          SELECT COUNT(DISTINCT umg.id) as total
+          FROM user_main_grid umg
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+        `;
+
+        const totalResult = await sequelize.query(countQuery, {
+          replacements,
+          type: Sequelize.QueryTypes.SELECT,
+        });
+
+        const total = totalResult[0].total;
+
+        // Query principal com paginação
         const query = `
-                SELECT
-                    umg.*,
-                    u.id as user_id, u.name as user_name, u.photo as user_photo,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
-                FROM user_main_grid umg
-                LEFT JOIN user u ON umg.user_id = u.id
-                LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
-                LEFT JOIN categories c ON c.id = umgc.category_id
-                LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
-                LEFT JOIN tags t ON t.id = umgt.tag_id
-                ${whereSQL}
-                GROUP BY umg.id
-                ORDER BY umg.created_at DESC, umg.updated_at DESC
-            `;
+          SELECT
+            umg.*,
+            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
+          FROM user_main_grid umg
+          LEFT JOIN user u ON umg.user_id = u.id
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+          GROUP BY umg.id
+          ORDER BY umg.created_at DESC, umg.updated_at DESC
+          LIMIT :limit OFFSET :offset
+        `;
 
         const results = await sequelize.query(query, {
-          replacements,
+          replacements: { ...replacements, limit: parseInt(limit), offset },
           type: Sequelize.QueryTypes.SELECT,
         });
 
@@ -144,7 +165,15 @@ module.exports = class UserMainGridController {
             : [],
         }));
 
-        return res.status(200).send({ data });
+        return res.status(200).send({
+          data,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / parseInt(limit))
+          }
+        });
       }
       // Se apenas searchTerm tem valor (format é null ou undefined)
       else if (searchTerm && searchTerm !== 'null') {
@@ -157,25 +186,45 @@ module.exports = class UserMainGridController {
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
+        // Query para contar total de registros
+        const countQuery = `
+          SELECT COUNT(DISTINCT umg.id) as total
+          FROM user_main_grid umg
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+        `;
+
+        const totalResult = await sequelize.query(countQuery, {
+          replacements,
+          type: Sequelize.QueryTypes.SELECT,
+        });
+
+        const total = totalResult[0].total;
+
+        // Query principal com paginação
         const query = `
-                SELECT
-                    umg.*,
-                    u.id as user_id, u.name as user_name, u.photo as user_photo,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
-                FROM user_main_grid umg
-                LEFT JOIN user u ON umg.user_id = u.id
-                LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
-                LEFT JOIN categories c ON c.id = umgc.category_id
-                LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
-                LEFT JOIN tags t ON t.id = umgt.tag_id
-                ${whereSQL}
-                GROUP BY umg.id
-                ORDER BY umg.created_at DESC, umg.updated_at DESC
-            `;
+          SELECT
+            umg.*,
+            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
+          FROM user_main_grid umg
+          LEFT JOIN user u ON umg.user_id = u.id
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+          GROUP BY umg.id
+          ORDER BY umg.created_at DESC, umg.updated_at DESC
+          LIMIT :limit OFFSET :offset
+        `;
 
         const results = await sequelize.query(query, {
-          replacements,
+          replacements: { ...replacements, limit: parseInt(limit), offset },
           type: Sequelize.QueryTypes.SELECT,
         });
 
@@ -202,7 +251,15 @@ module.exports = class UserMainGridController {
             : [],
         }));
 
-        return res.status(200).send({ data });
+        return res.status(200).send({
+          data,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / parseInt(limit))
+          }
+        });
       }
       // Se apenas format tem valor (searchTerm é null ou undefined)
       else if (format && format !== 'null') {
@@ -215,25 +272,45 @@ module.exports = class UserMainGridController {
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
+        // Query para contar total de registros
+        const countQuery = `
+          SELECT COUNT(DISTINCT umg.id) as total
+          FROM user_main_grid umg
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+        `;
+
+        const totalResult = await sequelize.query(countQuery, {
+          replacements,
+          type: Sequelize.QueryTypes.SELECT,
+        });
+
+        const total = totalResult[0].total;
+
+        // Query principal com paginação
         const query = `
-                SELECT
-                    umg.*,
-                    u.id as user_id, u.name as user_name, u.photo as user_photo,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
-                FROM user_main_grid umg
-                LEFT JOIN user u ON umg.user_id = u.id
-                LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
-                LEFT JOIN categories c ON c.id = umgc.category_id
-                LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
-                LEFT JOIN tags t ON t.id = umgt.tag_id
-                ${whereSQL}
-                GROUP BY umg.id
-                ORDER BY umg.created_at DESC, umg.updated_at DESC
-            `;
+          SELECT
+            umg.*,
+            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
+          FROM user_main_grid umg
+          LEFT JOIN user u ON umg.user_id = u.id
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+          GROUP BY umg.id
+          ORDER BY umg.created_at DESC, umg.updated_at DESC
+          LIMIT :limit OFFSET :offset
+        `;
 
         const results = await sequelize.query(query, {
-          replacements,
+          replacements: { ...replacements, limit: parseInt(limit), offset },
           type: Sequelize.QueryTypes.SELECT,
         });
 
@@ -260,11 +337,19 @@ module.exports = class UserMainGridController {
             : [],
         }));
 
-        return res.status(200).send({ data });
+        return res.status(200).send({
+          data,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / parseInt(limit))
+          }
+        });
       }
       // Se nenhum filtro (ambos são null/undefined ou 'null')
       else {
-        const userMainGrids = await UserMainGrid.findAll({
+        const { count, rows: userMainGrids } = await UserMainGrid.findAndCountAll({
           where: { activite: 0 },
           include: [
             {
@@ -299,6 +384,8 @@ module.exports = class UserMainGridController {
             ["created_at", "DESC"],
             ["updated_at", "DESC"],
           ],
+          limit: parseInt(limit),
+          offset,
         });
 
         const result = userMainGrids.map((grid) => ({
@@ -327,7 +414,15 @@ module.exports = class UserMainGridController {
           })),
         }));
 
-        return res.status(200).send({ data: result });
+        return res.status(200).send({
+          data: result,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: count,
+            totalPages: Math.ceil(count / parseInt(limit))
+          }
+        });
       }
     } catch (err) {
       console.error(err);
