@@ -9,6 +9,8 @@ const {
   sequelize,
 } = require("../models");
 
+const RedisCache = require("../utils/redisCache");
+
 module.exports = class UserMainGridController {
   async create(req, res) {
     const transaction = await sequelize.transaction();
@@ -88,6 +90,16 @@ module.exports = class UserMainGridController {
       const { searchTerm, format, page = 1, limit = 20 } = req.query;
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
+      // Gerar chave de cache única
+      const cacheKey = RedisCache.generateCacheKey('getAll');
+
+      // Tentar buscar do cache
+      const cachedData = await RedisCache.getFromCache(req.redis, cacheKey);
+      if (cachedData) {
+        console.log('💾 Retornando dados do cache Redis (não consultando banco)');
+        return res.status(200).send(cachedData);
+      }
+
       if (searchTerm && searchTerm !== 'null' && format && format !== 'null') {
         let whereClauses = [];
         let replacements = {};
@@ -165,7 +177,7 @@ module.exports = class UserMainGridController {
             : [],
         }));
 
-        return res.status(200).send({
+        const responseData = {
           data,
           pagination: {
             page: parseInt(page),
@@ -173,7 +185,12 @@ module.exports = class UserMainGridController {
             total,
             totalPages: Math.ceil(total / parseInt(limit))
           }
-        });
+        };
+
+        // Salvar no cache de forma assíncrona (não bloqueia a resposta)
+        RedisCache.saveToCache(req.redis, cacheKey, responseData);
+
+        return res.status(200).send(responseData);
       }
       // Se apenas searchTerm tem valor (format é null ou undefined)
       else if (searchTerm && searchTerm !== 'null') {
@@ -251,7 +268,7 @@ module.exports = class UserMainGridController {
             : [],
         }));
 
-        return res.status(200).send({
+        const responseData = {
           data,
           pagination: {
             page: parseInt(page),
@@ -259,7 +276,12 @@ module.exports = class UserMainGridController {
             total,
             totalPages: Math.ceil(total / parseInt(limit))
           }
-        });
+        };
+
+        // Salvar no cache de forma assíncrona (não bloqueia a resposta)
+        RedisCache.saveToCache(req.redis, cacheKey, responseData);
+
+        return res.status(200).send(responseData);
       }
       // Se apenas format tem valor (searchTerm é null ou undefined)
       else if (format && format !== 'null') {
@@ -337,7 +359,7 @@ module.exports = class UserMainGridController {
             : [],
         }));
 
-        return res.status(200).send({
+        const responseData = {
           data,
           pagination: {
             page: parseInt(page),
@@ -345,7 +367,12 @@ module.exports = class UserMainGridController {
             total,
             totalPages: Math.ceil(total / parseInt(limit))
           }
-        });
+        };
+
+        // Salvar no cache de forma assíncrona (não bloqueia a resposta)
+        RedisCache.saveToCache(req.redis, cacheKey, responseData);
+
+        return res.status(200).send(responseData);
       }
       // Se nenhum filtro (ambos são null/undefined ou 'null')
       else {
@@ -414,7 +441,7 @@ module.exports = class UserMainGridController {
           })),
         }));
 
-        return res.status(200).send({
+        const responseData = {
           data: result,
           pagination: {
             page: parseInt(page),
@@ -422,7 +449,12 @@ module.exports = class UserMainGridController {
             total: count,
             totalPages: Math.ceil(count / parseInt(limit))
           }
-        });
+        };
+
+        // Salvar no cache de forma assíncrona (não bloqueia a resposta)
+        RedisCache.saveToCache(req.redis, cacheKey, responseData);
+
+        return res.status(200).send(responseData);
       }
     } catch (err) {
       console.error(err);
