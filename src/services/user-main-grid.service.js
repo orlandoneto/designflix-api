@@ -76,6 +76,17 @@ module.exports = class UserMainGridController {
 
       await transaction.commit();
 
+      // Limpar cache relacionado após criar novo registro
+      if (req.redis) {
+        try {
+          // Remove todas as chaves de cache relacionadas ao user_main_grid
+          await RedisCache.removePatternFromCache(req.redis, 'user_main_grid:*');
+          console.log('🗑️ Cache limpo após criar novo registro');
+        } catch (cacheError) {
+          console.log('⚠️ Erro ao limpar cache (não crítico):', cacheError.message);
+        }
+      }
+
       res.status(200).send({ data: { ...userMainGrid } });
     } catch (err) {
       await transaction.rollback();
@@ -91,7 +102,7 @@ module.exports = class UserMainGridController {
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
       // Gerar chave de cache única
-      const cacheKey = RedisCache.generateCacheKey('getAll');
+      const cacheKey = RedisCache.generateCacheKey('user_main_grid', searchTerm, format, page, limit);
 
       // Tentar buscar do cache
       const cachedData = await RedisCache.getFromCache(req.redis, cacheKey);
@@ -696,6 +707,16 @@ module.exports = class UserMainGridController {
         ],
       });
 
+      // Limpar cache relacionado após atualizar registro
+      if (req.redis) {
+        try {
+          await RedisCache.removePatternFromCache(req.redis, 'user_main_grid:*');
+          console.log('🗑️ Cache limpo após atualizar registro');
+        } catch (cacheError) {
+          console.log('⚠️ Erro ao limpar cache (não crítico):', cacheError.message);
+        }
+      }
+
       res.status(200).send({ status: "ok", data: updatedUserMainGrid });
     } catch (err) {
       console.log(err);
@@ -740,6 +761,16 @@ module.exports = class UserMainGridController {
       }
 
       await UserMainGrid.destroy({ where });
+
+      // Limpar cache relacionado após deletar registro
+      if (req.redis) {
+        try {
+          await RedisCache.removePatternFromCache(req.redis, 'user_main_grid:*');
+          console.log('🗑️ Cache limpo após deletar registro');
+        } catch (cacheError) {
+          console.log('⚠️ Erro ao limpar cache (não crítico):', cacheError.message);
+        }
+      }
 
       res.status(200).send({ status: "ok", data: userMainGrid });
     } catch (err) {
