@@ -13,8 +13,8 @@ class RedisCache {
    * @param {number} limit - Limite de itens por página
    * @returns {string} Chave única para o cache
    */
-  static generateCacheKey(entity) {
-    return entity;
+  static generateCacheKey(entity, searchTerm, format, page, limit) {
+    return `${entity}:${searchTerm || 'null'}:${format || 'null'}:${page}:${limit}`;
   }
 
   /**
