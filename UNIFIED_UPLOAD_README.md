@@ -32,11 +32,22 @@ O **Unified Upload Service** é uma nova funcionalidade que unifica e moderniza 
 
 ## 📁 Estrutura de Pastas S3
 
+### **Development/Test:**
+```
+s3-bucket/
+├── downloads_test/     # Arquivos de conteúdo (PSD, AI, ZIP, etc.)
+├── preview_test/       # Imagens de preview com marca d'água
+├── thumbs_test/        # Thumbnails com marca d'água suave
+└── profile_test/       # Imagens de perfil de usuário
+```
+
+### **Production:**
 ```
 s3-bucket/
 ├── downloads/          # Arquivos de conteúdo (PSD, AI, ZIP, etc.)
 ├── preview/            # Imagens de preview com marca d'água
-└── thumbs/             # Thumbnails com marca d'água suave
+├── thumbs/             # Thumbnails com marca d'água suave
+└── profile/            # Imagens de perfil de usuário
 ```
 
 ## 🛠️ Endpoints Disponíveis
@@ -122,6 +133,28 @@ AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_BUCKET_NAME=your_bucket_name
 AWS_REGION=your_region
 STORAGE_TYPE=s3
+NODE_ENV=development|test|production
+```
+
+### **Detecção Automática de Ambiente**
+O sistema **detecta automaticamente** o ambiente e usa os paths corretos do S3:
+
+- **Development/Test** (`NODE_ENV=development` ou `NODE_ENV=test`):
+  - Thumbnails: `thumbs_test/`
+  - Previews: `preview_test/`
+  - Downloads: `downloads_test/`
+  - Profile: `profile_test/`
+
+- **Production** (`NODE_ENV=production`):
+  - Thumbnails: `thumbs/`
+  - Previews: `preview/`
+  - Downloads: `downloads/`
+  - Profile: `profile/`
+
+**Logs automáticos** mostram qual ambiente está sendo usado:
+```
+🔧 Using TEST/DEV paths for environment: development
+🚀 Using PRODUCTION paths for environment: production
 ```
 
 ### **Dependências**

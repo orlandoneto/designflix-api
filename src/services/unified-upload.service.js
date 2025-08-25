@@ -6,7 +6,7 @@ const multer = require("multer");
 const ImageProcessor = require("../utils/imageProcessor");
 const ArchiveProcessor = require("../utils/archiveProcessor");
 const TagGenerator = require("../utils/tagGenerator");
-const { FOLDER_NAME_IMAGES_PATH } = require("../utils/constants/constants");
+const EnvironmentPaths = require("../utils/environmentPaths");
 
 /**
  * Serviço unificado para upload de arquivos compactados
@@ -16,6 +16,20 @@ class UnifiedUploadService {
 
   constructor() {
     this.tempDir = null;
+  }
+
+  /**
+   * Detecta o ambiente e retorna os paths corretos para todos os tipos de arquivo
+   */
+  getEnvironmentPaths() {
+    return EnvironmentPaths.getAllPaths();
+  }
+
+  /**
+   * Detecta o ambiente e retorna o path correto para downloads
+   */
+  getEnvironmentDownloadPath() {
+    return EnvironmentPaths.getDownloadsPath();
   }
 
   /**
@@ -94,7 +108,9 @@ class UnifiedUploadService {
    */
   async uploadContentToS3(contentPath, originalName) {
     try {
-      const fileName = ImageProcessor.generateFileName(originalName, FOLDER_NAME_IMAGES_PATH);
+      // Obter path do ambiente
+      const downloadPath = this.getEnvironmentDownloadPath();
+      const fileName = ImageProcessor.generateFileName(originalName, downloadPath);
       const fileBuffer = await fs.promises.readFile(contentPath);
 
       const url = await ImageProcessor.uploadToS3(

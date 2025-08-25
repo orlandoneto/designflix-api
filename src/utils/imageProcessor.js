@@ -2,10 +2,7 @@ const sharp = require("sharp");
 const path = require("path");
 const crypto = require("crypto");
 const aws = require("aws-sdk");
-const { 
-  FOLDER_NAME_THUMBS_PATH, 
-  FOLDER_IMAGE_PREVIEWS_PATH 
-} = require("./constants/constants");
+const EnvironmentPaths = require("./environmentPaths");
 
 // Configurações
 const WEBP_QUALITY_IMAGE = 95;
@@ -24,7 +21,14 @@ const s3 = new aws.S3({
  * Utilitário centralizado para processamento de imagens
  */
 class ImageProcessor {
-  
+
+  /**
+ * Detecta o ambiente e retorna os paths corretos do S3
+ */
+  static getEnvironmentPaths() {
+    return EnvironmentPaths.getAllPaths();
+  }
+
   /**
    * Faz upload para S3
    */
@@ -62,10 +66,10 @@ class ImageProcessor {
    */
   static async resizeImage(imageBuffer, options = {}) {
     const { width, height, withoutEnlargement = true } = options;
-    
+
     try {
       let sharpInstance = sharp(imageBuffer);
-      
+
       if (width && height) {
         sharpInstance = sharpInstance.resize({ width, height, fit: 'contain', withoutEnlargement });
       } else if (width) {
@@ -73,7 +77,7 @@ class ImageProcessor {
       } else if (height) {
         sharpInstance = sharpInstance.resize({ height, withoutEnlargement });
       }
-      
+
       return await sharpInstance.toBuffer();
     } catch (error) {
       console.error("Error resizing image:", error);
@@ -87,7 +91,7 @@ class ImageProcessor {
   static async applySoftWatermark(imageBuffer) {
     try {
       const watermarkPath = path.resolve(__dirname, "../assets/watermark.png");
-      
+
       // Obter metadados da imagem
       const imageMetadata = await sharp(imageBuffer).metadata();
       if (!imageMetadata || !imageMetadata.width || !imageMetadata.height) {
@@ -97,7 +101,7 @@ class ImageProcessor {
       // Redimensionar para altura máxima
       const targetHeight = Math.min(imageMetadata.height, HEIGHT_IMAGE);
       const resizedBuffer = await this.resizeImage(imageBuffer, { height: targetHeight });
-      
+
       // Obter metadados da imagem redimensionada
       const resizedMetadata = await sharp(resizedBuffer).metadata();
       const finalWidth = resizedMetadata.width;
@@ -178,10 +182,10 @@ class ImageProcessor {
   static async applyFullWatermark(imageBuffer) {
     try {
       const watermarkPath = path.resolve(__dirname, "../assets/watermark.png");
-      
+
       // Redimensionar imagem original
       const resizedImageBuffer = await this.resizeImage(imageBuffer, { width: PREVIEW_WIDTH });
-      
+
       const resizedImage = sharp(resizedImageBuffer);
       const { width: imgW, height: imgH } = await resizedImage.metadata();
 
@@ -221,9 +225,12 @@ class ImageProcessor {
    */
   static async processThumbnail(imageBuffer) {
     try {
+      // Obter paths do ambiente
+      const envPaths = this.getEnvironmentPaths();
+
       const processedBuffer = await this.applySoftWatermark(imageBuffer);
-      const fileName = `${FOLDER_NAME_THUMBS_PATH}/${crypto.randomBytes(16).toString("hex")}-${Date.now()}.webp`;
-      
+      const fileName = `${envPaths.thumbs}/${crypto.randomBytes(16).toString("hex")}-${Date.now()}.webp`;
+
       const url = await this.uploadToS3(fileName, processedBuffer, "image/webp");
       return { url, fileName };
     } catch (error) {
@@ -237,9 +244,12 @@ class ImageProcessor {
    */
   static async processPreview(imageBuffer) {
     try {
+      // Obter paths do ambiente
+      const envPaths = this.getEnvironmentPaths();
+
       const processedBuffer = await this.applyFullWatermark(imageBuffer);
-      const fileName = `${FOLDER_IMAGE_PREVIEWS_PATH}/${crypto.randomBytes(16).toString("hex")}-${Date.now()}.webp`;
-      
+      const fileName = `${envPaths.previews}/${crypto.randomBytes(16).toString("hex")}-${Date.now()}.webp`;
+
       const url = await this.uploadToS3(fileName, processedBuffer, "image/webp");
       return { url, fileName };
     } catch (error) {
@@ -254,7 +264,7 @@ class ImageProcessor {
   static async detectImageFormat(imageBuffer) {
     try {
       const metadata = await sharp(imageBuffer).metadata();
-      
+
       // Mapear formatos baseado no formato interno do Sharp
       const formatMap = {
         'jpeg': 'JPG',
@@ -266,9 +276,9 @@ class ImageProcessor {
         'tiff': 'TIFF',
         'avif': 'AVIF'
       };
-      
+
       const detectedFormat = formatMap[metadata.format] || metadata.format?.toUpperCase() || 'UNKNOWN';
-      
+
       return {
         format: detectedFormat,
         width: metadata.width,
@@ -290,7 +300,7 @@ class ImageProcessor {
     const timestamp = Date.now();
     const randomHash = crypto.randomBytes(16).toString("hex");
     const ext = extension || path.extname(originalName);
-    
+
     return `${folder}/${randomHash}-${timestamp}${ext}`;
   }
 }
