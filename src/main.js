@@ -108,6 +108,9 @@ require("./controller/admin.controller")(app);
 // serviços
 require("./controller/upload.controller")(app);
 
+// upload unificado
+require("./controller/unified-upload.controller")(app);
+
 // google
 require("./controller/google-api.controller")(app);
 

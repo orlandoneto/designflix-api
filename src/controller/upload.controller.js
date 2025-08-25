@@ -16,6 +16,7 @@ const removeAvatarFromS3 = require("../middleware/removeAvatarFromS3");
 module.exports = (app) => {
   const UploadService = new Upload();
 
+  // TODO: REMOÇÃO FUTURA - Substituído pelo endpoint unificado /unified-upload/*
   app.post(
     "/upload/thumb",
     uploadThumb,
@@ -23,6 +24,7 @@ module.exports = (app) => {
     (req, res) => UploadService.file(req, res)
   );
 
+  // TODO: REMOÇÃO FUTURA - Substituído pelo endpoint unificado /unified-upload/*
   app.post(
     "/upload/preview",
     uploadPreview,
@@ -30,6 +32,7 @@ module.exports = (app) => {
     (req, res) => UploadService.file(req, res)
   );
 
+  // TODO: REMOÇÃO FUTURA - Substituído pelo endpoint unificado /unified-upload/*
   app.post(
     "/upload/jpeg",
     multer(multerUploadJPEG).single("file"),
