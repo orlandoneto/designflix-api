@@ -62,7 +62,10 @@ class UnifiedUploadIntegrationService {
         name: data.name,
         format: data.format,
         user_id: userId,
-        admin_id: adminId
+        admin_id: adminId,
+        url_thumb: data.url_thumb,
+        url_cover: data.url_cover,
+        url: data.url
       });
 
       // Criar registro principal

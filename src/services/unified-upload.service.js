@@ -207,6 +207,11 @@ class UnifiedUploadService {
       };
 
       console.log("Archive processing completed successfully");
+      console.log("📁 URLs generated:", {
+        url_thumb: result.url_thumb,
+        url_cover: result.url_cover,
+        url: result.url
+      });
       return result;
 
     } catch (error) {

@@ -76,7 +76,7 @@ module.exports = (app) => {
    */
   app.post(
     "/unified-upload/multiple",
-    AuthenticateRoute(["admin", "user"]),
+    AuthenticateRoute(["user"]),
     (req, res, next) => {
       // Configuração para múltiplos arquivos + campos de texto
       const multerConfig = multer({
@@ -125,14 +125,12 @@ module.exports = (app) => {
 
         // Se o upload foi bem-sucedido, sempre salvar no grid
         if (uploadResult.status === "success") {
-          const userId = req.user.id;
-          const adminId = req.user.role === 'admin' ? req.user.id : null;
+          const userId = req.body.user_id;
 
           // Salvar no UserMainGrid
           const savedRecords = await integrationService.processAndSave(
             uploadResult,
             userId,
-            adminId
           );
 
           // Adicionar informações dos registros salvos
