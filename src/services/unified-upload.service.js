@@ -320,7 +320,8 @@ class UnifiedUploadService {
   async uploadMultiple(req, res) {
     try {
       const { categoryId, categoryName } = req.body;
-      const files = req.files;
+      // Usar req.files.files quando usando multer.fields()
+      const files = req.files?.files || req.files || [];
 
       if (!files || files.length === 0) {
         throw new Error("No files provided");

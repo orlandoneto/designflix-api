@@ -1,3 +1,4 @@
+const multer = require("multer");
 const UnifiedUploadService = require("../services/unified-upload.service");
 const UnifiedUploadIntegrationService = require("../services/unified-upload-integration.service");
 const AuthenticateRoute = require("../middleware/authentication");
@@ -22,16 +23,26 @@ module.exports = (app) => {
     unifiedUploadService.getMulterConfig(),
     async (req, res) => {
       try {
+        // Capturar dados do FormData
+        const { categoryId, categoryName } = req.body;
+        console.log("📁 Upload único - Dados recebidos:", {
+          categoryId,
+          categoryName,
+          fileName: req.file ? req.file.originalname : 'N/A'
+        });
+
         // Fazer upload e processamento
         const uploadResult = await unifiedUploadService.uploadSingle(req, res);
 
-        // Se o upload foi bem-sucedido e deve salvar no grid
-        if (uploadResult.status === "success" && req.body.saveToGrid !== false) {
+        // Se o upload foi bem-sucedido, sempre salvar no grid
+        if (uploadResult.status === "success") {
           const userId = req.user.id;
           const adminId = req.user.role === 'admin' ? req.user.id : null;
 
+          console.log("💾 Salvando no grid:", { userId, adminId, categoryId, categoryName });
+
           // Salvar no UserMainGrid
-          const savedRecord = await integrationService.saveToUserMainGrid(
+          const savedRecord = await integrationService.saveToGrid(
             uploadResult.data,
             userId,
             adminId
@@ -67,7 +78,7 @@ module.exports = (app) => {
     "/unified-upload/multiple",
     AuthenticateRoute(["admin", "user"]),
     (req, res, next) => {
-      // Configuração para múltiplos arquivos
+      // Configuração para múltiplos arquivos + campos de texto
       const multerConfig = multer({
         storage: multer.memoryStorage(),
         limits: {
@@ -98,7 +109,12 @@ module.exports = (app) => {
             }
           }
         },
-      }).array("files", 20);
+      }).fields([
+        { name: 'files', maxCount: 20 },           // ← Arquivos
+        { name: 'categoryId', maxCount: 1 },       // ← ID da categoria
+        { name: 'categoryName', maxCount: 1 },     // ← Nome da categoria
+        { name: 'saveToGrid', maxCount: 1 }        // ← Boolean para salvar no grid
+      ]);
 
       multerConfig(req, res, next);
     },
@@ -107,8 +123,8 @@ module.exports = (app) => {
         // Fazer upload e processamento
         const uploadResult = await unifiedUploadService.uploadMultiple(req, res);
 
-        // Se o upload foi bem-sucedido e deve salvar no grid
-        if (uploadResult.status === "success" && req.body.saveToGrid !== false) {
+        // Se o upload foi bem-sucedido, sempre salvar no grid
+        if (uploadResult.status === "success") {
           const userId = req.user.id;
           const adminId = req.user.role === 'admin' ? req.user.id : null;
 
