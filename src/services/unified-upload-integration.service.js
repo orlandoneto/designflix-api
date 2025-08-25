@@ -81,7 +81,7 @@ class UnifiedUploadIntegrationService {
         follow_design: 0,
         count_download: 0,
         terms: data.terms,
-        activite: true
+        activite: false
       });
 
       console.log("UserMainGrid created with ID:", userMainGrid.id);

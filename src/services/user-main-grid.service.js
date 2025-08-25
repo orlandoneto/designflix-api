@@ -106,7 +106,7 @@ module.exports = class UserMainGridController {
 
       // Tentar buscar do cache
       const cachedData = await RedisCache.getFromCache(req.redis, cacheKey);
-      if (cachedData) {
+      if (cachedData && cachedData.data.length > 0) {
         console.log('💾 Retornando dados do cache Redis (não consultando banco)');
         return res.status(200).send(cachedData);
       }
