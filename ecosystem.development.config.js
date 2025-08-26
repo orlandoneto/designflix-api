@@ -18,6 +18,7 @@ module.exports = {
         NODE_ENV: "development", // Ambiente de desenvolvimento
         DOTENV_CONFIG_PATH: "/root/api/dev/designflix-api/source/.env",
         PORT: 3000, // Porta da aplicação em desenvolvimento
+        DISABLE_REDIS_DEV: "true", // Desabilita Redis em desenvolvimento
       },
       error_file: "/root/api/dev/designflix-api/shared/logs/error.log",
       out_file: "/root/api/dev/designflix-api/shared/logs/out.log",
