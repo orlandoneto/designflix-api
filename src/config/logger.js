@@ -26,16 +26,16 @@ const getEnvironmentConfig = () => {
 
   switch (currentEnv) {
     case "development":
-      return { 
-        ...baseConfig, 
+      return {
+        ...baseConfig,
         level: "debug",
         console: true  // Garantir que está ativo
       };
     case "production":
-      return { 
-        ...baseConfig, 
+      return {
+        ...baseConfig,
         console: false,  // Desativar apenas em produção
-        level: "info" 
+        level: "info"
       };
     case "test":
       return {
@@ -60,9 +60,8 @@ const createFormats = () => ({
   console: format.combine(
     format.colorize(),
     format.printf(({ level, message, timestamp, stack, ...metadata }) => {
-      let msg = `${timestamp} [${
-        process.env.NODE_ENV || "development"
-      }] ${level}: ${message}`;
+      let msg = `${timestamp} [${process.env.NODE_ENV || "development"
+        }] ${level}: ${message}`;
       if (stack) msg += `\n${stack}`;
       if (Object.keys(metadata).length)
         msg += `\n${JSON.stringify(metadata, null, 2)}`;
@@ -78,15 +77,15 @@ const createTransports = (config, formats) => {
   const logPrefix = env === "test" ? "test" : "application";
 
   if (config.console) {
-  transportsList.push(
-    new transports.Console({
-      format: formats.console,
-      level: config.level,
-      handleExceptions: config.handleExceptions,
-      handleRejections: config.handleRejections,
-    })
-  );
-}
+    transportsList.push(
+      new transports.Console({
+        format: formats.console,
+        level: config.level,
+        handleExceptions: config.handleExceptions,
+        handleRejections: config.handleRejections,
+      })
+    );
+  }
 
   if (config.file) {
     transportsList.push(
@@ -159,5 +158,5 @@ const configureLogger = () => {
 
   return logger;
 };
-
 module.exports = configureLogger();
+

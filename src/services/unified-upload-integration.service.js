@@ -1,4 +1,5 @@
 const { UserMainGrid, UserMainGridCategories, UserMainGridTags, Category, Tags } = require("../models");
+const { logMultpleUpload } = require("../config/testingLogs");
 
 /**
  * Serviço para integrar upload unificado com UserMainGrid
@@ -58,7 +59,7 @@ class UnifiedUploadIntegrationService {
  */
   async saveToUserMainGrid(data, userId, adminId = null) {
     try {
-      console.log("Saving to UserMainGrid:", {
+      logMultpleUpload("Saving to UserMainGrid:", {
         name: data.name,
         format: data.format,
         user_id: userId,
@@ -84,7 +85,7 @@ class UnifiedUploadIntegrationService {
         activite: false
       });
 
-      console.log("UserMainGrid created with ID:", userMainGrid.id);
+      logMultpleUpload("UserMainGrid created with ID:", userMainGrid.id);
 
       // Processar categoria se fornecida
       if (data.categoryId || data.categoryName) {
@@ -162,7 +163,7 @@ class UnifiedUploadIntegrationService {
    */
   async processAndSave(uploadResult, userId, adminId = null) {
     try {
-      console.log("Processing upload result for user:", userId);
+      logMultpleUpload("Processing upload result for user:", userId);
 
       // Se for upload único
       if (uploadResult.data && !uploadResult.data.success) {

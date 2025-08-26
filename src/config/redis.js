@@ -1,6 +1,7 @@
 const Redis = require('ioredis');
+const { logRedisConnection } = require('./testingLogs');
 
-console.log('🔄 Inicializando cliente Redis...');
+logRedisConnection('Inicializando cliente Redis...');
 
 // Configuração simples do Redis
 const redis = new Redis({
@@ -17,29 +18,29 @@ const redis = new Redis({
 
 // Eventos de conexão
 redis.on('connect', () => {
-  console.log(`✅ Redis conectado em ${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`);
+  logRedisConnection(`Redis conectado em ${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`);
 });
 
 redis.on('ready', () => {
-  console.log('✅ Redis está pronto para uso');
-  console.log('📊 Status da conexão:', redis.status);
+  logRedisConnection('Redis está pronto para uso');
+  logRedisConnection('Status da conexão:', redis.status);
 });
 
 redis.on('error', (err) => {
-  console.error('❌ Erro no Redis:', err.message);
-  console.log('⚠️ A aplicação continuará funcionando sem Redis');
+  logRedisConnection('Erro no Redis:', err.message);
+  logRedisConnection('A aplicação continuará funcionando sem Redis');
 });
 
 redis.on('close', () => {
-  console.log('🔌 Redis desconectado');
+  logRedisConnection('Redis desconectado');
 });
 
 redis.on('reconnecting', () => {
-  console.log('🔄 Reconectando ao Redis...');
+  logRedisConnection('Reconectando ao Redis...');
 });
 
 // Log inicial do status
-console.log(`🔍 Tentando conectar ao Redis em ${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`);
+logRedisConnection(`Tentando conectar ao Redis em ${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`);
 
 // Função para aguardar conexão (opcional, para casos onde você precisa garantir que está conectado)
 const waitForConnection = async () => {

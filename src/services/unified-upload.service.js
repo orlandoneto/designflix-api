@@ -3,6 +3,7 @@ const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
 const multer = require("multer");
+const { logMultpleUpload } = require("../config/testingLogs");
 const ImageProcessor = require("../utils/imageProcessor");
 const ArchiveProcessor = require("../utils/archiveProcessor");
 const TagGenerator = require("../utils/tagGenerator");
@@ -162,7 +163,7 @@ class UnifiedUploadService {
           archiveData.content.path,
           archiveData.content.name
         );
-        console.log("Content uploaded:", contentResult.url);
+        logMultpleUpload("Content uploaded:", contentResult.url);
       }
 
       // Gerar nome baseado no arquivo de preview
@@ -297,7 +298,7 @@ class UnifiedUploadService {
       // Validar entrada
       this.validateInput(req.file, categoryId, categoryName);
 
-      console.log(`Starting single archive upload: ${req.file.originalname}`);
+      logMultpleUpload(`Starting single archive upload: ${req.file.originalname}`);
 
       // Processar arquivo
       const result = await this.processArchiveFile(
@@ -336,7 +337,7 @@ class UnifiedUploadService {
         throw new Error("Maximum 20 files allowed per upload");
       }
 
-      console.log(`Starting multiple archive upload: ${files.length} files`);
+      logMultpleUpload(`Starting multiple archive upload: ${files.length} files`);
 
       // Processar múltiplos arquivos
       const results = await this.processMultipleArchives(

@@ -3,7 +3,8 @@ require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') }
 
 // Inicializa o Redis
 const { redis } = require("./config/redis");
-console.log('📡 Cliente Redis carregado com sucesso');
+const { logRedisConnection } = require("./config/testingLogs");
+logRedisConnection('Cliente Redis carregado com sucesso');
 
 const express = require("express");
 const cors = require("cors");
@@ -76,9 +77,9 @@ setupWebSocket(server);
 app.use((req, res, next) => {
   req.redis = redis;
   if (redis.status === 'ready') {
-    console.log('💾 Redis disponível nas requisições');
+    logRedisConnection('Redis disponível nas requisições');
   } else {
-    console.log('⚠️ Redis ainda não está pronto, status:', redis.status);
+    logRedisConnection('Redis ainda não está pronto, status:', redis.status);
   }
   next();
 });

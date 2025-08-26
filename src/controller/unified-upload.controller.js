@@ -1,4 +1,5 @@
 const multer = require("multer");
+const { logMultpleUpload } = require("../config/testingLogs");
 const UnifiedUploadService = require("../services/unified-upload.service");
 const UnifiedUploadIntegrationService = require("../services/unified-upload-integration.service");
 const AuthenticateRoute = require("../middleware/authentication");
@@ -25,7 +26,7 @@ module.exports = (app) => {
       try {
         // Capturar dados do FormData
         const { categoryId, categoryName } = req.body;
-        console.log("📁 Upload único - Dados recebidos:", {
+        logMultpleUpload("Upload único - Dados recebidos:", {
           categoryId,
           categoryName,
           fileName: req.file ? req.file.originalname : 'N/A'

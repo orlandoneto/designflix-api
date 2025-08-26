@@ -1,3 +1,5 @@
+const { logRedis, logRedisConnection } = require("../config/testingLogs");
+
 /**
  * Utilitários para Cache Redis
  * Funções reutilizáveis para gerenciar cache em toda a aplicação
@@ -26,9 +28,9 @@ class RedisCache {
    */
   static async getFromCache(redis, cacheKey, timeout = 100) {
     if (!redis || redis.status !== 'ready') {
-      console.log('⚠️ Redis não está disponível, consultando banco diretamente...');
+      logRedisConnection('Redis não está disponível, consultando banco diretamente...');
       if (redis) {
-        console.log('📊 Status atual do Redis:', redis.status);
+        logRedisConnection('Status atual do Redis:', redis.status);
       }
       return null;
     }
@@ -41,10 +43,10 @@ class RedisCache {
       ]);
 
       if (cachedData) {
-        console.log('🎯 CACHE HIT! Dados encontrados no Redis para chave:', cacheKey);
+        logRedis('CACHE HIT! Dados encontrados no Redis para chave:', cacheKey);
         return JSON.parse(cachedData);
       } else {
-        console.log('❌ CACHE MISS! Dados não encontrados no Redis para chave:', cacheKey);
+        logRedis('CACHE MISS! Dados não encontrados no Redis para chave:', cacheKey);
         return null;
       }
     } catch (cacheError) {
@@ -71,7 +73,7 @@ class RedisCache {
       redis.setex(cacheKey, ttl, JSON.stringify(data)).catch(err => {
         console.log('⚠️ Erro ao salvar cache Redis (não crítico):', err.message);
       });
-      console.log('💾 Dados sendo salvos no cache Redis (assíncrono):', cacheKey);
+      logRedis('Dados sendo salvos no cache Redis (assíncrono):', cacheKey);
     } catch (cacheError) {
       console.log('⚠️ Erro ao salvar cache Redis');
     }
@@ -89,7 +91,7 @@ class RedisCache {
 
     try {
       await redis.del(cacheKey);
-      console.log('🗑️ Chave removida do cache Redis:', cacheKey);
+      logRedis('Chave removida do cache Redis:', cacheKey);
     } catch (error) {
       console.log('⚠️ Erro ao remover chave do cache Redis:', error.message);
     }
@@ -109,7 +111,7 @@ class RedisCache {
       const keys = await redis.keys(pattern);
       if (keys.length > 0) {
         await redis.del(...keys);
-        console.log(`🗑️ ${keys.length} chaves removidas do cache Redis com padrão:`, pattern);
+        logRedis(`${keys.length} chaves removidas do cache Redis com padrão:`, pattern);
       }
     } catch (error) {
       console.log('⚠️ Erro ao remover padrão do cache Redis:', error.message);
