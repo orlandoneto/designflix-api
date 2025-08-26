@@ -4,6 +4,7 @@ const { pipeline } = require("stream/promises");
 const unzipper = require("unzipper");
 const tar = require("tar");
 const ImageProcessor = require("./imageProcessor");
+const { sanitizeFilename } = require("./filenameSanitizer");
 
 /**
  * Utilitário para processamento de arquivos compactados usando Node.js streams
@@ -85,8 +86,15 @@ class ArchiveProcessor {
             return null;
           }
 
+          // Use a sanitized display name for detection/selection, but keep original for extraction
+          const ext = path.extname(file.path).toLowerCase();
+          const originalName = file.path;
+          const sanitized = sanitizeFilename(path.basename(file.path));
+          const displayName = sanitized.replace(ext, "") + ext; // ensure original ext kept
+
           return {
-            name: file.path,
+            name: displayName, // sanitized name for logic
+            originalName: originalName, // keep original for extraction
             size: file.vars?.uncompressedSize || file.vars?.size || 0,
             isDirectory: file.type === 'Directory'
           };
@@ -97,8 +105,14 @@ class ArchiveProcessor {
           file: archivePath,
           onentry: (entry) => {
             if (entry && entry.path) {
+              const ext = path.extname(entry.path).toLowerCase();
+              const originalName = entry.path;
+              const sanitized = sanitizeFilename(path.basename(entry.path));
+              const displayName = sanitized.replace(ext, "") + ext;
+
               entries.push({
-                name: entry.path,
+                name: displayName,
+                originalName: originalName,
                 size: entry.size || 0,
                 isDirectory: entry.type === 'Directory'
               });
@@ -152,9 +166,14 @@ class ArchiveProcessor {
     try {
       if (archiveType === 'zip') {
         const entries = await unzipper.Open.file(archivePath);
-        const file = entries.files.find(f => f.path === fileName);
-
-        if (!file) {
+        // fileName can be sanitized; map back to original
+        const candidate = entries.files.find(f => {
+          const ext = path.extname(f.path).toLowerCase();
+          const sanitized = sanitizeFilename(path.basename(f.path));
+          const display = sanitized.replace(ext, "") + ext;
+          return display === fileName || f.path === fileName;
+        });
+        if (!candidate) {
           throw new Error(`File ${fileName} not found in archive`);
         }
 
@@ -162,7 +181,7 @@ class ArchiveProcessor {
         const outputStream = fs.createWriteStream(outputPath);
 
         await pipeline(
-          file.stream(),
+          candidate.stream(),
           outputStream
         );
 
@@ -173,7 +192,13 @@ class ArchiveProcessor {
         await tar.extract({
           file: archivePath,
           cwd: extractPath,
-          filter: (path) => path === fileName
+          filter: (p) => {
+            // tar filter receives original paths; match against sanitized target
+            const ext = path.extname(p).toLowerCase();
+            const sanitized = sanitizeFilename(path.basename(p));
+            const display = sanitized.replace(ext, "") + ext;
+            return p === fileName || display === fileName;
+          }
         });
 
         return outputPath;
@@ -197,7 +222,7 @@ class ArchiveProcessor {
 
       // Filtrar apenas arquivos (não diretórios)
       const files = contents.filter(item => !item.isDirectory);
-      
+
       // Normalizar nomes de arquivos e extrair extensões de forma mais robusta
       const fileExtensions = files.map(file => {
         try {
@@ -346,7 +371,7 @@ class ArchiveProcessor {
           return ['.jpg', '.jpeg'].includes(ext);
         }
       });
-      
+
       const pngFile = validImages.find(f => {
         try {
           const normalizedName = f.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
