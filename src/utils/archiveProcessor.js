@@ -79,6 +79,7 @@ class ArchiveProcessor {
           throw new Error("Invalid ZIP file structure");
         }
 
+        const usedNames = new Map();
         return entries.files.map(file => {
           // Verificar se file existe e tem as propriedades necessárias
           if (!file || !file.path) {
@@ -90,7 +91,12 @@ class ArchiveProcessor {
           const ext = path.extname(file.path).toLowerCase();
           const originalName = file.path;
           const sanitized = sanitizeFilename(path.basename(file.path));
-          const displayName = sanitized.replace(ext, "") + ext; // ensure original ext kept
+          let base = sanitized.replace(ext, "");
+          // Garantir unicidade determinística por arquivo
+          const key = base + ext;
+          const count = usedNames.get(key) || 0;
+          usedNames.set(key, count + 1);
+          const displayName = count === 0 ? `${base}${ext}` : `${base}-${count + 1}${ext}`;
 
           return {
             name: displayName, // sanitized name for logic
@@ -101,6 +107,7 @@ class ArchiveProcessor {
         }).filter(Boolean); // Remove entradas nulas
       } else if (archiveType === 'tar') {
         const entries = [];
+        const usedNames = new Map();
         await tar.list({
           file: archivePath,
           onentry: (entry) => {
@@ -108,7 +115,11 @@ class ArchiveProcessor {
               const ext = path.extname(entry.path).toLowerCase();
               const originalName = entry.path;
               const sanitized = sanitizeFilename(path.basename(entry.path));
-              const displayName = sanitized.replace(ext, "") + ext;
+              let base = sanitized.replace(ext, "");
+              const key = base + ext;
+              const count = usedNames.get(key) || 0;
+              usedNames.set(key, count + 1);
+              const displayName = count === 0 ? `${base}${ext}` : `${base}-${count + 1}${ext}`;
 
               entries.push({
                 name: displayName,
@@ -166,13 +177,22 @@ class ArchiveProcessor {
     try {
       if (archiveType === 'zip') {
         const entries = await unzipper.Open.file(archivePath);
-        // fileName can be sanitized; map back to original
-        const candidate = entries.files.find(f => {
+        // Recalcular nomes sanitizados com unicidade determinística
+        const usedNames = new Map();
+        let candidate = null;
+        for (const f of entries.files) {
           const ext = path.extname(f.path).toLowerCase();
           const sanitized = sanitizeFilename(path.basename(f.path));
-          const display = sanitized.replace(ext, "") + ext;
-          return display === fileName || f.path === fileName;
-        });
+          let base = sanitized.replace(ext, "");
+          const key = base + ext;
+          const count = usedNames.get(key) || 0;
+          usedNames.set(key, count + 1);
+          const display = count === 0 ? `${base}${ext}` : `${base}-${count + 1}${ext}`;
+          if (display === fileName || f.path === fileName) {
+            candidate = f;
+            break;
+          }
+        }
         if (!candidate) {
           throw new Error(`File ${fileName} not found in archive`);
         }
@@ -189,14 +209,19 @@ class ArchiveProcessor {
       } else if (archiveType === 'tar') {
         const outputPath = path.join(extractPath, path.basename(fileName));
 
+        const usedNames = new Map();
         await tar.extract({
           file: archivePath,
           cwd: extractPath,
           filter: (p) => {
-            // tar filter receives original paths; match against sanitized target
+            // tar filter recebe paths originais; mapear para nome sanitizado único
             const ext = path.extname(p).toLowerCase();
             const sanitized = sanitizeFilename(path.basename(p));
-            const display = sanitized.replace(ext, "") + ext;
+            let base = sanitized.replace(ext, "");
+            const key = base + ext;
+            const count = usedNames.get(key) || 0;
+            usedNames.set(key, count + 1);
+            const display = count === 0 ? `${base}${ext}` : `${base}-${count + 1}${ext}`;
             return p === fileName || display === fileName;
           }
         });
