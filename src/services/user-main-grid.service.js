@@ -10,6 +10,7 @@ const {
 } = require("../models");
 
 const RedisCache = require("../utils/redisCache");
+const { logRedis } = require("../config/testingLogs");
 
 module.exports = class UserMainGridController {
   async create(req, res) {
@@ -81,9 +82,9 @@ module.exports = class UserMainGridController {
         try {
           // Remove todas as chaves de cache relacionadas ao user_main_grid
           await RedisCache.removePatternFromCache(req.redis, 'user_main_grid:*');
-          console.log('🗑️ Cache limpo após criar novo registro');
+          logRedis('Cache limpo após criar novo registro');
         } catch (cacheError) {
-          console.log('⚠️ Erro ao limpar cache (não crítico):', cacheError.message);
+          logRedis('Erro ao limpar cache (não crítico):', cacheError.message);
         }
       }
 
@@ -91,7 +92,7 @@ module.exports = class UserMainGridController {
     } catch (err) {
       await transaction.rollback();
 
-      console.log(err);
+      console.error(err);
       res.status(400).send({ message: err.message });
     }
   }
@@ -106,8 +107,8 @@ module.exports = class UserMainGridController {
 
       // Tentar buscar do cache
       const cachedData = await RedisCache.getFromCache(req.redis, cacheKey);
-      if (cachedData) {
-        console.log('💾 Retornando dados do cache Redis (não consultando banco)');
+      if (cachedData && cachedData.data.length > 0) {
+        logRedis('Retornando dados do cache Redis (não consultando banco)');
         return res.status(200).send(cachedData);
       }
 
@@ -555,7 +556,7 @@ module.exports = class UserMainGridController {
 
       res.status(200).send({ data: result });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send({ message: err.message });
     }
   }
@@ -623,7 +624,7 @@ module.exports = class UserMainGridController {
 
       res.status(200).send({ data: result });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send({ message: err.message });
     }
   }
@@ -664,7 +665,7 @@ module.exports = class UserMainGridController {
 
       res.status(200).send({ data: userMainGrid });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send({ message: err.message });
     }
   }
@@ -711,15 +712,15 @@ module.exports = class UserMainGridController {
       if (req.redis) {
         try {
           await RedisCache.removePatternFromCache(req.redis, 'user_main_grid:*');
-          console.log('🗑️ Cache limpo após atualizar registro');
+          logRedis('Cache limpo após atualizar registro');
         } catch (cacheError) {
-          console.log('⚠️ Erro ao limpar cache (não crítico):', cacheError.message);
+          logRedis('Erro ao limpar cache (não crítico):', cacheError.message);
         }
       }
 
       res.status(200).send({ status: "ok", data: updatedUserMainGrid });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send({ message: err.message });
     }
   }
@@ -766,15 +767,15 @@ module.exports = class UserMainGridController {
       if (req.redis) {
         try {
           await RedisCache.removePatternFromCache(req.redis, 'user_main_grid:*');
-          console.log('🗑️ Cache limpo após deletar registro');
+          logRedis('Cache limpo após deletar registro');
         } catch (cacheError) {
-          console.log('⚠️ Erro ao limpar cache (não crítico):', cacheError.message);
+          logRedis('Erro ao limpar cache (não crítico):', cacheError.message);
         }
       }
 
       res.status(200).send({ status: "ok", data: userMainGrid });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send({ message: err.message });
     }
   }
