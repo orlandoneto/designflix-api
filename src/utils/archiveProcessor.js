@@ -3,6 +3,7 @@ const path = require("path");
 const { pipeline } = require("stream/promises");
 const unzipper = require("unzipper");
 const tar = require("tar");
+const ImageProcessor = require("./imageProcessor");
 
 /**
  * Utilitário para processamento de arquivos compactados usando Node.js streams
@@ -186,6 +187,110 @@ class ArchiveProcessor {
   }
 
   /**
+   * Seleciona inteligentemente qual imagem usar como preview vs conteúdo
+   * @param {Array} imageFiles - Array de arquivos de imagem encontrados
+   * @param {string} archivePath - Caminho do arquivo compactado
+   * @param {string} tempDir - Diretório temporário
+   * @returns {Object} - { previewFile: Object, contentFile: Object, selectionMethod: string }
+   */
+  static async selectPreviewAndContent(imageFiles, archivePath, tempDir) {
+    try {
+      // Filtrar apenas imagens (não PSD, AI, CDR)
+      const validImages = imageFiles.filter(file => {
+        const ext = path.extname(file.name).toLowerCase();
+        return ['.png', '.jpg', '.jpeg', '.gif'].includes(ext);
+      });
+
+      // Só aplicar a regra se tiver exatamente 2 imagens válidas
+      if (validImages.length !== 2) {
+        console.log(`Não aplicando regra de seleção inteligente: ${validImages.length} imagens válidas encontradas`);
+        return this.selectDefaultPreviewAndContent(imageFiles);
+      }
+
+      console.log(`🎯 Aplicando regra de seleção inteligente para 2 imagens: ${validImages.map(f => f.name).join(', ')}`);
+
+      // Analisar canal alpha de ambas as imagens
+      const imageAnalysis = [];
+
+      for (const imageFile of validImages) {
+        try {
+          // Extrair arquivo temporariamente para análise
+          const tempPath = await this.extractFileFromArchive(
+            archivePath,
+            imageFile.name,
+            tempDir
+          );
+
+          const imageBuffer = await fs.promises.readFile(tempPath);
+          const alphaInfo = await ImageProcessor.analyzeImageAlpha(imageBuffer);
+
+          imageAnalysis.push({
+            file: imageFile,
+            path: tempPath,
+            alphaInfo: alphaInfo
+          });
+
+          console.log(`📊 Análise ${imageFile.name}: Alpha=${alphaInfo.hasAlpha}, Transparente=${alphaInfo.isTransparent}, ${alphaInfo.alphaPercentage.toFixed(1)}% transparente`);
+
+        } catch (error) {
+          console.error(`❌ Erro ao analisar ${imageFile.name}:`, error);
+          // Se falhar na análise, usar lógica padrão
+          return this.selectDefaultPreviewAndContent(imageFiles);
+        }
+      }
+
+      // Selecionar baseado na análise
+      if (imageAnalysis.length === 2) {
+        const [img1, img2] = imageAnalysis;
+
+        // Se uma tem alpha e outra não, usar a com alpha como preview
+        if (img1.alphaInfo.isTransparent && !img2.alphaInfo.isTransparent) {
+          console.log(`✅ Seleção inteligente: ${img1.file.name} como PREVIEW (transparente), ${img2.file.name} como CONTEÚDO`);
+          return {
+            previewFile: img1.file,
+            contentFile: img2.file,
+            selectionMethod: 'alpha_analysis'
+          };
+        }
+
+        if (img2.alphaInfo.isTransparent && !img1.alphaInfo.isTransparent) {
+          console.log(`✅ Seleção inteligente: ${img2.file.name} como PREVIEW (transparente), ${img1.file.name} como CONTEÚDO`);
+          return {
+            previewFile: img2.file,
+            contentFile: img1.file,
+            selectionMethod: 'alpha_analysis'
+          };
+        }
+
+        // Se ambas têm alpha ou nenhuma tem, usar lógica de fallback
+        console.log(`⚠️ Ambas imagens têm características similares, usando lógica de fallback`);
+      }
+
+      // Fallback para lógica padrão
+      return this.selectDefaultPreviewAndContent(imageFiles);
+
+    } catch (error) {
+      console.error('❌ Erro na seleção inteligente:', error);
+      return this.selectDefaultPreviewAndContent(imageFiles);
+    }
+  }
+
+  /**
+   * Lógica padrão de seleção (fallback)
+   */
+  static selectDefaultPreviewAndContent(imageFiles) {
+    // Usar primeira imagem como preview, segunda como conteúdo
+    const previewFile = imageFiles[0];
+    const contentFile = imageFiles.length > 1 ? imageFiles[1] : null;
+
+    return {
+      previewFile: previewFile,
+      contentFile: contentFile,
+      selectionMethod: 'default'
+    };
+  }
+
+  /**
    * Processa arquivo compactado e extrai preview + conteúdo
    */
   static async processArchive(archivePath, tempDir) {
@@ -217,8 +322,24 @@ class ArchiveProcessor {
         throw new Error("No image files found in archive for preview");
       }
 
-      // Usar o primeiro arquivo de imagem como preview
-      const previewFile = imageFiles[0];
+      // NOVA LÓGICA: Seleção inteligente quando há 2 imagens
+      let previewFile, contentFile, selectionMethod;
+
+      if (imageFiles.length === 2) {
+        // Aplicar regra de seleção inteligente
+        const selection = await this.selectPreviewAndContent(imageFiles, archivePath, tempDir);
+        previewFile = selection.previewFile;
+        contentFile = selection.contentFile;
+        selectionMethod = selection.selectionMethod;
+
+        console.log(`🎯 Método de seleção: ${selectionMethod}`);
+      } else {
+        // Lógica existente para outros casos
+        previewFile = imageFiles[0];
+        contentFile = imageFiles.length > 1 ? imageFiles[1] : null;
+        selectionMethod = 'standard';
+      }
+
       if (!previewFile || !previewFile.name) {
         throw new Error("Invalid preview file structure");
       }
@@ -239,22 +360,19 @@ class ArchiveProcessor {
 
       // Extrair arquivo de conteúdo (se houver)
       let contentPath = null;
-      if (contentFiles.length > 0) {
-        const contentFile = contentFiles[0];
-        if (contentFile && contentFile.name) {
-          console.log(`Using ${contentFile.name} as content`);
+      if (contentFile) {
+        console.log(`Using ${contentFile.name} as content`);
 
-          contentPath = await this.extractFileFromArchive(
-            archivePath,
-            contentFile.name,
-            tempDir
-          );
+        contentPath = await this.extractFileFromArchive(
+          archivePath,
+          contentFile.name,
+          tempDir
+        );
 
-          // Verificar se o conteúdo foi extraído com sucesso
-          if (contentPath && !fs.existsSync(contentPath)) {
-            console.warn("Content file extraction failed, continuing without content");
-            contentPath = null;
-          }
+        // Verificar se o conteúdo foi extraído com sucesso
+        if (contentPath && !fs.existsSync(contentPath)) {
+          console.warn("Content file extraction failed, continuing without content");
+          contentPath = null;
         }
       }
 
@@ -269,7 +387,9 @@ class ArchiveProcessor {
           path: contentPath,
           size: fs.statSync(contentPath).size
         } : null,
-        archiveType: this.detectArchiveType(archivePath)
+        archiveType: this.detectArchiveType(archivePath),
+        selectionMethod: selectionMethod, // NOVO: informa como foi feita a seleção
+        totalImages: imageFiles.length
       };
 
     } catch (error) {

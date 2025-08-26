@@ -259,6 +259,58 @@ class ImageProcessor {
   }
 
   /**
+   * Analisa se uma imagem tem fundo transparente (canal alpha) de forma robusta
+   * @param {Buffer} imageBuffer - Buffer da imagem
+   * @returns {Object} - { hasAlpha: boolean, alphaPercentage: number, isTransparent: boolean }
+   */
+  static async analyzeImageAlpha(imageBuffer) {
+    try {
+      const image = sharp(imageBuffer);
+      const metadata = await image.metadata();
+
+      // Verificar se tem canal alpha
+      if (metadata.channels === 4 && metadata.hasAlpha) {
+        // PNG com transparência - analisar pixels para determinar se é realmente transparente
+        const { data } = await image.raw().toBuffer({ resolveWithObject: true });
+
+        let transparentPixels = 0;
+        let totalPixels = metadata.width * metadata.height;
+
+        // Verificar cada pixel (cada 4 valores = RGBA)
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] < 128) { // Alpha < 128 = transparente
+            transparentPixels++;
+          }
+        }
+
+        const alphaPercentage = (transparentPixels / totalPixels) * 100;
+
+        return {
+          hasAlpha: true,
+          alphaPercentage: alphaPercentage,
+          isTransparent: alphaPercentage > 15 // Mais de 15% transparente
+        };
+      }
+
+      // JPG, GIF sem alpha, ou PNG sem transparência
+      return {
+        hasAlpha: false,
+        alphaPercentage: 0,
+        isTransparent: false
+      };
+
+    } catch (error) {
+      console.error('Erro ao analisar canal alpha:', error);
+      // Em caso de erro, retorna valores seguros
+      return {
+        hasAlpha: false,
+        alphaPercentage: 0,
+        isTransparent: false
+      };
+    }
+  }
+
+  /**
    * Detecta o formato real da imagem baseado nos metadados
    */
   static async detectImageFormat(imageBuffer) {
