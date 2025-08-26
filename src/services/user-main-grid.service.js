@@ -9,6 +9,9 @@ const {
   sequelize,
 } = require("../models");
 
+const RedisCache = require("../utils/redisCache");
+const { logRedis } = require("../config/testingLogs");
+
 module.exports = class UserMainGridController {
   async create(req, res) {
     const transaction = await sequelize.transaction();
@@ -74,18 +77,40 @@ module.exports = class UserMainGridController {
 
       await transaction.commit();
 
+      // Limpar cache relacionado após criar novo registro
+      if (req.redis) {
+        try {
+          // Remove todas as chaves de cache relacionadas ao user_main_grid
+          await RedisCache.removePatternFromCache(req.redis, 'user_main_grid:*');
+          logRedis('Cache limpo após criar novo registro');
+        } catch (cacheError) {
+          logRedis('Erro ao limpar cache (não crítico):', cacheError.message);
+        }
+      }
+
       res.status(200).send({ data: { ...userMainGrid } });
     } catch (err) {
       await transaction.rollback();
 
-      console.log(err);
+      console.error(err);
       res.status(400).send({ message: err.message });
     }
   }
 
   async getAll(req, res) {
     try {
-      const { searchTerm, format } = req.query;
+      const { searchTerm, format, page = 1, limit = 20 } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+
+      // Gerar chave de cache única
+      const cacheKey = RedisCache.generateCacheKey('user_main_grid', searchTerm, format, page, limit);
+
+      // Tentar buscar do cache
+      const cachedData = await RedisCache.getFromCache(req.redis, cacheKey);
+      if (cachedData && cachedData.data.length > 0) {
+        logRedis('Retornando dados do cache Redis (não consultando banco)');
+        return res.status(200).send(cachedData);
+      }
 
       if (searchTerm && searchTerm !== 'null' && format && format !== 'null') {
         let whereClauses = [];
@@ -99,25 +124,45 @@ module.exports = class UserMainGridController {
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
+        // Query para contar total de registros
+        const countQuery = `
+          SELECT COUNT(DISTINCT umg.id) as total
+          FROM user_main_grid umg
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+        `;
+
+        const totalResult = await sequelize.query(countQuery, {
+          replacements,
+          type: Sequelize.QueryTypes.SELECT,
+        });
+
+        const total = totalResult[0].total;
+
+        // Query principal com paginação
         const query = `
-                SELECT
-                    umg.*,
-                    u.id as user_id, u.name as user_name, u.photo as user_photo,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
-                FROM user_main_grid umg
-                LEFT JOIN user u ON umg.user_id = u.id
-                LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
-                LEFT JOIN categories c ON c.id = umgc.category_id
-                LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
-                LEFT JOIN tags t ON t.id = umgt.tag_id
-                ${whereSQL}
-                GROUP BY umg.id
-                ORDER BY umg.created_at DESC, umg.updated_at DESC
-            `;
+          SELECT
+            umg.*,
+            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
+          FROM user_main_grid umg
+          LEFT JOIN user u ON umg.user_id = u.id
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+          GROUP BY umg.id
+          ORDER BY umg.created_at DESC, umg.updated_at DESC
+          LIMIT :limit OFFSET :offset
+        `;
 
         const results = await sequelize.query(query, {
-          replacements,
+          replacements: { ...replacements, limit: parseInt(limit), offset },
           type: Sequelize.QueryTypes.SELECT,
         });
 
@@ -144,7 +189,20 @@ module.exports = class UserMainGridController {
             : [],
         }));
 
-        return res.status(200).send({ data });
+        const responseData = {
+          data,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / parseInt(limit))
+          }
+        };
+
+        // Salvar no cache de forma assíncrona (não bloqueia a resposta)
+        RedisCache.saveToCache(req.redis, cacheKey, responseData);
+
+        return res.status(200).send(responseData);
       }
       // Se apenas searchTerm tem valor (format é null ou undefined)
       else if (searchTerm && searchTerm !== 'null') {
@@ -157,25 +215,45 @@ module.exports = class UserMainGridController {
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
+        // Query para contar total de registros
+        const countQuery = `
+          SELECT COUNT(DISTINCT umg.id) as total
+          FROM user_main_grid umg
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+        `;
+
+        const totalResult = await sequelize.query(countQuery, {
+          replacements,
+          type: Sequelize.QueryTypes.SELECT,
+        });
+
+        const total = totalResult[0].total;
+
+        // Query principal com paginação
         const query = `
-                SELECT
-                    umg.*,
-                    u.id as user_id, u.name as user_name, u.photo as user_photo,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
-                FROM user_main_grid umg
-                LEFT JOIN user u ON umg.user_id = u.id
-                LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
-                LEFT JOIN categories c ON c.id = umgc.category_id
-                LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
-                LEFT JOIN tags t ON t.id = umgt.tag_id
-                ${whereSQL}
-                GROUP BY umg.id
-                ORDER BY umg.created_at DESC, umg.updated_at DESC
-            `;
+          SELECT
+            umg.*,
+            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
+          FROM user_main_grid umg
+          LEFT JOIN user u ON umg.user_id = u.id
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+          GROUP BY umg.id
+          ORDER BY umg.created_at DESC, umg.updated_at DESC
+          LIMIT :limit OFFSET :offset
+        `;
 
         const results = await sequelize.query(query, {
-          replacements,
+          replacements: { ...replacements, limit: parseInt(limit), offset },
           type: Sequelize.QueryTypes.SELECT,
         });
 
@@ -202,7 +280,20 @@ module.exports = class UserMainGridController {
             : [],
         }));
 
-        return res.status(200).send({ data });
+        const responseData = {
+          data,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / parseInt(limit))
+          }
+        };
+
+        // Salvar no cache de forma assíncrona (não bloqueia a resposta)
+        RedisCache.saveToCache(req.redis, cacheKey, responseData);
+
+        return res.status(200).send(responseData);
       }
       // Se apenas format tem valor (searchTerm é null ou undefined)
       else if (format && format !== 'null') {
@@ -215,25 +306,45 @@ module.exports = class UserMainGridController {
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
+        // Query para contar total de registros
+        const countQuery = `
+          SELECT COUNT(DISTINCT umg.id) as total
+          FROM user_main_grid umg
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+        `;
+
+        const totalResult = await sequelize.query(countQuery, {
+          replacements,
+          type: Sequelize.QueryTypes.SELECT,
+        });
+
+        const total = totalResult[0].total;
+
+        // Query principal com paginação
         const query = `
-                SELECT
-                    umg.*,
-                    u.id as user_id, u.name as user_name, u.photo as user_photo,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
-                    GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
-                FROM user_main_grid umg
-                LEFT JOIN user u ON umg.user_id = u.id
-                LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
-                LEFT JOIN categories c ON c.id = umgc.category_id
-                LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
-                LEFT JOIN tags t ON t.id = umgt.tag_id
-                ${whereSQL}
-                GROUP BY umg.id
-                ORDER BY umg.created_at DESC, umg.updated_at DESC
-            `;
+          SELECT
+            umg.*,
+            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
+          FROM user_main_grid umg
+          LEFT JOIN user u ON umg.user_id = u.id
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+          GROUP BY umg.id
+          ORDER BY umg.created_at DESC, umg.updated_at DESC
+          LIMIT :limit OFFSET :offset
+        `;
 
         const results = await sequelize.query(query, {
-          replacements,
+          replacements: { ...replacements, limit: parseInt(limit), offset },
           type: Sequelize.QueryTypes.SELECT,
         });
 
@@ -260,11 +371,24 @@ module.exports = class UserMainGridController {
             : [],
         }));
 
-        return res.status(200).send({ data });
+        const responseData = {
+          data,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / parseInt(limit))
+          }
+        };
+
+        // Salvar no cache de forma assíncrona (não bloqueia a resposta)
+        RedisCache.saveToCache(req.redis, cacheKey, responseData);
+
+        return res.status(200).send(responseData);
       }
       // Se nenhum filtro (ambos são null/undefined ou 'null')
       else {
-        const userMainGrids = await UserMainGrid.findAll({
+        const { count, rows: userMainGrids } = await UserMainGrid.findAndCountAll({
           where: { activite: 0 },
           include: [
             {
@@ -299,6 +423,8 @@ module.exports = class UserMainGridController {
             ["created_at", "DESC"],
             ["updated_at", "DESC"],
           ],
+          limit: parseInt(limit),
+          offset,
         });
 
         const result = userMainGrids.map((grid) => ({
@@ -327,7 +453,20 @@ module.exports = class UserMainGridController {
           })),
         }));
 
-        return res.status(200).send({ data: result });
+        const responseData = {
+          data: result,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: count,
+            totalPages: Math.ceil(count / parseInt(limit))
+          }
+        };
+
+        // Salvar no cache de forma assíncrona (não bloqueia a resposta)
+        RedisCache.saveToCache(req.redis, cacheKey, responseData);
+
+        return res.status(200).send(responseData);
       }
     } catch (err) {
       console.error(err);
@@ -417,7 +556,7 @@ module.exports = class UserMainGridController {
 
       res.status(200).send({ data: result });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send({ message: err.message });
     }
   }
@@ -485,7 +624,7 @@ module.exports = class UserMainGridController {
 
       res.status(200).send({ data: result });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send({ message: err.message });
     }
   }
@@ -526,7 +665,7 @@ module.exports = class UserMainGridController {
 
       res.status(200).send({ data: userMainGrid });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send({ message: err.message });
     }
   }
@@ -569,9 +708,19 @@ module.exports = class UserMainGridController {
         ],
       });
 
+      // Limpar cache relacionado após atualizar registro
+      if (req.redis) {
+        try {
+          await RedisCache.removePatternFromCache(req.redis, 'user_main_grid:*');
+          logRedis('Cache limpo após atualizar registro');
+        } catch (cacheError) {
+          logRedis('Erro ao limpar cache (não crítico):', cacheError.message);
+        }
+      }
+
       res.status(200).send({ status: "ok", data: updatedUserMainGrid });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send({ message: err.message });
     }
   }
@@ -614,9 +763,19 @@ module.exports = class UserMainGridController {
 
       await UserMainGrid.destroy({ where });
 
+      // Limpar cache relacionado após deletar registro
+      if (req.redis) {
+        try {
+          await RedisCache.removePatternFromCache(req.redis, 'user_main_grid:*');
+          logRedis('Cache limpo após deletar registro');
+        } catch (cacheError) {
+          logRedis('Erro ao limpar cache (não crítico):', cacheError.message);
+        }
+      }
+
       res.status(200).send({ status: "ok", data: userMainGrid });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send({ message: err.message });
     }
   }

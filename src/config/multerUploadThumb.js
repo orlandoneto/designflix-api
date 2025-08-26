@@ -3,7 +3,10 @@ const path = require("path");
 const crypto = require("crypto");
 const aws = require("aws-sdk");
 const sharp = require("sharp");
-const { CONST, FOLDER_NAME_THUMBS_PATH_TEST } = require("../utils/constants/constants");
+const { CONST, FOLDER_NAME_THUMBS_PATH } = require("../utils/constants/constants");
+
+const WEBP_QUALITY_IMAGE = 95;
+const HEIGHT_IMAGE = 600;
 
 const s3 = new aws.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -58,7 +61,7 @@ const addWatermarkSoft = async (req, res, next) => {
     }
 
     // Generate filename first
-    const fileName = `${FOLDER_NAME_THUMBS_PATH_TEST}/${crypto.randomBytes(16).toString("hex")}-${Date.now()}.webp`;
+    const fileName = `${FOLDER_NAME_THUMBS_PATH}/${crypto.randomBytes(16).toString("hex")}-${Date.now()}.webp`;
 
     // Process main image
     let imageMetadata;
@@ -75,7 +78,7 @@ const addWatermarkSoft = async (req, res, next) => {
       try {
         req.file.location = await uploadToS3(
           fileName,
-          await sharp(req.file.buffer).webp({ quality: 80 }).toBuffer(),
+          await sharp(req.file.buffer).webp({ quality: WEBP_QUALITY_IMAGE }).toBuffer(),
           "image/webp"
         );
         return next();
@@ -86,7 +89,7 @@ const addWatermarkSoft = async (req, res, next) => {
     }
 
     // ALTERAÇÃO: Limitar a altura a 300px, largura proporcional (liberada)
-    const targetHeight = Math.min(imageMetadata.height, 300);
+    const targetHeight = Math.min(imageMetadata.height, HEIGHT_IMAGE);
     let resizedBuffer;
     let finalWidth, finalHeight;
     try {
@@ -156,13 +159,13 @@ const addWatermarkSoft = async (req, res, next) => {
         // Só faz composite se houver posições válidas
         outputBuffer = await sharp(resizedBuffer)
           .composite(composites)
-          .webp({ quality: 80 })
+          .webp({ quality: WEBP_QUALITY_IMAGE })
           .toBuffer();
         console.log("Watermark applied successfully");
       } else {
         // Apenas converte para webp, sem composite
         outputBuffer = await sharp(resizedBuffer)
-          .webp({ quality: 80 })
+          .webp({ quality: WEBP_QUALITY_IMAGE })
           .toBuffer();
         console.log("No valid watermark positions, uploaded without watermark");
       }
@@ -174,7 +177,7 @@ const addWatermarkSoft = async (req, res, next) => {
       // Fallback: apenas converte para webp, sem composite
       try {
         const fallbackBuffer = await sharp(resizedBuffer)
-          .webp({ quality: 80 })
+          .webp({ quality: WEBP_QUALITY_IMAGE })
           .toBuffer();
         req.file.location = await uploadToS3(fileName, fallbackBuffer, "image/webp");
         console.error("Watermark processing failed, uploaded without watermark:", err);

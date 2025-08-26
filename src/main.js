@@ -1,6 +1,11 @@
 // Carrega as variáveis de ambiente primeiro
 require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') });
 
+// Inicializa o Redis
+const { redis } = require("./config/redis");
+const { logRedisConnection } = require("./config/testingLogs");
+logRedisConnection('Cliente Redis carregado com sucesso');
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -68,6 +73,17 @@ app.use(
 
 setupWebSocket(server);
 
+// Middleware para disponibilizar o Redis
+app.use((req, res, next) => {
+  req.redis = redis;
+  if (redis.status === 'ready') {
+    logRedisConnection('Redis disponível nas requisições');
+  } else {
+    logRedisConnection('Redis ainda não está pronto, status:', redis.status);
+  }
+  next();
+});
+
 // user main grid
 require("./controller/user-main-grid.controller")(app);
 
@@ -92,6 +108,9 @@ require("./controller/admin.controller")(app);
 
 // serviços
 require("./controller/upload.controller")(app);
+
+// upload unificado
+require("./controller/unified-upload.controller")(app);
 
 // google
 require("./controller/google-api.controller")(app);

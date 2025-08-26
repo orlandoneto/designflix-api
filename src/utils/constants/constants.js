@@ -26,7 +26,7 @@ const PLAN_VALUES = {
 };
 
 const PALN_COMMISSION = {
-  comission_contributor: 10, // R$ 0,10 (10 centavos) em centavos
+  comission_contributor: 35, // R$ 0,35 (35 centavos) em centavos
   payout_contributor: 10000, // R$ 100,00 em centavos
 };
 

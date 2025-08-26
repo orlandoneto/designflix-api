@@ -11,10 +11,12 @@ const {
 const multerUploadJPEG = require("../config/multerUploadJPEG");
 const multerUploadZip = require("../config/multerUploadZip");
 const multerPackAvatarConfig = require("../config/multerPackAvatar");
+const removeAvatarFromS3 = require("../middleware/removeAvatarFromS3");
 
 module.exports = (app) => {
   const UploadService = new Upload();
 
+  // TODO: REMOÇÃO FUTURA - Substituído pelo endpoint unificado /unified-upload/*
   app.post(
     "/upload/thumb",
     uploadThumb,
@@ -22,6 +24,7 @@ module.exports = (app) => {
     (req, res) => UploadService.file(req, res)
   );
 
+  // TODO: REMOÇÃO FUTURA - Substituído pelo endpoint unificado /unified-upload/*
   app.post(
     "/upload/preview",
     uploadPreview,
@@ -29,6 +32,7 @@ module.exports = (app) => {
     (req, res) => UploadService.file(req, res)
   );
 
+  // TODO: REMOÇÃO FUTURA - Substituído pelo endpoint unificado /unified-upload/*
   app.post(
     "/upload/jpeg",
     multer(multerUploadJPEG).single("file"),
@@ -41,6 +45,7 @@ module.exports = (app) => {
 
   app.post(
     "/upload/avatar/site",
+    removeAvatarFromS3,
     multer(multerPackAvatarConfig()).single("file"),
     (req, res) => {
       UploadService.file(req, res);

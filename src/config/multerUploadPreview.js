@@ -3,7 +3,7 @@ const path = require("path");
 const crypto = require("crypto");
 const aws = require("aws-sdk");
 const sharp = require("sharp");
-const { CONST, FOLDER_IMAGE_PREVIEWS_PATH_TEST } = require("../utils/constants/constants");
+const { CONST, FOLDER_IMAGE_PREVIEWS_PATH } = require("../utils/constants/constants");
 
 const OPACITY_WATERMARK = 0.1;
 const s3 = new aws.S3({
@@ -102,7 +102,7 @@ const addWatermarkFull = async (req, res, next) => {
     // Converte para WebP
     const webpImage = await convertToWebP(finalBuffer);
 
-    const fileName = `${FOLDER_IMAGE_PREVIEWS_PATH_TEST}/${crypto
+    const fileName = `${FOLDER_IMAGE_PREVIEWS_PATH}/${crypto
       .randomBytes(16)
       .toString("hex")}-${Date.now()}.webp`;
 

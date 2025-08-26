@@ -22,7 +22,10 @@ class UserServices {
     try {
       const users = await User.findAll({
         attributes: [
+          "id",
+          "name",
           "photo",
+          "createdAt",
           [Sequelize.fn("COUNT", Sequelize.col("UserMainGrids.id")), "totalFiles"]
         ],
         where: {
@@ -37,11 +40,22 @@ class UserServices {
             where: { activite: 0 },
           }
         ],
-        group: ["User.id", "User.photo"],
-        raw: true
+        group: ["User.id"],
+        order: [["createdAt", "DESC"]]
       });
-      res.status(200).send({ data: users });
+
+      // Converter para formato simples
+      const formattedUsers = users.map(user => ({
+        id: user.id,
+        name: user.name,
+        photo: user.photo,
+        createdAt: user.createdAt,
+        totalFiles: parseInt(user.dataValues.totalFiles) || 0
+      }));
+
+      res.status(200).send({ data: formattedUsers });
     } catch (err) {
+      console.error("Erro em getAllAvatars:", err);
       res.status(500).send({ message: "Erro ao buscar fotos dos usuários.", error: err.message });
     }
   }
@@ -539,7 +553,7 @@ class UserServices {
             baseUrl: process.env.API_URL,
           };
 
-          // Envia o email de confirmação
+          // Envia o email de confirmação para o usuário
           sendEmail(paramsEmail, "contributorRequest", contextParams)
             .then((response) => {
               console.log("Email de solicitação de contribuidor enviado com sucesso:", response);
@@ -547,6 +561,31 @@ class UserServices {
             .catch((error) => {
               console.error("Erro ao enviar email de solicitação de contribuidor:", error);
             });
+
+          // Envia email para moderadores
+          const moderators = [
+            "orlandoneto23@gmail.com",
+            "arlinofilho@gmail.com",
+            "designflixs3@gmail.com"
+          ];
+          moderators.forEach((modEmail) => {
+            const paramsMod = {
+              email: modEmail,
+              name: user.name,
+              title: "Nova Solicitação de Contribuidor - FlixDesign",
+              description: `O usuário ${user.name} (${user.email}) solicitou ser contribuidor.`
+            };
+            sendEmail(paramsMod, "contributorRequestAdmin", {
+              ...contextParams,
+              email: user.email
+            })
+              .then((response) => {
+                console.log("Email de notificação para moderador enviado:", modEmail, response.messageId);
+              })
+              .catch((error) => {
+                console.error("Erro ao enviar email para moderador:", modEmail, error);
+              });
+          });
         }
 
         res.status(200).send({
@@ -584,5 +623,16 @@ class UserServices {
       res.status(500).send({ message: "Ocorreu um erro." });
     }
   }
+
+  async removeUserPhoto(req, res) {
+    const userId = req.params.userId;
+    try {
+      await User.update({ photo: null }, { where: { id: userId } });
+      return res.status(200).json({ success: true, message: "Foto removida com sucesso" });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
 }
 module.exports = new UserServices();

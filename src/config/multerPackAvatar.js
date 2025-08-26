@@ -1,7 +1,8 @@
 const crypto = require("crypto");
 const aws = require("aws-sdk");
 const multerS3 = require("multer-s3");
-const { CONST, FOLDER_IMAGES_PROFILE_TEST } = require("../utils/constants/constants");
+const { CONST } = require("../utils/constants/constants");
+const EnvironmentPaths = require("../utils/environmentPaths");
 
 const storageTypes = {
   s3: () => multerS3({
@@ -17,7 +18,9 @@ const storageTypes = {
       crypto.randomBytes(16, (err, hash) => {
         if (err) cb(err);
 
-        const fileName = `${FOLDER_IMAGES_PROFILE_TEST}/${hash.toString("hex")}-${file.originalname}`;
+        // Usar path do ambiente (profile_test ou profile)
+        const profilePath = EnvironmentPaths.getProfilePath();
+        const fileName = `${profilePath}/${hash.toString("hex")}-${file.originalname}`;
         cb(null, fileName);
       });
     },
