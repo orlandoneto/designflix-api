@@ -101,7 +101,7 @@ Formato: ZIP (extensão do CONTEÚDO)
 
 #### **Cenários de Funcionamento:**
 
-##### **🟢 Cenário 1: PNG + JPG (qualquer fundo)**
+##### **🟢 Cenário: PNG + JPG (qualquer fundo)**
 ```
 📁 arquivo.zip
 ├── design.png      ← CONTEÚDO (qualquer fundo)
@@ -111,19 +111,11 @@ Resultado: JPG como PREVIEW, PNG como CONTEÚDO
 Formato: PNG (extensão do CONTEÚDO)
 ```
 
-##### **🔴 Cenário 2: JPG + PNG (qualquer fundo)**
-```
-📁 arquivo.zip
-├── design.png      ← CONTEÚDO (qualquer fundo)
-└── preview.jpg     ← PREVIEW (JPG sempre prioridade)
-
-Resultado: JPG como PREVIEW, PNG como CONTEÚDO
-Formato: PNG (extensão do CONTEÚDO)
-```
+Observação: independe de transparência/fundo; não há análise de canal alpha.
 
 ### **Detalhes Técnicos:**
 - **Regra simplificada**: JPG sempre será preview se tiver PNG + JPG
-- **Não analisa**: Transparência, fundo brano, canal alpha
+- **Não analisa**: Transparência, fundo branco, canal alpha
 - **Não detecta**: Edição de imagens, metadados EXIF/IPTC
 - **Performance**: Muito mais rápida (sem análise de pixels)
 - **Simplicidade**: Regra direta e fácil de entender
@@ -192,13 +184,14 @@ Formato: JPG (extensão da imagem)
 
 ### **Arquivos Principais:**
 - `src/utils/archiveProcessor.js` - Processamento de arquivos compactados
-- `src/utils/imageProcessor.js` - Análise de imagens e detecção de transparência
+- `src/utils/filenameSanitizer.js` - Sanitização robusta de nomes de arquivos
+- `src/utils/imageProcessor.js` - Análise de imagens (mantido para outras operações)
 - `src/services/unified-upload.service.js` - Serviço principal de upload
 
 ### **Funções Chave:**
 - `detectArchiveRule()` - Detecção automática de regras
 - `selectPreviewAndContent()` - Seleção inteligente simplificada (JPG sempre preview)
-- `analyzeImageAlpha()` - Análise de canal alpha (mantida para compatibilidade)
+- `sanitizeFilename()` - Sanitização de nomes para evitar problemas de encoding/mojibake
 
 ---
 
@@ -213,6 +206,16 @@ Formato: JPG (extensão da imagem)
 🎯 REGRA APLICADA: Zip com PSD - Preview (JPG ou PNG) + .psd
 📋 Tipo de regra: psd_rule
 🎨 Aplicando regra PSD: preview.jpg como preview, design.psd como conteúdo
+```
+
+### **Exemplo de Logs (Seleção Inteligente + Sanitização):**
+```
+🔍 Analisando conteúdo para detectar regra aplicável...
+📄 Arquivo: "Espiga-de-Milho-...-Sa╠âo.jpg" -> Normalizado/Sanitizado: "Espiga-de-Milho-...-Sao.jpg" -> Ext: ".jpg"
+📄 Arquivo: "Espiga de Milho ... Sa╠âo.png" -> Normalizado/Sanitizado: "Espiga-de-Milho-...-Sao.png" -> Ext: ".png"
+🎯 REGRA DETECTADA: Zip com 2 imagens (seleção inteligente)
+✅ Seleção inteligente: [JPG] como PREVIEW, [PNG] como CONTEÚDO
+Método: jpg_always_preview
 ```
 
 ---
@@ -270,7 +273,7 @@ POST /unified-upload/single
 
 - **Fallback automático** em caso de erro
 - **Validação de arquivos** antes do processamento
-- **Logs detalhados** para debugging
+- **Logs detalhados** para debugging (inclui nomes sanitizados vs originais)
 - **Tratamento de erros** robusto
 - **Compatibilidade** com sistema existente
 - **Regras simplificadas** para maior confiabilidade
