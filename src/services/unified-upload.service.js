@@ -11,6 +11,11 @@ const EnvironmentPaths = require("../utils/environmentPaths");
 const { sanitizeFilename } = require("../utils/filenameSanitizer");
 
 /**
+ * Máximo de arquivos permitidos por upload
+ */
+const MAX_UPLOAD_FILES = 40;
+
+/**
  * Serviço unificado para upload de arquivos compactados
  * Processa arquivos ZIP, RAR, etc. e extrai preview + conteúdo
  */
@@ -338,8 +343,8 @@ class UnifiedUploadService {
         throw new Error("No files provided");
       }
 
-      if (files.length > 20) {
-        throw new Error("Maximum 20 files allowed per upload");
+      if (files.length > MAX_UPLOAD_FILES) {
+        throw new Error(`Maximum ${MAX_UPLOAD_FILES} files allowed per upload`);
       }
 
       logMultpleUpload(`Starting multiple archive upload: ${files.length} files`);
