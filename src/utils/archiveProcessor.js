@@ -90,7 +90,7 @@ class ArchiveProcessor {
           // Use a sanitized display name for detection/selection, but keep original for extraction
           const ext = path.extname(file.path).toLowerCase();
           const originalName = file.path;
-          const sanitized = sanitizeFilename(path.basename(file.path));
+          const sanitized = sanitizeFilename(path.basename(file.path), 80);
           let base = sanitized.replace(ext, "");
           // Garantir unicidade determinística por arquivo
           const key = base + ext;
@@ -114,7 +114,7 @@ class ArchiveProcessor {
             if (entry && entry.path) {
               const ext = path.extname(entry.path).toLowerCase();
               const originalName = entry.path;
-              const sanitized = sanitizeFilename(path.basename(entry.path));
+              const sanitized = sanitizeFilename(path.basename(entry.path), 80);
               let base = sanitized.replace(ext, "");
               const key = base + ext;
               const count = usedNames.get(key) || 0;
@@ -149,8 +149,24 @@ class ArchiveProcessor {
 
     return contents.filter(file => {
       if (file.isDirectory) return false;
-      const ext = path.extname(file.name).toLowerCase();
-      return imageExtensions.includes(ext);
+      try {
+        const normalizedName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        return (
+          normalizedName.endsWith('.jpg') ||
+          normalizedName.endsWith('.jpeg') ||
+          normalizedName.endsWith('.png') ||
+          normalizedName.endsWith('.gif') ||
+          normalizedName.endsWith('.svg') ||
+          normalizedName.endsWith('.psd') ||
+          normalizedName.endsWith('.ai') ||
+          normalizedName.endsWith('.cdr') ||
+          normalizedName.endsWith('.eps') ||
+          normalizedName.endsWith('.webp')
+        );
+      } catch (_e) {
+        const ext = path.extname(file.name).toLowerCase();
+        return imageExtensions.includes(ext);
+      }
     });
   }
 
@@ -182,7 +198,7 @@ class ArchiveProcessor {
         let candidate = null;
         for (const f of entries.files) {
           const ext = path.extname(f.path).toLowerCase();
-          const sanitized = sanitizeFilename(path.basename(f.path));
+          const sanitized = sanitizeFilename(path.basename(f.path), 80);
           let base = sanitized.replace(ext, "");
           const key = base + ext;
           const count = usedNames.get(key) || 0;
@@ -216,7 +232,7 @@ class ArchiveProcessor {
           filter: (p) => {
             // tar filter recebe paths originais; mapear para nome sanitizado único
             const ext = path.extname(p).toLowerCase();
-            const sanitized = sanitizeFilename(path.basename(p));
+            const sanitized = sanitizeFilename(path.basename(p), 80);
             let base = sanitized.replace(ext, "");
             const key = base + ext;
             const count = usedNames.get(key) || 0;
@@ -364,14 +380,12 @@ class ArchiveProcessor {
       // Filtrar apenas imagens (não PSD, AI, CDR) com normalização robusta
       const validImages = imageFiles.filter(file => {
         try {
-          // Normalizar nome do arquivo para lidar com caracteres especiais
-          const normalizedName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const ext = path.extname(normalizedName).toLowerCase();
-          console.log(`🔍 Verificando imagem válida: "${file.name}" -> "${normalizedName}" -> "${ext}"`);
-          return ['.png', '.jpg', '.jpeg', '.gif'].includes(ext);
+          const normalizedName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          const isValid = /\.(png|jpe?g|gif)$/.test(normalizedName);
+          console.log(`🔍 Verificando imagem válida: "${file.name}" -> "${normalizedName}" -> válido: ${isValid}`);
+          return isValid;
         } catch (error) {
           console.warn(`⚠️ Erro ao verificar extensão do arquivo "${file.name}":`, error);
-          // Fallback
           const ext = path.extname(file.name).toLowerCase();
           return ['.png', '.jpg', '.jpeg', '.gif'].includes(ext);
         }
@@ -388,10 +402,9 @@ class ArchiveProcessor {
       // NOVA REGRA SIMPLIFICADA: Encontrar JPG e PNG com normalização robusta
       const jpgFile = validImages.find(f => {
         try {
-          const normalizedName = f.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const ext = path.extname(normalizedName).toLowerCase();
-          return ['.jpg', '.jpeg'].includes(ext);
-        } catch (error) {
+          const normalizedName = f.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          return normalizedName.endsWith('.jpg') || normalizedName.endsWith('.jpeg');
+        } catch (_e) {
           const ext = path.extname(f.name).toLowerCase();
           return ['.jpg', '.jpeg'].includes(ext);
         }
@@ -399,10 +412,9 @@ class ArchiveProcessor {
 
       const pngFile = validImages.find(f => {
         try {
-          const normalizedName = f.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const ext = path.extname(normalizedName).toLowerCase();
-          return ext === '.png';
-        } catch (error) {
+          const normalizedName = f.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          return normalizedName.endsWith('.png');
+        } catch (_e) {
           const ext = path.extname(f.name).toLowerCase();
           return ext === '.png';
         }
@@ -532,21 +544,39 @@ class ArchiveProcessor {
 
         default:
           // REGRA 6: Padrão (fallback)
-          if (imageFiles.length === 2) {
-            // Aplicar regra de seleção inteligente
-            const selection = await this.selectPreviewAndContent(imageFiles, archivePath, tempDir);
-            previewFile = selection.previewFile;
-            contentFile = selection.contentFile;
-            selectionMethod = selection.selectionMethod;
+          // Tentar aplicar seleção inteligente se houver exatamente JPG+PNG entre várias imagens
+          try {
+            const twoValid = imageFiles.filter(f => {
+              const nm = (f.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+              return /\.(png|jpe?g)$/.test(nm);
+            });
 
-            console.log(`🎯 Método de seleção: ${selectionMethod}`);
-          } else {
-            // Lógica existente para outros casos
+            if (twoValid.length === 2) {
+              const selection = await this.selectPreviewAndContent(twoValid, archivePath, tempDir);
+              previewFile = selection.previewFile;
+              contentFile = selection.contentFile;
+              selectionMethod = selection.selectionMethod;
+              console.log(`🎯 Método de seleção (fallback inteligente): ${selectionMethod}`);
+            } else if (imageFiles.length === 2) {
+              const selection = await this.selectPreviewAndContent(imageFiles, archivePath, tempDir);
+              previewFile = selection.previewFile;
+              contentFile = selection.contentFile;
+              selectionMethod = selection.selectionMethod;
+              console.log(`🎯 Método de seleção: ${selectionMethod}`);
+            } else {
+              // Lógica existente para outros casos
+              previewFile = imageFiles[0];
+              contentFile = imageFiles.length > 1 ? imageFiles[1] : null;
+              selectionMethod = 'standard';
+              console.log(`🔄 Aplicando regra padrão: ${previewFile.name} como preview`);
+            }
+          } catch (_e) {
+            // Fallback final
             previewFile = imageFiles[0];
             contentFile = imageFiles.length > 1 ? imageFiles[1] : null;
             selectionMethod = 'standard';
+            console.log(`🔄 Aplicando regra padrão (erro): ${previewFile?.name}`);
           }
-          console.log(`🔄 Aplicando regra padrão: ${previewFile.name} como preview`);
           break;
       }
 
