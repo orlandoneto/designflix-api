@@ -8,6 +8,7 @@ const ImageProcessor = require("../utils/imageProcessor");
 const ArchiveProcessor = require("../utils/archiveProcessor");
 const TagGenerator = require("../utils/tagGenerator");
 const EnvironmentPaths = require("../utils/environmentPaths");
+const { sanitizeFilename } = require("../utils/filenameSanitizer");
 
 /**
  * Serviço unificado para upload de arquivos compactados
@@ -99,7 +100,8 @@ class UnifiedUploadService {
    * Salva arquivo compactado temporariamente
    */
   async saveTempArchive(fileBuffer, originalName) {
-    const tempPath = path.join(this.tempDir, originalName);
+    const safeName = sanitizeFilename(originalName, 80);
+    const tempPath = path.join(this.tempDir, safeName);
     await fs.promises.writeFile(tempPath, fileBuffer);
     return tempPath;
   }
