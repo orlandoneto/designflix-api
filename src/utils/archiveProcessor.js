@@ -197,10 +197,25 @@ class ArchiveProcessor {
 
       // Filtrar apenas arquivos (não diretórios)
       const files = contents.filter(item => !item.isDirectory);
-      const fileExtensions = files.map(file => path.extname(file.name).toLowerCase());
+      
+      // Normalizar nomes de arquivos e extrair extensões de forma mais robusta
+      const fileExtensions = files.map(file => {
+        try {
+          // Normalizar Unicode e limpar caracteres problemáticos
+          const normalizedName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const ext = path.extname(normalizedName).toLowerCase();
+          console.log(`📄 Arquivo: "${file.name}" -> Normalizado: "${normalizedName}" -> Ext: "${ext}"`);
+          return ext;
+        } catch (error) {
+          console.warn(`⚠️ Erro ao processar nome do arquivo "${file.name}":`, error);
+          // Fallback: tentar extrair extensão diretamente
+          const ext = path.extname(file.name).toLowerCase();
+          return ext;
+        }
+      });
 
       console.log(`📁 Arquivos encontrados: ${files.map(f => f.name).join(', ')}`);
-      console.log(`🔤 Extensões: ${fileExtensions.join(', ')}`);
+      console.log(`🔤 Extensões detectadas: ${fileExtensions.join(', ')}`);
 
       // REGRA 1: Zip com PSD (maior prioridade)
       if (fileExtensions.includes('.psd')) {
@@ -296,10 +311,20 @@ class ArchiveProcessor {
    */
   static async selectPreviewAndContent(imageFiles, archivePath, tempDir) {
     try {
-      // Filtrar apenas imagens (não PSD, AI, CDR)
+      // Filtrar apenas imagens (não PSD, AI, CDR) com normalização robusta
       const validImages = imageFiles.filter(file => {
-        const ext = path.extname(file.name).toLowerCase();
-        return ['.png', '.jpg', '.jpeg', '.gif'].includes(ext);
+        try {
+          // Normalizar nome do arquivo para lidar com caracteres especiais
+          const normalizedName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const ext = path.extname(normalizedName).toLowerCase();
+          console.log(`🔍 Verificando imagem válida: "${file.name}" -> "${normalizedName}" -> "${ext}"`);
+          return ['.png', '.jpg', '.jpeg', '.gif'].includes(ext);
+        } catch (error) {
+          console.warn(`⚠️ Erro ao verificar extensão do arquivo "${file.name}":`, error);
+          // Fallback
+          const ext = path.extname(file.name).toLowerCase();
+          return ['.png', '.jpg', '.jpeg', '.gif'].includes(ext);
+        }
       });
 
       // Só aplicar a regra se tiver exatamente 2 imagens válidas
@@ -310,9 +335,28 @@ class ArchiveProcessor {
 
       console.log(`🎯 Aplicando regra de seleção inteligente para 2 imagens: ${validImages.map(f => f.name).join(', ')}`);
 
-      // NOVA REGRA SIMPLIFICADA: Encontrar JPG e PNG
-      const jpgFile = validImages.find(f => ['.jpg', '.jpeg'].includes(path.extname(f.name).toLowerCase()));
-      const pngFile = validImages.find(f => path.extname(f.name).toLowerCase() === '.png');
+      // NOVA REGRA SIMPLIFICADA: Encontrar JPG e PNG com normalização robusta
+      const jpgFile = validImages.find(f => {
+        try {
+          const normalizedName = f.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const ext = path.extname(normalizedName).toLowerCase();
+          return ['.jpg', '.jpeg'].includes(ext);
+        } catch (error) {
+          const ext = path.extname(f.name).toLowerCase();
+          return ['.jpg', '.jpeg'].includes(ext);
+        }
+      });
+      
+      const pngFile = validImages.find(f => {
+        try {
+          const normalizedName = f.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const ext = path.extname(normalizedName).toLowerCase();
+          return ext === '.png';
+        } catch (error) {
+          const ext = path.extname(f.name).toLowerCase();
+          return ext === '.png';
+        }
+      });
 
       if (jpgFile && pngFile) {
         // NOVA REGRA: JPG sempre será preview
