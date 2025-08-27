@@ -10,12 +10,12 @@ Sistema inteligente de upload e processamento de arquivos compactados (ZIP, RAR,
 
 | Prioridade | Regra | Descrição | Formato |
 |------------|-------|-----------|---------|
-| 1 | **PSD Rule** | Zip com PSD | **Extensão do PREVIEW** (JPG/PNG) |
-| 2 | **Vector Rule** | Zip com Vetor (AI/CDR/EPS) | **Extensão do PREVIEW** (JPG/PNG) |
-| 3 | **Instagram Stickers** | Zip com ZIP (figurinhas) | **Extensão do PREVIEW** (JPG/PNG) |
-| 4 | **Intelligent Image Selection** | Zip com 2 imagens | **Extensão do PREVIEW** (JPG/PNG) |
-| 5 | **Single Image** | Zip com 1 imagem | **Extensão do PREVIEW** (JPG/PNG) |
-| 6 | **Default Rule** | Fallback | **Extensão do PREVIEW** |
+| 1 | **PSD Rule** | Zip com PSD | **Extensão do CONTEÚDO** (PSD) |
+| 2 | **Vector Rule** | Zip com Vetor (AI/CDR/EPS) | **Extensão do CONTEÚDO** (AI/CDR/EPS) |
+| 3 | **Instagram Stickers** | Zip com ZIP (figurinhas) | **Extensão do CONTEÚDO** (ZIP) |
+| 4 | **Intelligent Image Selection** | Zip com 2 imagens | **Extensão do CONTEÚDO** (JPG/PNG) |
+| 5 | **Single Image** | Zip com 1 imagem | **Extensão do CONTEÚDO** (JPG/PNG) |
+| 6 | **Default Rule** | Fallback | **Extensão do CONTEÚDO** |
 
 ---
 
@@ -27,7 +27,7 @@ Sistema inteligente de upload e processamento de arquivos compactados (ZIP, RAR,
 ### **Processamento:**
 - **Preview**: Primeira imagem (JPG/PNG) encontrada
 - **Conteúdo**: Arquivo PSD
-- **Formato**: Extensão do PREVIEW (JPG/PNG)
+- **Formato**: Extensão do CONTEÚDO (PSD)
 
 ### **Exemplo:**
 ```
@@ -36,7 +36,7 @@ Sistema inteligente de upload e processamento de arquivos compactados (ZIP, RAR,
 └── design.psd      ← CONTEÚDO
 
 Resultado: Preview + .psd
-Formato: JPG (extensão do PREVIEW)
+Formato: PSD (extensão do CONTEÚDO)
 ```
 
 ---
@@ -49,7 +49,7 @@ Formato: JPG (extensão do PREVIEW)
 ### **Processamento:**
 - **Preview**: Primeira imagem (JPG/PNG) encontrada
 - **Conteúdo**: Arquivo vetorial (AI/CDR/EPS)
-- **Formato**: Extensão do PREVIEW (JPG/PNG)
+- **Formato**: Extensão do CONTEÚDO (AI/CDR/EPS)
 
 ### **Exemplo:**
 ```
@@ -58,7 +58,7 @@ Formato: JPG (extensão do PREVIEW)
 └── logo.eps        ← CONTEÚDO
 
 Resultado: Preview + .eps
-Formato: PNG (extensão do PREVIEW)
+Formato: EPS (extensão do CONTEÚDO)
 ```
 
 ---
@@ -71,7 +71,7 @@ Formato: PNG (extensão do PREVIEW)
 ### **Processamento:**
 - **Preview**: Primeira imagem (JPG/PNG) encontrada
 - **Conteúdo**: Arquivo ZIP interno
-- **Formato**: Extensão do PREVIEW (JPG/PNG)
+- **Formato**: Extensão do CONTEÚDO (ZIP)
 
 ### **Exemplo:**
 ```
@@ -80,7 +80,7 @@ Formato: PNG (extensão do PREVIEW)
 └── stickers.zip    ← CONTEÚDO
 
 Resultado: Preview + .zip
-Formato: JPG (extensão do PREVIEW)
+Formato: ZIP (extensão do CONTEÚDO)
 ```
 
 ---
@@ -107,7 +107,7 @@ Formato: JPG (extensão do PREVIEW)
 └── preview.jpg     ← PREVIEW (fundo brano)
 
 Resultado: JPG como PREVIEW, PNG como CONTEÚDO
-Formato: JPG
+Formato: PNG (extensão do CONTEÚDO)
 ```
 
 ##### **🔴 Cenário 2: PNG transparente + JPG sólido**
@@ -117,7 +117,7 @@ Formato: JPG
 └── preview.jpg     ← CONTEÚDO (fundo sólido)
 
 Resultado: PNG como PREVIEW, JPG como CONTEÚDO
-Formato: PNG
+Formato: JPG (extensão do CONTEÚDO)
 ```
 
 ##### **🟡 Cenário 3: Ambos transparentes (JPG tem prioridade)**
@@ -127,7 +127,7 @@ Formato: PNG
 └── preview.jpg     ← PREVIEW (fundo brano - prioridade)
 
 Resultado: JPG como PREVIEW (prioridade), PNG como CONTEÚDO
-Formato: JPG
+Formato: PNG (extensão do CONTEÚDO)
 ```
 
 ### **Detalhes Técnicos:**
@@ -145,7 +145,7 @@ Formato: JPG
 ### **Processamento:**
 - **Preview**: A própria imagem
 - **Conteúdo**: Nenhum (mesmo arquivo)
-- **Formato**: Extensão da imagem
+- **Formato**: Extensão da imagem (JPG/PNG)
 
 ### **Exemplo:**
 ```
@@ -153,7 +153,7 @@ Formato: JPG
 └── design.jpg      ← PREVIEW = CONTEÚDO
 
 Resultado: .jpg (preview é o mesmo do original)
-Formato: JPG
+Formato: JPG (extensão da imagem)
 ```
 
 ---
@@ -167,7 +167,7 @@ Formato: JPG
 ### **Processamento:**
 - **Preview**: Primeira imagem encontrada
 - **Conteúdo**: Segunda imagem (se houver)
-- **Formato**: Extensão da primeira imagem
+- **Formato**: Extensão do CONTEÚDO (segunda imagem)
 
 ---
 

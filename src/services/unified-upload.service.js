@@ -177,8 +177,8 @@ class UnifiedUploadService {
         ? ArchiveProcessor.detectContentFormat(archiveData.content.path)
         : imageFormat.format;
 
-      // IMPORTANTE: O formato retornado deve ser a extensão do PREVIEW, não do conteúdo
-      const finalFormat = imageFormat.format; // Sempre extensão do PREVIEW
+      // IMPORTANTE: O formato retornado deve ser a extensão do CONTEÚDO
+      const finalFormat = contentFormat; // Sempre extensão do CONTEÚDO
 
       // Gerar tags baseado no nome e categoria
       const tags = TagGenerator.generateContextualTags(
@@ -197,7 +197,7 @@ class UnifiedUploadService {
       // Preparar dados para retorno
       const result = {
         name: baseName,
-        format: finalFormat, // ✅ CORRIGIDO: Sempre extensão do PREVIEW
+        format: finalFormat, // ✅ CORRIGIDO: Sempre extensão do CONTEÚDO
         url_thumb: thumbnailResult.url,
         url_cover: previewResult.url,
         url: contentResult ? contentResult.url : null,
