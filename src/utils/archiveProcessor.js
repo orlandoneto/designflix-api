@@ -87,6 +87,19 @@ class ArchiveProcessor {
             return null;
           }
 
+          // Ignorar artefatos do macOS e recursos
+          try {
+            const pathInZip = String(file.path).replace(/^\/+/, "");
+            const baseNameRaw = path.basename(file.path);
+            if (
+              pathInZip.startsWith("__MACOSX/") ||
+              baseNameRaw === ".DS_Store" ||
+              baseNameRaw.startsWith("._")
+            ) {
+              return null;
+            }
+          } catch (_e) { }
+
           // Use a sanitized display name for detection/selection, but keep original for extraction
           const ext = path.extname(file.path).toLowerCase();
           const originalName = file.path;
@@ -112,6 +125,19 @@ class ArchiveProcessor {
           file: archivePath,
           onentry: (entry) => {
             if (entry && entry.path) {
+              // Ignorar artefatos do macOS e recursos
+              try {
+                const pathInTar = String(entry.path).replace(/^\/+/, "");
+                const baseNameRaw = path.basename(entry.path);
+                if (
+                  pathInTar.startsWith("__MACOSX/") ||
+                  baseNameRaw === ".DS_Store" ||
+                  baseNameRaw.startsWith("._")
+                ) {
+                  return;
+                }
+              } catch (_e) { }
+
               const ext = path.extname(entry.path).toLowerCase();
               const originalName = entry.path;
               const sanitized = sanitizeFilename(path.basename(entry.path), 80);
@@ -149,6 +175,18 @@ class ArchiveProcessor {
 
     return contents.filter(file => {
       if (file.isDirectory) return false;
+      // Filtrar novamente artefatos do macOS por segurança
+      try {
+        const baseNameRaw = path.basename(file.originalName || file.name || "");
+        const pathRaw = String(file.originalName || file.name || "");
+        if (
+          pathRaw.startsWith("__MACOSX/") ||
+          baseNameRaw === ".DS_Store" ||
+          baseNameRaw.startsWith("._")
+        ) {
+          return false;
+        }
+      } catch (_e) { }
       try {
         const normalizedName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         return (
@@ -179,6 +217,18 @@ class ArchiveProcessor {
 
     return contents.filter(file => {
       if (file.isDirectory) return false;
+      // Filtrar artefatos macOS por segurança
+      try {
+        const baseNameRaw = path.basename(file.originalName || file.name || "");
+        const pathRaw = String(file.originalName || file.name || "");
+        if (
+          pathRaw.startsWith("__MACOSX/") ||
+          baseNameRaw === ".DS_Store" ||
+          baseNameRaw.startsWith("._")
+        ) {
+          return false;
+        }
+      } catch (_e) { }
       const ext = path.extname(file.name).toLowerCase();
       return contentExtensions.includes(ext);
     });
@@ -198,6 +248,14 @@ class ArchiveProcessor {
         let candidate = null;
         for (const f of entries.files) {
           const ext = path.extname(f.path).toLowerCase();
+          // Pular artefatos macOS
+          try {
+            const p = String(f.path).replace(/^\/+/, "");
+            const bn = path.basename(f.path);
+            if (p.startsWith("__MACOSX/") || bn === ".DS_Store" || bn.startsWith("._")) {
+              continue;
+            }
+          } catch (_e) { }
           const sanitized = sanitizeFilename(path.basename(f.path), 80);
           let base = sanitized.replace(ext, "");
           const key = base + ext;
@@ -232,6 +290,14 @@ class ArchiveProcessor {
           filter: (p) => {
             // tar filter recebe paths originais; mapear para nome sanitizado único
             const ext = path.extname(p).toLowerCase();
+            // Pular artefatos macOS
+            try {
+              const pathInTar = String(p).replace(/^\/+/, "");
+              const bn = path.basename(p);
+              if (pathInTar.startsWith("__MACOSX/") || bn === ".DS_Store" || bn.startsWith("._")) {
+                return false;
+              }
+            } catch (_e) { }
             const sanitized = sanitizeFilename(path.basename(p), 80);
             let base = sanitized.replace(ext, "");
             const key = base + ext;
@@ -546,12 +612,33 @@ class ArchiveProcessor {
           // REGRA 6: Padrão (fallback)
           // Tentar aplicar seleção inteligente se houver exatamente JPG+PNG entre várias imagens
           try {
-            const twoValid = imageFiles.filter(f => {
+            const notMacArtifacts = imageFiles.filter(f => {
+              const orig = String(f.originalName || f.name || '').toLowerCase();
+              const base = path.basename(f.originalName || f.name || '');
+              return !orig.startsWith('__macosx/') && base !== '.DS_Store' && !base.startsWith('._');
+            });
+
+            const twoValid = notMacArtifacts.filter(f => {
               const nm = (f.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
               return /\.(png|jpe?g)$/.test(nm);
             });
 
-            if (twoValid.length === 2) {
+            // Se houver pelo menos 1 JPG e 1 PNG, aplicar prioridade JPG>PNG
+            const jpgs = twoValid.filter(f => {
+              const nm = (f.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+              return nm.endsWith('.jpg') || nm.endsWith('.jpeg');
+            });
+            const pngs = twoValid.filter(f => {
+              const nm = (f.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+              return nm.endsWith('.png');
+            });
+
+            if (jpgs.length >= 1 && pngs.length >= 1) {
+              previewFile = jpgs[0];
+              contentFile = pngs[0];
+              selectionMethod = 'jpg_always_preview_fallback_many';
+              console.log(`✅ Fallback com múltiplas imagens: ${previewFile.name} como PREVIEW, ${contentFile.name} como CONTEÚDO`);
+            } else if (twoValid.length === 2) {
               const selection = await this.selectPreviewAndContent(twoValid, archivePath, tempDir);
               previewFile = selection.previewFile;
               contentFile = selection.contentFile;
