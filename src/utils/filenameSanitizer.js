@@ -48,5 +48,3 @@ function sanitizeFilename(originalName, maxLength = 50) {
 }
 
 module.exports = { sanitizeFilename };
-
-
