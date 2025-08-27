@@ -1,8 +1,8 @@
-# 🚀 DesignFlix API - Sistema de Upload Inteligente
+# 🚀 DesignFlix API - Sistema de Upload Inteligente (REGRAS SIMPLIFICADAS)
 
 ## 📋 Visão Geral
 
-Sistema inteligente de upload e processamento de arquivos compactados (ZIP, RAR, 7Z, TAR) com detecção automática de regras e seleção inteligente de preview vs conteúdo.
+Sistema inteligente de upload e processamento de arquivos compactados (ZIP, RAR, 7Z, TAR) com detecção automática de regras e **seleção inteligente simplificada** (JPG sempre preview se tiver PNG + JPG).
 
 ## 🎯 Regras de Processamento
 
@@ -91,49 +91,42 @@ Formato: ZIP (extensão do CONTEÚDO)
 - Arquivo contém **exatamente 2 imagens** (JPG/PNG)
 - Apenas extensões: `.jpg`, `.jpeg`, `.png`
 
-### **Processamento Inteligente:**
+### **Processamento Inteligente (REGRAS SIMPLIFICADAS):**
 
-#### **Prioridade JPG (Sempre Primeiro):**
-1. **Verificar JPG primeiro** - detectar fundo brano (RGB > 240)
-2. **Depois verificar PNG** - detectar canal alpha real (< 128)
-3. **JPG tem prioridade absoluta** se ambos forem "transparentes"
+#### **NOVA REGRA: JPG sempre será PREVIEW**
+- **Se tiver PNG + JPG → JPG SEMPRE será PREVIEW**
+- **Não precisa analisar transparência/fundo**
+- **Não precisa detectar edição**
+- **Regra muito mais simples e direta!**
 
 #### **Cenários de Funcionamento:**
 
-##### **🟢 Cenário 1: JPG transparente + PNG sólido**
+##### **🟢 Cenário 1: PNG + JPG (qualquer fundo)**
 ```
 📁 arquivo.zip
-├── design.png      ← CONTEÚDO (fundo sólido)
-└── preview.jpg     ← PREVIEW (fundo brano)
+├── design.png      ← CONTEÚDO (qualquer fundo)
+└── preview.jpg     ← PREVIEW (JPG sempre prioridade)
 
 Resultado: JPG como PREVIEW, PNG como CONTEÚDO
 Formato: PNG (extensão do CONTEÚDO)
 ```
 
-##### **🔴 Cenário 2: PNG transparente + JPG sólido**
+##### **🔴 Cenário 2: JPG + PNG (qualquer fundo)**
 ```
 📁 arquivo.zip
-├── design.png      ← PREVIEW (fundo transparente)
-└── preview.jpg     ← CONTEÚDO (fundo sólido)
+├── design.png      ← CONTEÚDO (qualquer fundo)
+└── preview.jpg     ← PREVIEW (JPG sempre prioridade)
 
-Resultado: PNG como PREVIEW, JPG como CONTEÚDO
-Formato: JPG (extensão do CONTEÚDO)
-```
-
-##### **🟡 Cenário 3: Ambos transparentes (JPG tem prioridade)**
-```
-📁 arquivo.zip
-├── design.png      ← CONTEÚDO (fundo transparente)
-└── preview.jpg     ← PREVIEW (fundo brano - prioridade)
-
-Resultado: JPG como PREVIEW (prioridade), PNG como CONTEÚDO
+Resultado: JPG como PREVIEW, PNG como CONTEÚDO
 Formato: PNG (extensão do CONTEÚDO)
 ```
 
 ### **Detalhes Técnicos:**
-- **JPG**: Fundo brano (RGB > 240) = "transparente"
-- **PNG**: Canal alpha real (< 128) = transparente
-- **Threshold**: 30% branco para JPG, 15% transparente para PNG
+- **Regra simplificada**: JPG sempre será preview se tiver PNG + JPG
+- **Não analisa**: Transparência, fundo brano, canal alpha
+- **Não detecta**: Edição de imagens, metadados EXIF/IPTC
+- **Performance**: Muito mais rápida (sem análise de pixels)
+- **Simplicidade**: Regra direta e fácil de entender
 
 ---
 
@@ -204,8 +197,8 @@ Formato: JPG (extensão da imagem)
 
 ### **Funções Chave:**
 - `detectArchiveRule()` - Detecção automática de regras
-- `selectPreviewAndContent()` - Seleção inteligente de imagens
-- `analyzeImageAlpha()` - Análise de canal alpha e fundo brano
+- `selectPreviewAndContent()` - Seleção inteligente simplificada (JPG sempre preview)
+- `analyzeImageAlpha()` - Análise de canal alpha (mantida para compatibilidade)
 
 ---
 
@@ -266,9 +259,10 @@ POST /unified-upload/single
 ## ✅ **Casos de Uso Cobertos**
 
 - ✅ **Designers**: PSD, AI, CDR, EPS com preview
-- ✅ **Desenvolvedores**: Imagens com seleção inteligente
+- ✅ **Desenvolvedores**: Imagens com seleção inteligente simplificada (JPG sempre preview)
 - ✅ **Marketing**: Figurinhas do Instagram
 - ✅ **Geral**: Qualquer arquivo compactado
+- ✅ **Performance**: Processamento mais rápido (sem análise complexa de pixels)
 
 ---
 
@@ -279,6 +273,8 @@ POST /unified-upload/single
 - **Logs detalhados** para debugging
 - **Tratamento de erros** robusto
 - **Compatibilidade** com sistema existente
+- **Regras simplificadas** para maior confiabilidade
+- **Processamento mais rápido** sem análise complexa
 
 ---
 

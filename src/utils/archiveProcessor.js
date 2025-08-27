@@ -288,7 +288,7 @@ class ArchiveProcessor {
 
   /**
    * Seleciona inteligentemente qual imagem usar como preview vs conteúdo
-   * PRIORIDADE: JPG primeiro (fundo brano = transparente), depois PNG (canal alpha real)
+   * NOVA REGRA SIMPLIFICADA: JPG sempre será preview se tiver PNG + JPG
    * @param {Array} imageFiles - Array de arquivos de imagem encontrados
    * @param {string} archivePath - Caminho do arquivo compactado
    * @param {string} tempDir - Diretório temporário
@@ -310,87 +310,22 @@ class ArchiveProcessor {
 
       console.log(`🎯 Aplicando regra de seleção inteligente para 2 imagens: ${validImages.map(f => f.name).join(', ')}`);
 
-      // Analisar canal alpha de ambas as imagens
-      const imageAnalysis = [];
+      // NOVA REGRA SIMPLIFICADA: Encontrar JPG e PNG
+      const jpgFile = validImages.find(f => ['.jpg', '.jpeg'].includes(path.extname(f.name).toLowerCase()));
+      const pngFile = validImages.find(f => path.extname(f.name).toLowerCase() === '.png');
 
-      for (const imageFile of validImages) {
-        try {
-          // Extrair arquivo temporariamente para análise
-          const tempPath = await this.extractFileFromArchive(
-            archivePath,
-            imageFile.name,
-            tempDir
-          );
-
-          const imageBuffer = await fs.promises.readFile(tempPath);
-          const alphaInfo = await ImageProcessor.analyzeImageAlpha(imageBuffer);
-
-          imageAnalysis.push({
-            file: imageFile,
-            path: tempPath,
-            alphaInfo: alphaInfo
-          });
-
-          if (alphaInfo.isJpg) {
-            console.log(`📊 Análise ${imageFile.name} (JPG): Fundo brano=${alphaInfo.isTransparent}, ${alphaInfo.whitePercentage.toFixed(1)}% branco`);
-          } else {
-            console.log(`📊 Análise ${imageFile.name} (PNG): Alpha=${alphaInfo.hasAlpha}, Transparente=${alphaInfo.isTransparent}, ${alphaInfo.alphaPercentage.toFixed(1)}% transparente`);
-          }
-
-        } catch (error) {
-          console.error(`❌ Erro ao analisar ${imageFile.name}:`, error);
-          // Se falhar na análise, usar lógica padrão
-          return this.selectDefaultPreviewAndContent(imageFiles);
-        }
+      if (jpgFile && pngFile) {
+        // NOVA REGRA: JPG sempre será preview
+        console.log(`✅ Seleção inteligente (NOVA REGRA): ${jpgFile.name} como PREVIEW (JPG sempre prioridade), ${pngFile.name} como CONTEÚDO`);
+        return {
+          previewFile: jpgFile,      // JPG como PREVIEW
+          contentFile: pngFile,      // PNG como CONTEÚDO
+          selectionMethod: 'jpg_always_preview'
+        };
       }
 
-      // Selecionar baseado na análise com PRIORIDADE JPG
-      if (imageAnalysis.length === 2) {
-        const [img1, img2] = imageAnalysis;
-
-        // PRIORIDADE 1: Se JPG for transparente (fundo brano), ele SEMPRE será preview
-        if (img1.alphaInfo.isJpg && img1.alphaInfo.isTransparent) {
-          console.log(`✅ Seleção inteligente (JPG prioridade): ${img1.file.name} como PREVIEW (fundo brano), ${img2.file.name} como CONTEÚDO`);
-          return {
-            previewFile: img1.file,
-            contentFile: img2.file,
-            selectionMethod: 'jpg_priority_white_background'
-          };
-        }
-
-        if (img2.alphaInfo.isJpg && img2.alphaInfo.isTransparent) {
-          console.log(`✅ Seleção inteligente (JPG prioridade): ${img2.file.name} como PREVIEW (fundo brano), ${img1.file.name} como CONTEÚDO`);
-          return {
-            previewFile: img2.file,
-            contentFile: img1.file,
-            selectionMethod: 'jpg_priority_white_background'
-          };
-        }
-
-        // PRIORIDADE 2: Se nenhum JPG for transparente, verificar PNG
-        if (img1.alphaInfo.isTransparent && !img2.alphaInfo.isTransparent) {
-          console.log(`✅ Seleção inteligente (PNG): ${img1.file.name} como PREVIEW (transparente), ${img2.file.name} como CONTEÚDO`);
-          return {
-            previewFile: img1.file,
-            contentFile: img2.file,
-            selectionMethod: 'png_alpha_analysis'
-          };
-        }
-
-        if (img2.alphaInfo.isTransparent && !img1.alphaInfo.isTransparent) {
-          console.log(`✅ Seleção inteligente (PNG): ${img2.file.name} como PREVIEW (transparente), ${img1.file.name} como CONTEÚDO`);
-          return {
-            previewFile: img2.file,
-            contentFile: img1.file,
-            selectionMethod: 'png_alpha_analysis'
-          };
-        }
-
-        // Se ambas têm características similares, usar lógica de fallback
-        console.log(`⚠️ Ambas imagens têm características similares, usando lógica de fallback`);
-      }
-
-      // Fallback para lógica padrão
+      // Se não tiver JPG + PNG, usar lógica padrão
+      console.log(`⚠️ Não aplicando nova regra, usando lógica padrão`);
       return this.selectDefaultPreviewAndContent(imageFiles);
 
     } catch (error) {
