@@ -187,7 +187,108 @@ class ArchiveProcessor {
   }
 
   /**
+   * Detecta automaticamente qual regra aplicar baseado no conteúdo do arquivo compactado
+   * @param {Array} contents - Lista de arquivos no arquivo compactado
+   * @returns {Object} - { ruleType: string, description: string, priority: number }
+   */
+  static detectArchiveRule(contents) {
+    try {
+      console.log(`🔍 Analisando conteúdo para detectar regra aplicável...`);
+
+      // Filtrar apenas arquivos (não diretórios)
+      const files = contents.filter(item => !item.isDirectory);
+      const fileExtensions = files.map(file => path.extname(file.name).toLowerCase());
+
+      console.log(`📁 Arquivos encontrados: ${files.map(f => f.name).join(', ')}`);
+      console.log(`🔤 Extensões: ${fileExtensions.join(', ')}`);
+
+      // REGRA 1: Zip com PSD (maior prioridade)
+      if (fileExtensions.includes('.psd')) {
+        console.log(`🎯 REGRA DETECTADA: Zip com PSD`);
+        return {
+          ruleType: 'psd_rule',
+          description: 'Zip com PSD - Preview (JPG ou PNG) + .psd',
+          priority: 1,
+          contentFile: files.find(f => path.extname(f.name).toLowerCase() === '.psd'),
+          previewFiles: files.filter(f => ['.jpg', '.jpeg', '.png'].includes(path.extname(f.name).toLowerCase()))
+        };
+      }
+
+      // REGRA 2: Zip com Vetor (AI, CDR, EPS)
+      if (fileExtensions.some(ext => ['.ai', '.cdr', '.eps'].includes(ext))) {
+        const vectorFile = files.find(f => ['.ai', '.cdr', '.eps'].includes(path.extname(f.name).toLowerCase()));
+        console.log(`🎯 REGRA DETECTADA: Zip com Vetor (${path.extname(vectorFile.name).toUpperCase()})`);
+        return {
+          ruleType: 'vector_rule',
+          description: `Zip com Vetor - Preview (JPG ou PNG) + ${path.extname(vectorFile.name).toUpperCase()}`,
+          priority: 2,
+          contentFile: vectorFile,
+          previewFiles: files.filter(f => ['.jpg', '.jpeg', '.png'].includes(path.extname(f.name).toLowerCase()))
+        };
+      }
+
+      // REGRA 3: Zip com figurinhas do insta (ZIP dentro de ZIP)
+      if (fileExtensions.includes('.zip')) {
+        console.log(`🎯 REGRA DETECTADA: Zip com figurinhas do insta`);
+        return {
+          ruleType: 'instagram_stickers_rule',
+          description: 'Zip com figurinhas do insta - Preview (JPG ou PNG) + .zip',
+          priority: 3,
+          contentFile: files.find(f => path.extname(f.name).toLowerCase() === '.zip'),
+          previewFiles: files.filter(f => ['.jpg', '.jpeg', '.png'].includes(path.extname(f.name).toLowerCase()))
+        };
+      }
+
+      // REGRA 4: Zip com imagem (apenas JPG/JPEG/PNG)
+      if (fileExtensions.every(ext => ['.jpg', '.jpeg', '.png'].includes(ext))) {
+        const imageFiles = files.filter(f => ['.jpg', '.jpeg', '.png'].includes(path.extname(f.name).toLowerCase()));
+
+        if (imageFiles.length === 2) {
+          console.log(`🎯 REGRA DETECTADA: Zip com 2 imagens (seleção inteligente)`);
+          return {
+            ruleType: 'intelligent_image_selection',
+            description: 'Zip com 2 imagens - Seleção inteligente baseada em transparência',
+            priority: 4,
+            contentFile: null, // Será determinado pela seleção inteligente
+            previewFiles: imageFiles
+          };
+        } else if (imageFiles.length === 1) {
+          console.log(`🎯 REGRA DETECTADA: Zip com 1 imagem`);
+          return {
+            ruleType: 'single_image_rule',
+            description: 'Zip com imagem - .jpg ou .jpeg (preview é o mesmo do original)',
+            priority: 5,
+            contentFile: null,
+            previewFiles: imageFiles
+          };
+        }
+      }
+
+      // REGRA 5: Padrão (fallback)
+      console.log(`🎯 REGRA DETECTADA: Padrão (fallback)`);
+      return {
+        ruleType: 'default_rule',
+        description: 'Regra padrão - Primeira imagem como preview',
+        priority: 999,
+        contentFile: null,
+        previewFiles: files.filter(f => ['.jpg', '.jpeg', '.png', '.gif', '.svg'].includes(path.extname(f.name).toLowerCase()))
+      };
+
+    } catch (error) {
+      console.error('❌ Erro ao detectar regra:', error);
+      return {
+        ruleType: 'error',
+        description: 'Erro ao detectar regra - usando padrão',
+        priority: 999,
+        contentFile: null,
+        previewFiles: []
+      };
+    }
+  }
+
+  /**
    * Seleciona inteligentemente qual imagem usar como preview vs conteúdo
+   * PRIORIDADE: JPG primeiro (fundo brano = transparente), depois PNG (canal alpha real)
    * @param {Array} imageFiles - Array de arquivos de imagem encontrados
    * @param {string} archivePath - Caminho do arquivo compactado
    * @param {string} tempDir - Diretório temporário
@@ -230,7 +331,11 @@ class ArchiveProcessor {
             alphaInfo: alphaInfo
           });
 
-          console.log(`📊 Análise ${imageFile.name}: Alpha=${alphaInfo.hasAlpha}, Transparente=${alphaInfo.isTransparent}, ${alphaInfo.alphaPercentage.toFixed(1)}% transparente`);
+          if (alphaInfo.isJpg) {
+            console.log(`📊 Análise ${imageFile.name} (JPG): Fundo brano=${alphaInfo.isTransparent}, ${alphaInfo.whitePercentage.toFixed(1)}% branco`);
+          } else {
+            console.log(`📊 Análise ${imageFile.name} (PNG): Alpha=${alphaInfo.hasAlpha}, Transparente=${alphaInfo.isTransparent}, ${alphaInfo.alphaPercentage.toFixed(1)}% transparente`);
+          }
 
         } catch (error) {
           console.error(`❌ Erro ao analisar ${imageFile.name}:`, error);
@@ -239,30 +344,49 @@ class ArchiveProcessor {
         }
       }
 
-      // Selecionar baseado na análise
+      // Selecionar baseado na análise com PRIORIDADE JPG
       if (imageAnalysis.length === 2) {
         const [img1, img2] = imageAnalysis;
 
-        // Se uma tem alpha e outra não, usar a com alpha como preview
-        if (img1.alphaInfo.isTransparent && !img2.alphaInfo.isTransparent) {
-          console.log(`✅ Seleção inteligente: ${img1.file.name} como PREVIEW (transparente), ${img2.file.name} como CONTEÚDO`);
+        // PRIORIDADE 1: Se JPG for transparente (fundo brano), ele SEMPRE será preview
+        if (img1.alphaInfo.isJpg && img1.alphaInfo.isTransparent) {
+          console.log(`✅ Seleção inteligente (JPG prioridade): ${img1.file.name} como PREVIEW (fundo brano), ${img2.file.name} como CONTEÚDO`);
           return {
             previewFile: img1.file,
             contentFile: img2.file,
-            selectionMethod: 'alpha_analysis'
+            selectionMethod: 'jpg_priority_white_background'
+          };
+        }
+
+        if (img2.alphaInfo.isJpg && img2.alphaInfo.isTransparent) {
+          console.log(`✅ Seleção inteligente (JPG prioridade): ${img2.file.name} como PREVIEW (fundo brano), ${img1.file.name} como CONTEÚDO`);
+          return {
+            previewFile: img2.file,
+            contentFile: img1.file,
+            selectionMethod: 'jpg_priority_white_background'
+          };
+        }
+
+        // PRIORIDADE 2: Se nenhum JPG for transparente, verificar PNG
+        if (img1.alphaInfo.isTransparent && !img2.alphaInfo.isTransparent) {
+          console.log(`✅ Seleção inteligente (PNG): ${img1.file.name} como PREVIEW (transparente), ${img2.file.name} como CONTEÚDO`);
+          return {
+            previewFile: img1.file,
+            contentFile: img2.file,
+            selectionMethod: 'png_alpha_analysis'
           };
         }
 
         if (img2.alphaInfo.isTransparent && !img1.alphaInfo.isTransparent) {
-          console.log(`✅ Seleção inteligente: ${img2.file.name} como PREVIEW (transparente), ${img1.file.name} como CONTEÚDO`);
+          console.log(`✅ Seleção inteligente (PNG): ${img2.file.name} como PREVIEW (transparente), ${img1.file.name} como CONTEÚDO`);
           return {
             previewFile: img2.file,
             contentFile: img1.file,
-            selectionMethod: 'alpha_analysis'
+            selectionMethod: 'png_alpha_analysis'
           };
         }
 
-        // Se ambas têm alpha ou nenhuma tem, usar lógica de fallback
+        // Se ambas têm características similares, usar lógica de fallback
         console.log(`⚠️ Ambas imagens têm características similares, usando lógica de fallback`);
       }
 
@@ -310,6 +434,11 @@ class ArchiveProcessor {
         throw new Error("Archive is empty or contains no valid files");
       }
 
+      // DETECÇÃO AUTOMÁTICA DE REGRAS
+      const detectedRule = this.detectArchiveRule(contents);
+      console.log(`🎯 REGRA APLICADA: ${detectedRule.description}`);
+      console.log(`📋 Tipo de regra: ${detectedRule.ruleType}`);
+
       // Encontrar arquivos de imagem para preview
       const imageFiles = await this.findImageFiles(archivePath);
       console.log(`Found ${imageFiles.length} image files`);
@@ -325,19 +454,71 @@ class ArchiveProcessor {
       // NOVA LÓGICA: Seleção inteligente quando há 2 imagens
       let previewFile, contentFile, selectionMethod;
 
-      if (imageFiles.length === 2) {
-        // Aplicar regra de seleção inteligente
-        const selection = await this.selectPreviewAndContent(imageFiles, archivePath, tempDir);
-        previewFile = selection.previewFile;
-        contentFile = selection.contentFile;
-        selectionMethod = selection.selectionMethod;
+      // Aplicar regra específica baseada na detecção
+      switch (detectedRule.ruleType) {
+        case 'psd_rule':
+          // REGRA 1: Zip com PSD
+          previewFile = detectedRule.previewFiles[0]; // Primeira imagem como preview
+          contentFile = detectedRule.contentFile; // PSD como conteúdo
+          selectionMethod = 'psd_rule';
+          console.log(`🎨 Aplicando regra PSD: ${previewFile.name} como preview, ${contentFile.name} como conteúdo`);
+          break;
 
-        console.log(`🎯 Método de seleção: ${selectionMethod}`);
-      } else {
-        // Lógica existente para outros casos
-        previewFile = imageFiles[0];
-        contentFile = imageFiles.length > 1 ? imageFiles[1] : null;
-        selectionMethod = 'standard';
+        case 'vector_rule':
+          // REGRA 2: Zip com Vetor
+          previewFile = detectedRule.previewFiles[0]; // Primeira imagem como preview
+          contentFile = detectedRule.contentFile; // AI/CDR/EPS como conteúdo
+          selectionMethod = 'vector_rule';
+          console.log(`🎨 Aplicando regra Vetor: ${previewFile.name} como preview, ${contentFile.name} como conteúdo`);
+          break;
+
+        case 'instagram_stickers_rule':
+          // REGRA 3: Zip com figurinhas do insta
+          previewFile = detectedRule.previewFiles[0]; // Primeira imagem como preview
+          contentFile = detectedRule.contentFile; // ZIP como conteúdo
+          selectionMethod = 'instagram_stickers_rule';
+          console.log(`📱 Aplicando regra Figurinhas: ${previewFile.name} como preview, ${contentFile.name} como conteúdo`);
+          break;
+
+        case 'intelligent_image_selection':
+          // REGRA 4: Zip com 2 imagens (seleção inteligente)
+          if (detectedRule.previewFiles.length === 2) {
+            const selection = await this.selectPreviewAndContent(detectedRule.previewFiles, archivePath, tempDir);
+            previewFile = selection.previewFile;
+            contentFile = selection.contentFile;
+            selectionMethod = selection.selectionMethod;
+            console.log(`🎯 Aplicando seleção inteligente: ${previewFile.name} como preview, ${contentFile.name} como conteúdo`);
+          } else {
+            throw new Error("Seleção inteligente requer exatamente 2 imagens");
+          }
+          break;
+
+        case 'single_image_rule':
+          // REGRA 5: Zip com 1 imagem
+          previewFile = detectedRule.previewFiles[0];
+          contentFile = null; // Sem arquivo de conteúdo separado
+          selectionMethod = 'single_image_rule';
+          console.log(`🖼️ Aplicando regra imagem única: ${previewFile.name} como preview`);
+          break;
+
+        default:
+          // REGRA 6: Padrão (fallback)
+          if (imageFiles.length === 2) {
+            // Aplicar regra de seleção inteligente
+            const selection = await this.selectPreviewAndContent(imageFiles, archivePath, tempDir);
+            previewFile = selection.previewFile;
+            contentFile = selection.contentFile;
+            selectionMethod = selection.selectionMethod;
+
+            console.log(`🎯 Método de seleção: ${selectionMethod}`);
+          } else {
+            // Lógica existente para outros casos
+            previewFile = imageFiles[0];
+            contentFile = imageFiles.length > 1 ? imageFiles[1] : null;
+            selectionMethod = 'standard';
+          }
+          console.log(`🔄 Aplicando regra padrão: ${previewFile.name} como preview`);
+          break;
       }
 
       if (!previewFile || !previewFile.name) {
@@ -388,7 +569,9 @@ class ArchiveProcessor {
           size: fs.statSync(contentPath).size
         } : null,
         archiveType: this.detectArchiveType(archivePath),
-        selectionMethod: selectionMethod, // NOVO: informa como foi feita a seleção
+        selectionMethod: selectionMethod, // Como foi feita a seleção
+        ruleApplied: detectedRule.ruleType, // Qual regra foi aplicada
+        ruleDescription: detectedRule.description, // Descrição da regra
         totalImages: imageFiles.length
       };
 

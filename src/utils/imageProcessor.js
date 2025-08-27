@@ -260,17 +260,48 @@ class ImageProcessor {
 
   /**
    * Analisa se uma imagem tem fundo transparente (canal alpha) de forma robusta
+   * PRIORIDADE: JPG primeiro (fundo brano = transparente), depois PNG (canal alpha real)
    * @param {Buffer} imageBuffer - Buffer da imagem
-   * @returns {Object} - { hasAlpha: boolean, alphaPercentage: number, isTransparent: boolean }
+   * @returns {Object} - { hasAlpha: boolean, alphaPercentage: number, isTransparent: boolean, isJpg: boolean }
    */
   static async analyzeImageAlpha(imageBuffer) {
     try {
       const image = sharp(imageBuffer);
       const metadata = await image.metadata();
 
-      // Verificar se tem canal alpha
+      // JPG tem apenas 3 canais: RGB (Red, Green, Blue)
+      if (metadata.channels === 3) {
+        // JPG - detectar se tem fundo brano (considerado "transparente")
+        const { data } = await image.raw().toBuffer({ resolveWithObject: true });
+
+        let whitePixels = 0;
+        let totalPixels = metadata.width * metadata.height;
+
+        // Verificar cada pixel (cada 3 valores = RGB)
+        for (let i = 0; i < data.length; i += 3) {
+          const r = data[i];     // Red
+          const g = data[i + 1]; // Green
+          const b = data[i + 2]; // Blue
+
+          // Fundo brano = RGB > 240 (quase brano)
+          if (r > 240 && g > 240 && b > 240) {
+            whitePixels++;
+          }
+        }
+
+        const whitePercentage = (whitePixels / totalPixels) * 100;
+
+        return {
+          hasAlpha: false,
+          alphaPercentage: 0,
+          isTransparent: whitePercentage > 30, // Mais de 30% branco = "transparente"
+          isJpg: true,
+          whitePercentage: whitePercentage
+        };
+      }
+
+      // PNG com transparência - analisar pixels para determinar se é realmente transparente
       if (metadata.channels === 4 && metadata.hasAlpha) {
-        // PNG com transparência - analisar pixels para determinar se é realmente transparente
         const { data } = await image.raw().toBuffer({ resolveWithObject: true });
 
         let transparentPixels = 0;
@@ -288,15 +319,19 @@ class ImageProcessor {
         return {
           hasAlpha: true,
           alphaPercentage: alphaPercentage,
-          isTransparent: alphaPercentage > 15 // Mais de 15% transparente
+          isTransparent: alphaPercentage > 15, // Mais de 15% transparente
+          isJpg: false,
+          whitePercentage: 0
         };
       }
 
-      // JPG, GIF sem alpha, ou PNG sem transparência
+      // Outros formatos sem alpha
       return {
         hasAlpha: false,
         alphaPercentage: 0,
-        isTransparent: false
+        isTransparent: false,
+        isJpg: false,
+        whitePercentage: 0
       };
 
     } catch (error) {
@@ -305,7 +340,9 @@ class ImageProcessor {
       return {
         hasAlpha: false,
         alphaPercentage: 0,
-        isTransparent: false
+        isTransparent: false,
+        isJpg: false,
+        whitePercentage: 0
       };
     }
   }
