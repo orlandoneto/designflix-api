@@ -3,6 +3,7 @@ const { logMultpleUpload } = require("../config/testingLogs");
 const UnifiedUploadService = require("../services/unified-upload.service");
 const UnifiedUploadIntegrationService = require("../services/unified-upload-integration.service");
 const AuthenticateRoute = require("../middleware/authentication");
+const { CONST } = require("../utils/constants/constants");
 
 module.exports = (app) => {
   const unifiedUploadService = new UnifiedUploadService();
@@ -70,7 +71,7 @@ module.exports = (app) => {
    * POST /unified-upload/multiple
    * 
    * Body:
-   * - files: array de arquivos compactados (máx 20)
+   * - files: array de arquivos compactados (máx ${CONST.MAX_UPLOAD_FILES_PER_UPLOAD})
    * - categoryId: ID da categoria (opcional)
    * - categoryName: Nome da categoria (opcional)
    * - saveToGrid: boolean para salvar automaticamente no UserMainGrid (padrão: true)
@@ -83,8 +84,8 @@ module.exports = (app) => {
       const multerConfig = multer({
         storage: multer.memoryStorage(),
         limits: {
-          fileSize: 100 * 1024 * 1024, // 100MB por arquivo
-          files: 20 // Máximo 20 arquivos
+          fileSize: CONST.LIMIT_UPLOAD_SIZE_ZIP, // 600MB por arquivo
+          files: CONST.MAX_UPLOAD_FILES_PER_UPLOAD // Máximo de arquivos
         },
         fileFilter: (req, file, cb) => {
           const allowedMimes = [
@@ -111,7 +112,7 @@ module.exports = (app) => {
           }
         },
       }).fields([
-        { name: 'files', maxCount: 20 },           // ← Arquivos
+        { name: 'files', maxCount: CONST.MAX_UPLOAD_FILES_PER_UPLOAD },           // ← Arquivos
         { name: 'categoryId', maxCount: 1 },       // ← ID da categoria
         { name: 'categoryName', maxCount: 1 },     // ← Nome da categoria
         { name: 'saveToGrid', maxCount: 1 }        // ← Boolean para salvar no grid
@@ -176,7 +177,7 @@ module.exports = (app) => {
             "Conversão automática para WebP",
             "Upload para S3 com organização em pastas",
             "Processamento com Node.js streams para alta performance",
-            "Suporte a upload único ou múltiplo (até 20 arquivos)"
+            `Suporte a upload único ou múltiplo (até ${CONST.MAX_UPLOAD_FILES_PER_UPLOAD} arquivos)`
           ],
           endpoints: {
             single: "POST /unified-upload/single - Upload de arquivo único",
@@ -185,7 +186,7 @@ module.exports = (app) => {
           },
           limits: {
             maxFileSize: "100MB por arquivo",
-            maxFiles: "20 arquivos por upload",
+            maxFiles: `${CONST.MAX_UPLOAD_FILES_PER_UPLOAD} arquivos por upload`,
             maxConcurrent: "Processamento sequencial para estabilidade"
           }
         }

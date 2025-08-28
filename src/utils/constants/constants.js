@@ -9,6 +9,8 @@ const ROLES = {
 
 const CONST = {
   LIMIT_SIZE_IMG: 300 * 1024 * 1024, // Limite de tamanho: 300MB
+  LIMIT_UPLOAD_SIZE_ZIP: 600 * 1024 * 1024, // Limite de tamanho: 600MB
+  MAX_UPLOAD_FILES_PER_UPLOAD: 40, // Limite máximo de arquivos por multi-upload
 };
 
 const PLAN_NAMES = {
