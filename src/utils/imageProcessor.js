@@ -1,7 +1,7 @@
 const sharp = require("sharp");
 const path = require("path");
 const crypto = require("crypto");
-const aws = require("aws-sdk");
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const EnvironmentPaths = require("./environmentPaths");
 
 // Configurações
@@ -10,11 +10,13 @@ const HEIGHT_IMAGE = 600;
 const OPACITY_WATERMARK = 0.1;
 const PREVIEW_WIDTH = 1200;
 
-// Instância S3
-const s3 = new aws.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  correctClockSkew: true,
+// Instância S3 (SDK v3)
+const s3 = new S3Client({
+  region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
 });
 
 /**
@@ -33,15 +35,13 @@ class ImageProcessor {
    * Faz upload para S3
    */
   static async uploadToS3(fileName, processedImage, mimeType) {
-    await s3
-      .putObject({
-        Bucket: process.env.AWS_BUCKET_NAME,
-        Key: fileName,
-        Body: processedImage,
-        ContentType: mimeType,
-        ACL: "public-read",
-      })
-      .promise();
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: fileName,
+      Body: processedImage,
+      ContentType: mimeType,
+      ACL: "public-read",
+    }));
 
     return `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
   }

@@ -1,15 +1,17 @@
 const crypto = require("crypto");
-const aws = require("aws-sdk");
+const { S3Client } = require("@aws-sdk/client-s3");
 const multerS3 = require("multer-s3");
 const { CONST } = require("../utils/constants/constants");
 const EnvironmentPaths = require("../utils/environmentPaths");
 
 const storageTypes = {
   s3: () => multerS3({
-    s3: new aws.S3({
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      correctClockSkew: true,
+    s3: new S3Client({
+      region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
     }),
     bucket: process.env.AWS_BUCKET_NAME,
     contentType: multerS3.AUTO_CONTENT_TYPE,
