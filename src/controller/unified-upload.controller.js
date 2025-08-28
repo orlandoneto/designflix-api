@@ -1,4 +1,7 @@
 const multer = require("multer");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 const { logMultpleUpload } = require("../config/testingLogs");
 const UnifiedUploadService = require("../services/unified-upload.service");
 const UnifiedUploadIntegrationService = require("../services/unified-upload-integration.service");
@@ -81,10 +84,25 @@ module.exports = (app) => {
     AuthenticateRoute(["user"]),
     (req, res, next) => {
       // Configuração para múltiplos arquivos + campos de texto
+      const uploadTempDir = path.join(os.tmpdir(), "designflix-upload");
+      const storage = multer.diskStorage({
+        destination: (req, file, cb) => {
+          try {
+            if (!fs.existsSync(uploadTempDir)) {
+              fs.mkdirSync(uploadTempDir, { recursive: true });
+            }
+          } catch (e) { }
+          cb(null, uploadTempDir);
+        },
+        filename: (req, file, cb) => {
+          cb(null, `${Date.now()}-${file.originalname}`);
+        }
+      });
+
       const multerConfig = multer({
-        storage: multer.memoryStorage(),
+        storage,
         limits: {
-          fileSize: CONST.LIMIT_UPLOAD_SIZE_ZIP, // 600MB por arquivo
+          fileSize: CONST.LIMIT_UPLOAD_SIZE_ZIP, // 1GB por arquivo
           files: CONST.MAX_UPLOAD_FILES_PER_UPLOAD // Máximo de arquivos
         },
         fileFilter: (req, file, cb) => {

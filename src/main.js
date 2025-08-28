@@ -25,6 +25,11 @@ console.log('===============================\n');
 
 const app = express();
 const server = http.createServer(app);
+// Timeouts para uploads longos
+server.headersTimeout = CONST.SERVER_HEADERS_TIMEOUT_MS;
+server.requestTimeout = CONST.SERVER_REQUEST_TIMEOUT_MS;
+server.keepAliveTimeout = CONST.SERVER_KEEP_ALIVE_TIMEOUT_MS;
+app.set('trust proxy', 1);
 
 // Logar o tempo de execução do cron job
 const logger = require("./config/logger");
