@@ -4,6 +4,7 @@ const os = require("os");
 const crypto = require("crypto");
 const multer = require("multer");
 const { logMultpleUpload } = require("../config/testingLogs");
+const { CONST } = require("../utils/constants/constants");
 const ImageProcessor = require("../utils/imageProcessor");
 const ArchiveProcessor = require("../utils/archiveProcessor");
 const TagGenerator = require("../utils/tagGenerator");
@@ -11,9 +12,9 @@ const EnvironmentPaths = require("../utils/environmentPaths");
 const { sanitizeFilename } = require("../utils/filenameSanitizer");
 
 /**
- * Máximo de arquivos permitidos por upload
+ * Máximo de arquivos permitidos por upload (configurável via CONST)
  */
-const MAX_UPLOAD_FILES = 40;
+const MAX_UPLOAD_FILES = CONST.MAX_UPLOAD_FILES_PER_UPLOAD;
 
 /**
  * Serviço unificado para upload de arquivos compactados
