@@ -1,17 +1,19 @@
 const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
-const aws = require("aws-sdk");
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const sharp = require("sharp");
 const { CONST, FOLDER_NAME_THUMBS_PATH } = require("../utils/constants/constants");
 
 const WEBP_QUALITY_IMAGE = 95;
 const HEIGHT_IMAGE = 600;
 
-const s3 = new aws.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  correctClockSkew: true,
+const s3 = new S3Client({
+  region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
 });
 
 const storage = multer.memoryStorage();
@@ -40,15 +42,13 @@ const uploadThumb = multer({
 }).single("file");
 
 const uploadToS3 = async (fileName, processedImage, mimeType) => {
-  await s3
-    .putObject({
-      Bucket: process.env.AWS_BUCKET_NAME,
-      Key: fileName,
-      Body: processedImage,
-      ContentType: mimeType,
-      ACL: "public-read",
-    })
-    .promise();
+  await s3.send(new PutObjectCommand({
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: fileName,
+    Body: processedImage,
+    ContentType: mimeType,
+    ACL: "public-read",
+  }));
 
   return `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
 };

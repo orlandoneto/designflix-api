@@ -1,4 +1,4 @@
-const aws = require("aws-sdk");
+const { S3Client, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { User } = require("../models");
 
 module.exports = async function removeAvatarFromS3(req, res, next) {
@@ -7,10 +7,12 @@ module.exports = async function removeAvatarFromS3(req, res, next) {
   console.log('userId:', userId);
   if (!userId) return next();
 
-  const s3 = new aws.S3({
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    correctClockSkew: true,
+  const s3 = new S3Client({
+    region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
   });
 
   try {
@@ -29,10 +31,10 @@ module.exports = async function removeAvatarFromS3(req, res, next) {
       return next(); // Não bloqueia o fluxo se a URL for inválida
     }
 
-    const result = await s3.deleteObject({
+    const result = await s3.send(new DeleteObjectCommand({
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: key,
-    }).promise();
+    }));
     console.log('Resultado do deleteObject:', result);
     console.log('Remoção do S3 concluída');
     next();
