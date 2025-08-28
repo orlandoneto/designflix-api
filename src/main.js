@@ -59,7 +59,7 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json({ limit: CONST.LIMIT_UPLOAD_SIZE_ZIP }));
+app.use(express.json({ limit: CONST.LIMIT_MAIN }));
 app.use(morgan("dev"));
 app.use("/", express.static(path.resolve(__dirname, "..", "public")));
 app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
@@ -67,7 +67,7 @@ app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
 app.use(
   express.urlencoded({
     extended: true,
-    limit: CONST.LIMIT_UPLOAD_SIZE_ZIP,
+    limit: CONST.LIMIT_MAIN,
     parameterLimit: "9999999",
   })
 );
