@@ -14,6 +14,7 @@ const path = require("path");
 
 const http = require("http");
 const { setupWebSocket } = require("./config/websocket");
+const { CONST } = require("./utils/constants/constants");
 
 // Log das variáveis de ambiente importantes
 console.log('\n=== Configuração do Ambiente ===');
@@ -58,7 +59,7 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: CONST.LIMIT_UPLOAD_SIZE_ZIP }));
 app.use(morgan("dev"));
 app.use("/", express.static(path.resolve(__dirname, "..", "public")));
 app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
@@ -66,7 +67,7 @@ app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
 app.use(
   express.urlencoded({
     extended: true,
-    limit: "300mb",
+    limit: CONST.LIMIT_UPLOAD_SIZE_ZIP,
     parameterLimit: "9999999",
   })
 );
