@@ -3,6 +3,11 @@ const path = require("path");
 const { pipeline } = require("stream/promises");
 const unzipper = require("unzipper");
 const tar = require("tar");
+const { spawn } = require("child_process");
+let path7za = null;
+try {
+  path7za = require("7zip-bin").path7za;
+} catch (_e) { }
 const ImageProcessor = require("./imageProcessor");
 const { sanitizeFilename } = require("./filenameSanitizer");
 
@@ -15,7 +20,10 @@ class ArchiveProcessor {
    * Detecta o tipo de arquivo compactado
    */
   static detectArchiveType(filename) {
-    const ext = path.extname(filename).toLowerCase();
+    const lower = String(filename || '').toLowerCase();
+    if (lower.endsWith('.tar.gz') || lower.endsWith('.tgz')) return 'targz';
+    if (lower.endsWith('.tar.bz2') || lower.endsWith('.tbz') || lower.endsWith('.tbz2')) return 'tarbz2';
+    const ext = path.extname(lower);
     const mimeMap = {
       '.zip': 'zip',
       '.rar': 'rar',
@@ -118,11 +126,12 @@ class ArchiveProcessor {
             isDirectory: file.type === 'Directory'
           };
         }).filter(Boolean); // Remove entradas nulas
-      } else if (archiveType === 'tar') {
+      } else if (archiveType === 'tar' || archiveType === 'targz') {
         const entries = [];
         const usedNames = new Map();
         await tar.list({
           file: archivePath,
+          gzip: archiveType === 'targz',
           onentry: (entry) => {
             if (entry && entry.path) {
               // Ignorar artefatos do macOS e recursos
@@ -157,6 +166,58 @@ class ArchiveProcessor {
           }
         });
         return entries;
+      } else if (['rar', '7z', 'tarbz2', 'gzip', 'bzip2'].includes(archiveType)) {
+        if (!path7za) {
+          throw new Error("7zip binary not available to handle this archive type");
+        }
+        const stdout = await new Promise((resolve, reject) => {
+          const proc = spawn(path7za, ["l", "-ba", "-slt", archivePath]);
+          let out = "";
+          let err = "";
+          proc.stdout.on("data", (d) => { out += d.toString(); });
+          proc.stderr.on("data", (d) => { err += d.toString(); });
+          proc.on("close", (code) => {
+            if (code === 0) resolve(out);
+            else reject(new Error(err || `7z list exited with code ${code}`));
+          });
+        });
+
+        const lines = stdout.split(/\r?\n/);
+        const items = [];
+        let cur = {};
+        for (const line of lines) {
+          const idx = line.indexOf("=");
+          if (idx > 0) {
+            const key = line.slice(0, idx).trim();
+            const val = line.slice(idx + 1).trim();
+            cur[key] = val;
+          } else if (line.trim() === "") {
+            if (cur.Path) {
+              const baseNameRaw = path.basename(cur.Path);
+              // Ignorar pastas e artefatos macOS
+              const isDir = (cur.Attributes || "").includes("D");
+              if (!isDir && baseNameRaw !== ".DS_Store" && !baseNameRaw.startsWith("._") && !String(cur.Path).startsWith("__MACOSX/")) {
+                const usedNames = items._usedNames || new Map();
+                const ext = path.extname(baseNameRaw).toLowerCase();
+                const sanitized = sanitizeFilename(baseNameRaw, 80);
+                let base = sanitized.replace(ext, "");
+                const key = base + ext;
+                const count = usedNames.get(key) || 0;
+                usedNames.set(key, count + 1);
+                const displayName = count === 0 ? `${base}${ext}` : `${base}-${count + 1}${ext}`;
+                items._usedNames = usedNames;
+                items.push({
+                  name: displayName,
+                  originalName: cur.Path,
+                  size: parseInt(cur.Size || cur.PackedSize || "0", 10) || 0,
+                  isDirectory: false
+                });
+              }
+            }
+            cur = {};
+          }
+        }
+        return items;
       }
 
       throw new Error(`Unsupported archive type: ${archiveType}`);
@@ -280,13 +341,14 @@ class ArchiveProcessor {
         );
 
         return outputPath;
-      } else if (archiveType === 'tar') {
+      } else if (archiveType === 'tar' || archiveType === 'targz') {
         const outputPath = path.join(extractPath, path.basename(fileName));
 
         const usedNames = new Map();
         await tar.extract({
           file: archivePath,
           cwd: extractPath,
+          gzip: archiveType === 'targz',
           filter: (p) => {
             // tar filter recebe paths originais; mapear para nome sanitizado único
             const ext = path.extname(p).toLowerCase();
@@ -309,6 +371,43 @@ class ArchiveProcessor {
         });
 
         return outputPath;
+      } else if (['rar', '7z', 'tarbz2', 'gzip', 'bzip2'].includes(archiveType)) {
+        if (!path7za) {
+          throw new Error("7zip binary not available to handle this archive type");
+        }
+        // Listar para mapear displayName -> originalName
+        const entries = await this.listArchiveContents(archivePath);
+        const usedNames = new Map();
+        let candidateOriginal = null;
+        for (const f of entries) {
+          const ext = path.extname(f.originalName || f.name).toLowerCase();
+          const sanitized = sanitizeFilename(path.basename(f.originalName || f.name), 80);
+          let base = sanitized.replace(ext, "");
+          const key = base + ext;
+          const count = usedNames.get(key) || 0;
+          usedNames.set(key, count + 1);
+          const display = count === 0 ? `${base}${ext}` : `${base}-${count + 1}${ext}`;
+          if (display === fileName || (f.name && f.name === fileName)) {
+            candidateOriginal = f.originalName || f.name;
+            break;
+          }
+        }
+        if (!candidateOriginal) {
+          throw new Error(`File ${fileName} not found in archive`);
+        }
+
+        await new Promise((resolve, reject) => {
+          const args = ["x", "-y", `-o${extractPath}`, archivePath, candidateOriginal];
+          const proc = spawn(path7za, args, { cwd: path.dirname(archivePath) });
+          let err = "";
+          proc.stderr.on("data", (d) => { err += d.toString(); });
+          proc.on("close", (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(err || `7z extract exited with code ${code}`));
+          });
+        });
+
+        return path.join(extractPath, path.basename(candidateOriginal));
       }
 
       throw new Error(`Unsupported archive type: ${archiveType}`);
