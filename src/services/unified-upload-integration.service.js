@@ -13,7 +13,27 @@ class UnifiedUploadIntegrationService {
   formatNameForSaving(name) {
     try {
       if (!name || typeof name !== 'string') return name;
-      return name.replace(/([0-9]+)([A-Z][a-z]+)/g, "$1 $2");
+      let s = name.trim();
+
+      // separa números iniciais (ex: "64Dia..." -> "64 Dia...")
+      s = s.replace(/^(\d+)(?=\S)/, '$1 ');
+
+      // insere espaço entre lower->Upper (ex: "DiaMundial" -> "Dia Mundial")
+      s = s.replace(/([a-zà-ú0-9])([A-ZÀ-Ú])/g, '$1 $2');
+
+      // separar partículas PT-BR coladas ANTES de Maiúsculas (sem quebrar finais de palavra como "Chocolate")
+      s = s.replace(/([a-zà-ú])((?:do|da|dos|das|de|ao|aos|com|para|no|na|nos|nas))(?=[A-ZÀ-Ú])/gi, '$1 $2');
+
+      // normaliza espaços e aplica Title Case (mantendo algumas partículas em minúsculo)
+      s = s.replace(/\s+/g, ' ').trim();
+
+      const stopwords = new Set(['do', 'da', 'dos', 'das', 'de', 'e', 'ao', 'aos', 'com', 'para', 'no', 'na', 'nos', 'nas', 'a', 'o', 'as', 'os']);
+      s = s.toLowerCase()
+        .split(' ')
+        .map((w, i) => (i > 0 && stopwords.has(w) ? w : (w.charAt(0).toUpperCase() + w.slice(1))))
+        .join(' ');
+
+      return s;
     } catch (_) {
       return name;
     }
