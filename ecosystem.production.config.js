@@ -3,8 +3,8 @@ module.exports = {
     {
       name: "designflix-api-prd", // Nome da sua aplicação
       script: "/root/api/prd/designflix-api/source/src/main.js", // Arquivo principal da aplicação
-      instances: 1, // Garantindo que apenas uma instância será executada
-      exec_mode: "fork", // Modo de execução "fork" (não cluster)
+      instances: "max", // Usa todos os vCPUs disponíveis
+      exec_mode: "cluster", // Modo de execução "cluster" (habilita múltiplos workers)
       watch: false, // Desabilita o watch em produção para evitar reinicializações desnecessárias
       autorestart: true, // Adicionado para reinício automático
       max_memory_restart: "1G", // Limite de memória

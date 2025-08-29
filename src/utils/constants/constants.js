@@ -12,6 +12,12 @@ const CONST = {
   LIMIT_UPLOAD_SIZE_ZIP: 1024 * 1024 * 1024, // Limite de tamanho: 1GB
   LIMIT_MAIN: '1gb',
   MAX_UPLOAD_FILES_PER_UPLOAD: 40, // Limite máximo de arquivos por multi-upload
+  MAX_CONCURRENT_UPLOADS: 3, // Concorrência controlada no processamento do multi-upload
+  SERVER_HEADERS_TIMEOUT_MS: 650000, // ~10m50s
+  SERVER_REQUEST_TIMEOUT_MS: 0,      // 0 = sem limite (ou defina 600000 = 10 min)
+  SERVER_KEEP_ALIVE_TIMEOUT_MS: 120000, // 2 min
+  S3_UPLOAD_TIMEOUT_MS: 10 * 60 * 1000, // 10 minutos por arquivo
+  LIMIT_BATCH_TOTAL_SIZE: 5 * 1024 * 1024 * 1024, // 5GB por lote de multi-upload
 };
 
 const PLAN_NAMES = {
