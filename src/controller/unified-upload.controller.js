@@ -8,6 +8,7 @@ const UnifiedUploadService = require("../services/unified-upload.service");
 const UnifiedUploadIntegrationService = require("../services/unified-upload-integration.service");
 const AuthenticateRoute = require("../middleware/authentication");
 const { CONST } = require("../utils/constants/constants");
+const { queue: unifiedUploadQueue, queueEvents } = require("../queues/unifiedUpload.queue");
 
 module.exports = (app) => {
   const unifiedUploadService = new UnifiedUploadService();
@@ -112,6 +113,7 @@ module.exports = (app) => {
             "application/zip",
             "application/x-zip-compressed",
             "application/x-rar-compressed",
+
             "application/x-7z-compressed",
             "application/x-tar",
             "application/gzip",
@@ -141,8 +143,98 @@ module.exports = (app) => {
     },
     async (req, res) => {
       try {
-        // Fazer upload e processamento
-        const uploadResult = await unifiedUploadService.uploadMultiple(req, res);
+        // Se BullMQ estiver disponível, enfileirar cada arquivo e aguardar conclusão; senão, fallback para o serviço atual
+        const bullAvailable = !!unifiedUploadQueue && !!queueEvents && req.redis && req.redis.status === 'ready';
+
+        let uploadResult;
+
+        if (!bullAvailable) {
+          // Fallback: processamento síncrono como antes
+          uploadResult = await unifiedUploadService.uploadMultiple(req, res);
+        } else {
+          // Normalizar arquivos igual ao service
+          const normalizeFiles = (rf) => {
+            if (!rf) return [];
+            if (Array.isArray(rf)) return rf;
+            let acc = [];
+            if (Array.isArray(rf.files)) acc = acc.concat(rf.files);
+            if (Array.isArray(rf["files[]"])) acc = acc.concat(rf["files[]"]);
+            for (const key of Object.keys(rf)) {
+              if (key !== 'files' && key !== 'files[]' && Array.isArray(rf[key])) {
+                acc = acc.concat(rf[key]);
+              }
+            }
+            return acc;
+          };
+
+          const files = normalizeFiles(req.files);
+          if (!files || files.length === 0) {
+            throw new Error("No files provided");
+          }
+          if (files.length > CONST.MAX_UPLOAD_FILES_PER_UPLOAD) {
+            throw new Error(`Maximum ${CONST.MAX_UPLOAD_FILES_PER_UPLOAD} files allowed per upload`);
+          }
+
+          const { categoryId, categoryName } = req.body;
+
+          // Enfileirar cada arquivo
+          const jobs = [];
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            // Garantir que usamos o caminho do arquivo no disco
+            const jobData = {
+              filePath: file.path,
+              originalName: file.originalname,
+              categoryId: categoryId || null,
+              categoryName: categoryName || ''
+            };
+            const job = await unifiedUploadQueue.add('process-archive', jobData, {
+              attempts: 3,
+              backoff: { type: 'exponential', delay: 5000 },
+              timeout: Math.max(CONST.S3_UPLOAD_TIMEOUT_MS * 2, 15 * 60 * 1000)
+            });
+            jobs.push({ job, index: i, file });
+          }
+
+          // Aguardar conclusão de todos os jobs
+          const success = [];
+          const errors = [];
+          for (const { job, index, file } of jobs) {
+            try {
+              const result = await job.waitUntilFinished(queueEvents, 60 * 60 * 1000); // 60min hard cap
+              success.push({
+                index,
+                originalName: file.originalname,
+                size: file.size,
+                durationMs: result && result.durationMs ? result.durationMs : undefined,
+                result: result && result.result ? result.result : result
+              });
+            } catch (e) {
+              errors.push({
+                index,
+                originalName: file.originalname,
+                size: file.size,
+                error: e.message
+              });
+            } finally {
+              // Limpar arquivo temporário caso o worker não tenha removido
+              if (file.path) {
+                try { await fs.promises.unlink(file.path); } catch (_) { }
+              }
+            }
+          }
+
+          uploadResult = {
+            status: "success",
+            message: `Processed ${success.length} files successfully` + (errors.length ? `, ${errors.length} failed` : ''),
+            data: {
+              success,
+              errors,
+              totalProcessed: success.length,
+              totalErrors: errors.length
+            }
+          };
+        }
 
         // Se o upload foi bem-sucedido, sempre salvar no grid
         if (uploadResult.status === "success") {

@@ -2,7 +2,7 @@
 require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') });
 
 // Inicializa o Redis
-const { redis } = require("./config/redis");
+const { redis, waitForConnection } = require("./config/redis");
 const { logRedisConnection } = require("./config/testingLogs");
 logRedisConnection('Cliente Redis carregado com sucesso');
 
@@ -15,6 +15,15 @@ const path = require("path");
 const http = require("http");
 const { setupWebSocket } = require("./config/websocket");
 const { CONST } = require("./utils/constants/constants");
+// Inicializa o worker do BullMQ para unified-upload apenas quando o Redis estiver pronto
+waitForConnection()
+  .then(() => {
+    console.log('[BullMQ] Redis ready. Starting unified-upload worker...');
+    require('./workers/unifiedUpload.worker');
+  })
+  .catch((err) => {
+    console.error('[BullMQ] Redis not ready, worker not started:', err && err.message);
+  });
 
 // Log das variáveis de ambiente importantes
 console.log('\n=== Configuração do Ambiente ===');
