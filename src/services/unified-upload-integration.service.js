@@ -71,7 +71,6 @@ class UnifiedUploadIntegrationService {
 
       // Criar registro principal
       const userMainGrid = await UserMainGrid.create({
-        admin_id: adminId,
         user_id: userId, // Sempre salva o user_id
         name: data.name,
         format: data.format,
