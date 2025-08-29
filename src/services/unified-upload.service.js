@@ -25,7 +25,7 @@ const MAX_UPLOAD_FILES = CONST.MAX_UPLOAD_FILES_PER_UPLOAD;
 class UnifiedUploadService {
 
   constructor() {
-    this.tempDir = null;
+    this.tempDir = null; // não mais usado em concorrência; mantido para compatibilidade
   }
 
   /**
@@ -57,14 +57,10 @@ class UnifiedUploadService {
         const allowedMimes = [
           "application/zip",
           "application/x-zip-compressed",
-          "application/x-rar-compressed",
-          "application/x-7z-compressed",
-          "application/x-tar",
-          "application/gzip",
-          "application/x-bzip2"
+          "application/x-tar"
         ];
 
-        const allowedExtensions = [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2"];
+        const allowedExtensions = [".zip", ".tar"];
 
         if (allowedMimes.includes(file.mimetype)) {
           cb(null, true);
@@ -73,7 +69,7 @@ class UnifiedUploadService {
           if (allowedExtensions.includes(fileExtension)) {
             cb(null, true);
           } else {
-            cb(new Error("Invalid file type. Supported types: ZIP, RAR, 7Z, TAR, GZ, BZ2"));
+            cb(new Error("Invalid file type. Supported types: ZIP, TAR"));
           }
         }
       },
@@ -86,18 +82,18 @@ class UnifiedUploadService {
   async createTempDir() {
     const tempDir = path.join(os.tmpdir(), `designflix-${crypto.randomBytes(8).toString("hex")}`);
     await fs.promises.mkdir(tempDir, { recursive: true });
-    this.tempDir = tempDir;
     return tempDir;
   }
 
   /**
    * Limpa diretório temporário
    */
-  async cleanupTempDir() {
-    if (this.tempDir && fs.existsSync(this.tempDir)) {
+  async cleanupTempDir(dirPath) {
+    const target = dirPath || this.tempDir;
+    if (target && fs.existsSync(target)) {
       try {
-        await fs.promises.rm(this.tempDir, { recursive: true, force: true });
-        console.log(`Cleaned up temp directory: ${this.tempDir}`);
+        await fs.promises.rm(target, { recursive: true, force: true });
+        console.log(`Cleaned up temp directory: ${target}`);
       } catch (error) {
         console.error("Error cleaning up temp directory:", error);
       }
@@ -107,9 +103,9 @@ class UnifiedUploadService {
   /**
    * Salva arquivo compactado temporariamente
    */
-  async saveTempArchive(fileBuffer, originalName) {
+  async saveTempArchive(fileBuffer, originalName, tempDir) {
     const safeName = sanitizeFilename(originalName, 80);
-    const tempPath = path.join(this.tempDir, safeName);
+    const tempPath = path.join(tempDir, safeName);
     await fs.promises.writeFile(tempPath, fileBuffer);
     return tempPath;
   }
@@ -169,14 +165,15 @@ class UnifiedUploadService {
    * Processa arquivo compactado completo
    */
   async processArchiveFile(fileBuffer, originalName, categoryId = null, categoryName = '') {
+    let tempDir;
     try {
       console.log(`Processing archive: ${originalName}`);
 
       // Criar diretório temporário
-      const tempDir = await this.createTempDir();
+      tempDir = await this.createTempDir();
 
       // Salvar arquivo compactado temporariamente
-      const archivePath = await this.saveTempArchive(fileBuffer, originalName);
+      const archivePath = await this.saveTempArchive(fileBuffer, originalName, tempDir);
 
       // Processar arquivo compactado
       const archiveData = await ArchiveProcessor.processArchive(archivePath, tempDir);
@@ -261,7 +258,7 @@ class UnifiedUploadService {
       throw error;
     } finally {
       // Sempre limpar arquivos temporários
-      await this.cleanupTempDir();
+      await this.cleanupTempDir(tempDir);
     }
   }
 
@@ -269,11 +266,12 @@ class UnifiedUploadService {
    * Processa arquivo compactado já salvo no disco (via multer.diskStorage)
    */
   async processArchiveFileFromPath(archiveFilePath, originalName, categoryId = null, categoryName = '') {
+    let tempDir;
     try {
       console.log(`Processing archive from path: ${originalName} -> ${archiveFilePath}`);
 
       // Criar diretório temporário
-      const tempDir = await this.createTempDir();
+      tempDir = await this.createTempDir();
 
       // Processar arquivo compactado
       const archiveData = await ArchiveProcessor.processArchive(archiveFilePath, tempDir);
@@ -358,7 +356,7 @@ class UnifiedUploadService {
       throw error;
     } finally {
       // Sempre limpar arquivos temporários criados pelo serviço
-      await this.cleanupTempDir();
+      await this.cleanupTempDir(tempDir);
     }
   }
 
@@ -369,92 +367,89 @@ class UnifiedUploadService {
     const results = [];
     const errors = [];
 
-    const concurrency = Math.max(1, (CONST.MAX_CONCURRENT_UPLOADS || 3));
-    let cursor = 0;
-
-    const worker = async () => {
-      while (true) {
-        const i = cursor++;
-        if (i >= files.length) break;
-        const file = files[i];
-        const startedAt = Date.now();
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const startedAt = Date.now();
+      try {
+        console.log(`Processing file ${i + 1}/${files.length}: ${file.originalname}`);
         try {
-          console.log(`Processing file ${i + 1}/${files.length}: ${file.originalname}`);
-          try {
-            logMultpleUpload("multi-upload:file:start", {
-              correlationId,
-              index: i,
-              name: file.originalname,
-              size: file.size,
-            });
-          } catch (_) { }
-
-          const result = file.path
-            ? await this.processArchiveFileFromPath(
-              file.path,
-              file.originalname,
-              categoryId,
-              categoryName
-            )
-            : await this.processArchiveFile(
-              file.buffer,
-              file.originalname,
-              categoryId,
-              categoryName
-            );
-
-          results.push({
+          logMultpleUpload("multi-upload:file:start", {
+            correlationId,
             index: i,
-            originalName: file.originalname,
+            name: file.originalname,
+            size: file.size,
+          });
+        } catch (_) { }
+
+        // Validar tipo suportado antes de processar
+        const archiveType = ArchiveProcessor.detectArchiveType(file.originalname || file.path || "");
+        if (!['zip', 'tar', 'targz', 'rar', '7z', 'tarbz2', 'gzip', 'bzip2'].includes(archiveType)) {
+          const errMsg = `Unsupported archive type: ${archiveType}. Supported: ZIP, TAR, TAR.GZ, RAR, 7Z, TAR.BZ2`;
+          throw new Error(errMsg);
+        }
+
+        const result = file.path
+          ? await this.processArchiveFileFromPath(
+            file.path,
+            file.originalname,
+            categoryId,
+            categoryName
+          )
+          : await this.processArchiveFile(
+            file.buffer,
+            file.originalname,
+            categoryId,
+            categoryName
+          );
+
+        results.push({
+          index: i,
+          originalName: file.originalname,
+          size: file.size,
+          durationMs: Date.now() - startedAt,
+          result: result
+        });
+
+        console.log(`File ${i + 1} processed successfully`);
+        try {
+          logMultpleUpload("multi-upload:file:success", {
+            correlationId,
+            index: i,
+            name: file.originalname,
             size: file.size,
             durationMs: Date.now() - startedAt,
-            result: result
           });
+        } catch (_) { }
 
-          console.log(`File ${i + 1} processed successfully`);
-          try {
-            logMultpleUpload("multi-upload:file:success", {
-              correlationId,
-              index: i,
-              name: file.originalname,
-              size: file.size,
-              durationMs: Date.now() - startedAt,
-            });
-          } catch (_) { }
-
-        } catch (error) {
-          console.error(`Error processing file ${i + 1}:`, error);
-          errors.push({
+      } catch (error) {
+        console.error(`Error processing file ${i + 1}:`, error);
+        errors.push({
+          index: i,
+          originalName: file.originalname,
+          size: file.size,
+          durationMs: Date.now() - startedAt,
+          error: error.message
+        });
+        try {
+          logMultpleUpload("multi-upload:file:error", {
+            correlationId,
             index: i,
-            originalName: file.originalname,
+            name: file.originalname,
             size: file.size,
             durationMs: Date.now() - startedAt,
-            error: error.message
+            error: error.message,
           });
-          try {
-            logMultpleUpload("multi-upload:file:error", {
-              correlationId,
-              index: i,
-              name: file.originalname,
-              size: file.size,
-              durationMs: Date.now() - startedAt,
-              error: error.message,
-            });
-          } catch (_) { }
-        } finally {
-          if (file.path) {
-            try { await fs.promises.unlink(file.path); } catch (_) { }
-          }
+        } catch (_) { }
+      } finally {
+        if (file.path) {
+          try { await fs.promises.unlink(file.path); } catch (_) { }
         }
       }
-    };
-
-    const workers = Array.from({ length: Math.min(concurrency, files.length) }, () => worker());
-    await Promise.all(workers);
+    }
 
     return {
-      success: results.sort((a, b) => a.index - b.index),
-      errors: errors.sort((a, b) => a.index - b.index),
+      success: results,
+      errors: errors,
       totalProcessed: results.length,
       totalErrors: errors.length
     };
@@ -518,8 +513,23 @@ class UnifiedUploadService {
   async uploadMultiple(req, res) {
     try {
       const { categoryId, categoryName } = req.body;
-      // Usar req.files.files quando usando multer.fields()
-      const files = req.files?.files || req.files || [];
+      // Normalizar arquivos independentemente do nome do campo (files, files[], etc.)
+      const normalizeFiles = (rf) => {
+        if (!rf) return [];
+        if (Array.isArray(rf)) return rf;
+        let acc = [];
+        if (Array.isArray(rf.files)) acc = acc.concat(rf.files);
+        if (Array.isArray(rf["files[]"])) acc = acc.concat(rf["files[]"]);
+        // Incluir quaisquer outros arrays de arquivos presentes
+        for (const key of Object.keys(rf)) {
+          if (key !== 'files' && key !== 'files[]' && Array.isArray(rf[key])) {
+            acc = acc.concat(rf[key]);
+          }
+        }
+        return acc;
+      };
+
+      const files = normalizeFiles(req.files);
 
       if (!files || files.length === 0) {
         throw new Error("No files provided");
