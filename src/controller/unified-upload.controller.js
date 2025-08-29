@@ -2,6 +2,7 @@ const multer = require("multer");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const crypto = require("crypto");
 const { logMultpleUpload } = require("../config/testingLogs");
 const UnifiedUploadService = require("../services/unified-upload.service");
 const UnifiedUploadIntegrationService = require("../services/unified-upload-integration.service");
@@ -95,7 +96,8 @@ module.exports = (app) => {
           cb(null, uploadTempDir);
         },
         filename: (req, file, cb) => {
-          cb(null, `${Date.now()}-${file.originalname}`);
+          const rand = crypto.randomBytes(12).toString("hex");
+          cb(null, `${Date.now()}-${rand}-${file.originalname}`);
         }
       });
 
@@ -113,10 +115,11 @@ module.exports = (app) => {
             "application/x-7z-compressed",
             "application/x-tar",
             "application/gzip",
-            "application/x-bzip2"
+            "application/x-bzip2",
+            "application/x-gtar",
           ];
 
-          const allowedExtensions = [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2"];
+          const allowedExtensions = [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".tgz", ".tbz", ".tbz2"];
 
           if (allowedMimes.includes(file.mimetype)) {
             cb(null, true);
@@ -125,15 +128,13 @@ module.exports = (app) => {
             if (allowedExtensions.includes(fileExtension)) {
               cb(null, true);
             } else {
-              cb(new Error("Invalid file type. Supported types: ZIP, RAR, 7Z, TAR, GZ, BZ2"));
+              cb(new Error("Invalid file type. Supported types: ZIP, RAR, 7Z, TAR, GZ, BZ2, TGZ, TBZ"));
             }
           }
         },
       }).fields([
-        { name: 'files', maxCount: CONST.MAX_UPLOAD_FILES_PER_UPLOAD },           // ← Arquivos
-        { name: 'categoryId', maxCount: 1 },       // ← ID da categoria
-        { name: 'categoryName', maxCount: 1 },     // ← Nome da categoria
-        { name: 'saveToGrid', maxCount: 1 }        // ← Boolean para salvar no grid
+        { name: 'files', maxCount: CONST.MAX_UPLOAD_FILES_PER_UPLOAD },           // ← Arquivos (campo comum)
+        { name: 'files[]', maxCount: CONST.MAX_UPLOAD_FILES_PER_UPLOAD }          // ← Suporte a campo 'files[]'
       ]);
 
       multerConfig(req, res, next);
@@ -145,7 +146,7 @@ module.exports = (app) => {
 
         // Se o upload foi bem-sucedido, sempre salvar no grid
         if (uploadResult.status === "success") {
-          const userId = req.body.user_id;
+          const userId = req.user && req.user.id ? req.user.id : null;
 
           // Salvar no UserMainGrid
           const savedRecords = await integrationService.processAndSave(
