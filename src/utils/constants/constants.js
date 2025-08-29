@@ -11,7 +11,7 @@ const CONST = {
   LIMIT_SIZE_IMG: 300 * 1024 * 1024, // Limite de tamanho: 300MB
   LIMIT_UPLOAD_SIZE_ZIP: 1024 * 1024 * 1024, // Limite de tamanho: 1GB
   LIMIT_MAIN: '1gb',
-  MAX_UPLOAD_FILES_PER_UPLOAD: 40, // Limite máximo de arquivos por multi-upload
+  MAX_UPLOAD_FILES_PER_UPLOAD: 20, // Limite máximo de arquivos por multi-upload
   MAX_CONCURRENT_UPLOADS: 3, // Concorrência controlada no processamento do multi-upload
   SERVER_HEADERS_TIMEOUT_MS: 650000, // ~10m50s
   SERVER_REQUEST_TIMEOUT_MS: 0,      // 0 = sem limite (ou defina 600000 = 10 min)
