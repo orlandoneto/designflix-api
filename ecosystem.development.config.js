@@ -3,8 +3,8 @@ module.exports = {
     {
       name: "designflix-api-dev", // Nome da sua aplicação
       script: "/root/api/dev/designflix-api/source/src/main.js", // Arquivo principal da aplicação
-      instances: 1, // Garantindo que apenas uma instância será executada
-      exec_mode: "fork", // Modo de execução "fork" (não cluster)
+      instances: 2, // Executar 2 instâncias em desenvolvimento
+      exec_mode: "cluster", // Modo de execução "cluster" (habilita múltiplos workers)
       autorestart: true, // Reinicia automaticamente em caso de falha
       watch: true, // Habilita watch apenas em desenvolvimento
       ignore_watch: [
