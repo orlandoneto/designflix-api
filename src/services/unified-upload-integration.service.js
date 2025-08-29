@@ -7,6 +7,19 @@ const { logMultpleUpload } = require("../config/testingLogs");
 class UnifiedUploadIntegrationService {
 
   /**
+   * Aplica formatação ao nome antes de salvar
+   * Ex.: "81FelizDiadospais" -> "81 FelizDiadospais"
+   */
+  formatNameForSaving(name) {
+    try {
+      if (!name || typeof name !== 'string') return name;
+      return name.replace(/([0-9]+)([A-Z][a-z]+)/g, "$1 $2");
+    } catch (_) {
+      return name;
+    }
+  }
+
+  /**
    * Cria ou encontra uma categoria
    */
   async findOrCreateCategory(categoryName) {
@@ -59,8 +72,9 @@ class UnifiedUploadIntegrationService {
  */
   async saveToUserMainGrid(data, userId, adminId = null) {
     try {
+      const formattedName = this.formatNameForSaving(data.name);
       logMultpleUpload("Saving to UserMainGrid:", {
-        name: data.name,
+        name: formattedName,
         format: data.format,
         user_id: userId,
         admin_id: adminId,
@@ -72,7 +86,7 @@ class UnifiedUploadIntegrationService {
       // Criar registro principal
       const userMainGrid = await UserMainGrid.create({
         user_id: userId, // Sempre salva o user_id
-        name: data.name,
+        name: formattedName,
         format: data.format,
         url_thumb: data.url_thumb,
         url_cover: data.url_cover,
