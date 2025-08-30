@@ -112,14 +112,39 @@ module.exports = class UserMainGridController {
         return res.status(200).send(cachedData);
       }
 
+      // Monta consulta FULLTEXT mais precisa em BOOLEAN MODE com prefixo
+      const buildBooleanQuery = (input) => {
+        const raw = String(input || '').trim();
+        const normalized = raw
+          .replace(/\s+/g, ' ')
+          .replace(/["'`]+/g, '');
+        const stopwords = new Set(['a', 'o', 'as', 'os', 'e', 'de', 'do', 'da', 'dos', 'das', 'um', 'uma', 'para', 'por', 'no', 'na', 'nos', 'nas', 'em', 'com', 'sem', 'ao', 'à', 'às', 'aos']);
+        const tokens = normalized.split(' ').filter(Boolean);
+        const booleanTokens = [];
+        for (const t of tokens) {
+          const token = t.toLowerCase();
+          if (stopwords.has(token)) continue;
+          if (token.length >= 4) booleanTokens.push(`+${token}*`);
+        }
+        const booleanQuery = booleanTokens.join(' ');
+        const likeQuery = `%${normalized}%`;
+        return { booleanQuery, likeQuery, hasBoolean: booleanQuery.length > 0 };
+      };
+
       if (searchTerm && searchTerm !== 'null' && format && format !== 'null') {
         let whereClauses = [];
         let replacements = {};
 
-        whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN NATURAL LANGUAGE MODE)`);
+        const { booleanQuery, likeQuery, hasBoolean } = buildBooleanQuery(searchTerm);
+        if (hasBoolean) {
+          whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN BOOLEAN MODE)`);
+          replacements.search = booleanQuery;
+        } else {
+          whereClauses.push(`umg.terms LIKE :search_like`);
+          replacements.search_like = likeQuery;
+        }
         whereClauses.push(`umg.format = :format`);
         whereClauses.push(`umg.activite = 0`);
-        replacements.search = searchTerm;
         replacements.format = format;
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -157,7 +182,7 @@ module.exports = class UserMainGridController {
           LEFT JOIN tags t ON t.id = umgt.tag_id
           ${whereSQL}
           GROUP BY umg.id
-          ORDER BY umg.created_at DESC, umg.updated_at DESC
+          ORDER BY umg.created_at DESC, umg.id DESC
           LIMIT :limit OFFSET :offset
         `;
 
@@ -209,9 +234,15 @@ module.exports = class UserMainGridController {
         let whereClauses = [];
         let replacements = {};
 
-        whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN NATURAL LANGUAGE MODE)`);
+        const { booleanQuery, likeQuery, hasBoolean } = buildBooleanQuery(searchTerm);
+        if (hasBoolean) {
+          whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN BOOLEAN MODE)`);
+          replacements.search = booleanQuery;
+        } else {
+          whereClauses.push(`umg.terms LIKE :search_like`);
+          replacements.search_like = likeQuery;
+        }
         whereClauses.push(`umg.activite = 0`);
-        replacements.search = searchTerm;
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
