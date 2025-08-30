@@ -117,7 +117,7 @@ module.exports = class UserMainGridController {
         let replacements = {};
 
         whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN NATURAL LANGUAGE MODE)`);
-        whereClauses.push(`MATCH (umg.terms) AGAINST (:format IN NATURAL LANGUAGE MODE)`);
+        whereClauses.push(`umg.format = :format`);
         whereClauses.push(`umg.activite = 0`);
         replacements.search = searchTerm;
         replacements.format = format;
@@ -300,7 +300,7 @@ module.exports = class UserMainGridController {
         let whereClauses = [];
         let replacements = {};
 
-        whereClauses.push(`MATCH (umg.terms) AGAINST (:format IN NATURAL LANGUAGE MODE)`);
+        whereClauses.push(`umg.format = :format`);
         whereClauses.push(`umg.activite = 0`);
         replacements.format = format;
 
