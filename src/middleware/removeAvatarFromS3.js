@@ -7,17 +7,27 @@ module.exports = async function removeAvatarFromS3(req, res, next) {
   console.log('userId:', userId);
   if (!userId) return next();
 
-  const s3 = new S3Client({
-    region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION,
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
+  const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION;
+  const bucket = process.env.AWS_BUCKET_NAME;
+  const hasCreds = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+
+  if (!region || !bucket) {
+    return next();
+  }
+
+  const s3Client = new S3Client({
+    region,
+    credentials: hasCreds
+      ? {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      }
+      : undefined,
+    defaultsMode: 'standard',
   });
 
   try {
     const user = await User.findOne({ where: { id: userId } });
-    console.log('Usuário encontrado:', user ? user.id : null, 'photo:', user ? user.photo : null);
     if (!user || !user.photo) return next();
 
     const photoUrl = user.photo;
@@ -31,8 +41,8 @@ module.exports = async function removeAvatarFromS3(req, res, next) {
       return next(); // Não bloqueia o fluxo se a URL for inválida
     }
 
-    const result = await s3.send(new DeleteObjectCommand({
-      Bucket: process.env.AWS_BUCKET_NAME,
+    const result = await s3Client.send(new DeleteObjectCommand({
+      Bucket: bucket,
       Key: key,
     }));
     console.log('Resultado do deleteObject:', result);
