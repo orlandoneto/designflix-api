@@ -40,8 +40,16 @@ class UserServices {
             where: { activite: 0 },
           }
         ],
+        having: Sequelize.where(
+          Sequelize.fn("COUNT", Sequelize.col("UserMainGrids.id")),
+          ">",
+          0
+        ),
         group: ["User.id"],
-        order: [["createdAt", "DESC"]]
+        order: [
+          [Sequelize.literal("totalFiles"), "DESC"],
+          ["createdAt", "DESC"]
+        ]
       });
 
       // Converter para formato simples
