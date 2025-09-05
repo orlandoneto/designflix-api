@@ -7,39 +7,6 @@ const { logMultpleUpload } = require("../config/testingLogs");
 class UnifiedUploadIntegrationService {
 
   /**
-   * Aplica formatação ao nome antes de salvar
-   * Ex.: "81FelizDiadospais" -> "81 FelizDiadospais"
-   */
-  formatNameForSaving(name) {
-    try {
-      if (!name || typeof name !== 'string') return name;
-      let s = name.trim();
-
-      // separa números iniciais (ex: "64Dia..." -> "64 Dia...")
-      s = s.replace(/^(\d+)(?=\S)/, '$1 ');
-
-      // insere espaço entre lower->Upper (ex: "DiaMundial" -> "Dia Mundial")
-      s = s.replace(/([a-zà-ú0-9])([A-ZÀ-Ú])/g, '$1 $2');
-
-      // separar partículas PT-BR coladas ANTES de Maiúsculas (sem quebrar finais de palavra como "Chocolate")
-      s = s.replace(/([a-zà-ú])((?:do|da|dos|das|de|ao|aos|com|para|no|na|nos|nas))(?=[A-ZÀ-Ú])/gi, '$1 $2');
-
-      // normaliza espaços e aplica Title Case (mantendo algumas partículas em minúsculo)
-      s = s.replace(/\s+/g, ' ').trim();
-
-      const stopwords = new Set(['do', 'da', 'dos', 'das', 'de', 'e', 'ao', 'aos', 'com', 'para', 'no', 'na', 'nos', 'nas', 'a', 'o', 'as', 'os']);
-      s = s.toLowerCase()
-        .split(' ')
-        .map((w, i) => (i > 0 && stopwords.has(w) ? w : (w.charAt(0).toUpperCase() + w.slice(1))))
-        .join(' ');
-
-      return s;
-    } catch (_) {
-      return name;
-    }
-  }
-
-  /**
    * Cria ou encontra uma categoria
    */
   async findOrCreateCategory(categoryName) {
@@ -92,9 +59,11 @@ class UnifiedUploadIntegrationService {
  */
   async saveToUserMainGrid(data, userId, adminId = null) {
     try {
-      const formattedName = this.formatNameForSaving(data.name);
+      // Usar nome original do preview para salvar (se disponível), sem quebrar sanitização do fluxo
+      const baseToPersist = data.originalName || data.name;
+      const nameToPersist = (baseToPersist || '').trim();
       logMultpleUpload("Saving to UserMainGrid:", {
-        name: formattedName,
+        name: nameToPersist,
         format: data.format,
         user_id: userId,
         admin_id: adminId,
@@ -106,7 +75,7 @@ class UnifiedUploadIntegrationService {
       // Criar registro principal
       const userMainGrid = await UserMainGrid.create({
         user_id: userId, // Sempre salva o user_id
-        name: formattedName,
+        name: nameToPersist,
         format: data.format,
         url_thumb: data.url_thumb,
         url_cover: data.url_cover,

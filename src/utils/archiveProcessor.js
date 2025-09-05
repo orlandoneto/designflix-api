@@ -865,11 +865,13 @@ class ArchiveProcessor {
       return {
         preview: {
           name: previewFile.name,
+          originalName: path.basename(previewFile.originalName || previewFile.name),
           path: previewPath,
           size: previewFile.size || 0
         },
         content: contentPath ? {
           name: path.basename(contentPath),
+          originalName: path.basename(contentFile?.originalName || contentFile?.name || path.basename(contentPath)),
           path: contentPath,
           size: fs.statSync(contentPath).size
         } : null,

@@ -220,8 +220,9 @@ class UnifiedUploadService {
         logMultpleUpload("Content uploaded:", contentResult.url);
       }
 
-      // Gerar nome baseado no arquivo de preview
+      // Gerar nome baseado no arquivo de preview (sanitizado) e manter o original
       const baseName = ArchiveProcessor.generateBaseName(archiveData.preview.name);
+      const originalBaseName = ArchiveProcessor.generateBaseName(archiveData.preview.originalName || archiveData.preview.name);
 
       // Detectar formato real da imagem
       const imageFormat = await ImageProcessor.detectImageFormat(previewBuffer);
@@ -251,6 +252,7 @@ class UnifiedUploadService {
       // Preparar dados para retorno
       const result = {
         name: baseName,
+        originalName: originalBaseName,
         format: finalFormat, // ✅ CORRIGIDO: Sempre extensão do CONTEÚDO
         url_thumb: thumbnailResult.url,
         url_cover: previewResult.url,
@@ -318,8 +320,9 @@ class UnifiedUploadService {
         logMultpleUpload("Content uploaded:", contentResult.url);
       }
 
-      // Gerar nome baseado no arquivo de preview
+      // Gerar nome baseado no arquivo de preview (sanitizado) e manter o original
       const baseName = ArchiveProcessor.generateBaseName(archiveData.preview.name);
+      const originalBaseName = ArchiveProcessor.generateBaseName(archiveData.preview.originalName || archiveData.preview.name);
 
       // Detectar formato real da imagem
       const imageFormat = await ImageProcessor.detectImageFormat(previewBuffer);
@@ -349,6 +352,7 @@ class UnifiedUploadService {
       // Preparar dados para retorno
       const result = {
         name: baseName,
+        originalName: originalBaseName,
         format: finalFormat,
         url_thumb: thumbnailResult.url,
         url_cover: previewResult.url,
