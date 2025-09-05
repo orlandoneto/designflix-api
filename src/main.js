@@ -151,6 +151,9 @@ require("./controller/user-plans.controller")(app);
 // Forgot Signup
 require("./controller/forgot.controller")(app);
 
+// Landing Pages
+require("./controller/landing-page.controller")(app);
+
 server.listen(process.env.NODE_PORT, () => {
   console.log('\n=== Servidor Iniciado ===');
   console.log(`Servidor rodando na porta ${process.env.NODE_PORT}`);
