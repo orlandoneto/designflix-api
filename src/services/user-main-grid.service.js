@@ -799,7 +799,13 @@ module.exports = class UserMainGridController {
     try {
       const where = { id: Number(req.params.id) };
 
-      const [updated] = await UserMainGrid.update(req.body, { where });
+      // Se reason vier vazio (''/null/undefined), definir 0
+      const body = { ...req.body };
+      if (Object.prototype.hasOwnProperty.call(body, 'reason') && (body.reason === '' || body.reason === null || typeof body.reason === 'undefined')) {
+        body.reason = 0;
+      }
+
+      const [updated] = await UserMainGrid.update(body, { where });
 
       if (updated === 0) {
         return res.status(404).send({ message: "Registro não encontrado" });
