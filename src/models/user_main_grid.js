@@ -30,7 +30,7 @@ module.exports = (sequelize, DataTypes) => {
       url_cover: {
         type: DataTypes.STRING,
         allowNull: true,
-      },      
+      },
       url: {
         type: DataTypes.STRING,
         allowNull: true,
@@ -50,6 +50,11 @@ module.exports = (sequelize, DataTypes) => {
       terms: {
         type: DataTypes.TEXT,
         allowNull: true,
+      },
+      reason: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
       },
       activite: {
         type: DataTypes.BOOLEAN,
