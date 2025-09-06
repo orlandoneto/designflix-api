@@ -544,7 +544,7 @@ class UserServices {
 
         await User.update(updatedUser, { where });
 
-        const user = await User.findOne({ where });
+        const user = await User.findOne({ where, attributes: { exclude: ["password"] } });
 
         // Verifica se o usuário está solicitando ser contribuidor
         if (req.body.contributor === 1 && oldUser.contributor !== 1) {
