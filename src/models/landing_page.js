@@ -35,6 +35,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         field: "cta_link",
       },
+      userId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "user_id",
+      },
       trackingCode: {
         type: DataTypes.TEXT,
         allowNull: true,
@@ -42,11 +47,13 @@ module.exports = (sequelize, DataTypes) => {
       },
       createdAt: {
         type: DataTypes.DATE,
+        field: "created_at",
         allowNull: false,
         defaultValue: DataTypes.NOW,
       },
       updatedAt: {
         type: DataTypes.DATE,
+        field: "updated_at",
         allowNull: false,
         defaultValue: DataTypes.NOW,
       },
@@ -55,6 +62,10 @@ module.exports = (sequelize, DataTypes) => {
       tableName: "landing_pages",
     }
   );
+
+  LandingPage.associate = function (models) {
+    LandingPage.belongsTo(models.User, { foreignKey: 'user_id', as: 'user' });
+  };
 
   return LandingPage;
 };
