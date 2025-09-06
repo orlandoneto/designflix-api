@@ -667,6 +667,7 @@ module.exports = class UserMainGridController {
           id: grid.user?.id,
           name: grid.user?.name,
           photo: grid.user?.photo,
+          reason: grid.user?.reason,
         },
         categories: grid.user_main_grid_categories.map((item) => ({
           id: item.category.id,
@@ -756,8 +757,9 @@ module.exports = class UserMainGridController {
 
   async getOne(req, res) {
     try {
+      const { id } = req.params;
       const userMainGrid = await UserMainGrid.findOne({
-        where: { id: req.params.id, activite: 0 },
+        where: { id, activite: 0 },
         include: [
           {
             model: UserMainGridCategories,
@@ -785,7 +787,7 @@ module.exports = class UserMainGridController {
       });
 
       if (!userMainGrid) {
-        return res.status(404).send({ message: "Registro não encontrado" });
+        return res.status(403).send({ message: "Registro encontra-se inativo" });
       }
 
       res.status(200).send({ data: userMainGrid });
