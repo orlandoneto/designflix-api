@@ -54,7 +54,6 @@ module.exports = (sequelize, DataTypes) => {
       reason: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        defaultValue: 1,
       },
       activite: {
         type: DataTypes.BOOLEAN,
