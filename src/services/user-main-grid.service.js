@@ -28,6 +28,7 @@ module.exports = class UserMainGridController {
         categories,
         tags,
         terms,
+        reason,
       } = req.body;
 
       const userMainGrid = await UserMainGrid.create(
@@ -40,6 +41,7 @@ module.exports = class UserMainGridController {
           url_cover,
           url,
           terms,
+          reason,
         },
         { transaction }
       );
@@ -175,7 +177,7 @@ module.exports = class UserMainGridController {
         const query = `
           SELECT
             umg.*,
-            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
             MATCH (umg.terms) AGAINST (:search_nat IN NATURAL LANGUAGE MODE) AS score,
             CASE WHEN umg.terms LIKE :phrase_like THEN 1 ELSE 0 END AS phrase_hit,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
@@ -207,10 +209,13 @@ module.exports = class UserMainGridController {
           url_cover: r.url_cover,
           url: r.url,
           activite: r.activite,
+          reason: r.reason,
           user: {
             id: r.user_id,
             name: r.user_name,
             photo: r.user_photo,
+            partnerCode: r.user_partner_code,
+            couponCode: r.user_coupon_code,
           },
           categories: r.categories
             ? JSON.parse(`[${r.categories}]`)
@@ -277,7 +282,7 @@ module.exports = class UserMainGridController {
         const query = `
           SELECT
             umg.*,
-            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
             MATCH (umg.terms) AGAINST (:search_nat IN NATURAL LANGUAGE MODE) AS score,
             CASE WHEN umg.terms LIKE :phrase_like THEN 1 ELSE 0 END AS phrase_hit,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
@@ -309,10 +314,13 @@ module.exports = class UserMainGridController {
           url_cover: r.url_cover,
           url: r.url,
           activite: r.activite,
+          reason: r.reason,
           user: {
             id: r.user_id,
             name: r.user_name,
             photo: r.user_photo,
+            partnerCode: r.user_partner_code,
+            couponCode: r.user_coupon_code,
           },
           categories: r.categories
             ? JSON.parse(`[${r.categories}]`)
@@ -370,7 +378,7 @@ module.exports = class UserMainGridController {
         const query = `
           SELECT
             umg.*,
-            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
           FROM user_main_grid umg
@@ -400,10 +408,13 @@ module.exports = class UserMainGridController {
           url_cover: r.url_cover,
           url: r.url,
           activite: r.activite,
+          reason: r.reason,
           user: {
             id: r.user_id,
             name: r.user_name,
             photo: r.user_photo,
+            partnerCode: r.user_partner_code,
+            couponCode: r.user_coupon_code,
           },
           categories: r.categories
             ? JSON.parse(`[${r.categories}]`)
@@ -436,7 +447,7 @@ module.exports = class UserMainGridController {
             {
               model: User,
               as: "user",
-              attributes: ["id", "name", "photo"],
+              attributes: ["id", "name", "photo", "partnerCode", "couponCode"],
             },
             {
               model: UserMainGridCategories,
@@ -479,10 +490,13 @@ module.exports = class UserMainGridController {
           url_cover: grid.url_cover,
           url: grid.url,
           activite: grid.activite,
+          reason: grid.reason,
           user: {
             id: grid.user?.id,
             name: grid.user?.name,
             photo: grid.user?.photo,
+            partnerCode: grid.user?.partnerCode,
+            couponCode: grid.user?.couponCode,
           },
           categories: grid.user_main_grid_categories.map((item) => ({
             id: item.category.id,
@@ -568,7 +582,7 @@ module.exports = class UserMainGridController {
         const query = `
           SELECT
             umg.*,
-            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
             MATCH (umg.terms) AGAINST (:search_nat IN NATURAL LANGUAGE MODE) AS score,
             CASE WHEN umg.terms LIKE :phrase_like THEN 1 ELSE 0 END AS phrase_hit,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
@@ -597,10 +611,13 @@ module.exports = class UserMainGridController {
           url_cover: r.url_cover,
           url: r.url,
           activite: r.activite,
+          reason: r.reason,
           user: {
             id: r.user_id,
             name: r.user_name,
             photo: r.user_photo,
+            partnerCode: r.user_partner_code,
+            couponCode: r.user_coupon_code,
           },
           categories: r.categories ? JSON.parse(`[${r.categories}]`) : [],
           tags: r.tags ? JSON.parse(`[${r.tags}]`) : [],
@@ -624,7 +641,7 @@ module.exports = class UserMainGridController {
           {
             model: User,
             as: "user",
-            attributes: ["id", "name", "photo"],
+            attributes: ["id", "name", "photo", "partnerCode", "couponCode"],
           },
           {
             model: UserMainGridCategories,
@@ -663,10 +680,13 @@ module.exports = class UserMainGridController {
         url_cover: grid.url_cover,
         url: grid.url,
         activite: grid.activite,
+        reason: grid.reason,
         user: {
           id: grid.user?.id,
           name: grid.user?.name,
           photo: grid.user?.photo,
+          partnerCode: grid.user?.partnerCode,
+          couponCode: grid.user?.couponCode,
         },
         categories: grid.user_main_grid_categories.map((item) => ({
           id: item.category.id,
@@ -756,8 +776,9 @@ module.exports = class UserMainGridController {
 
   async getOne(req, res) {
     try {
+      const { id } = req.params;
       const userMainGrid = await UserMainGrid.findOne({
-        where: { id: req.params.id, activite: 0 },
+        where: { id, activite: 0 },
         include: [
           {
             model: UserMainGridCategories,
@@ -785,7 +806,7 @@ module.exports = class UserMainGridController {
       });
 
       if (!userMainGrid) {
-        return res.status(404).send({ message: "Registro não encontrado" });
+        return res.status(403).send({ message: "Registro encontra-se inativo" });
       }
 
       res.status(200).send({ data: userMainGrid });
@@ -799,7 +820,13 @@ module.exports = class UserMainGridController {
     try {
       const where = { id: Number(req.params.id) };
 
-      const [updated] = await UserMainGrid.update(req.body, { where });
+      // Se reason vier vazio (''/null/undefined), definir 0
+      const body = { ...req.body };
+      if (Object.prototype.hasOwnProperty.call(body, 'reason') && (body.reason === '' || body.reason === null || typeof body.reason === 'undefined')) {
+        body.reason = 0;
+      }
+
+      const [updated] = await UserMainGrid.update(body, { where });
 
       if (updated === 0) {
         return res.status(404).send({ message: "Registro não encontrado" });

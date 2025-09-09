@@ -85,6 +85,16 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         field: "last_payout",
       },
+      couponCode: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: "coupon_code",
+      },
+      partnerCode: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: "partner_code",
+      },
       createdAt: {
         type: DataTypes.DATE,
         field: "created_at",
@@ -135,7 +145,7 @@ module.exports = (sequelize, DataTypes) => {
       }),
       User.hasMany(models.UserPlans, {
         foreignKey: "user_id",
-      });   
+      });
   };
 
   return User;
