@@ -40,8 +40,16 @@ class UserServices {
             where: { activite: 0 },
           }
         ],
+        having: Sequelize.where(
+          Sequelize.fn("COUNT", Sequelize.col("UserMainGrids.id")),
+          ">",
+          0
+        ),
         group: ["User.id"],
-        order: [["createdAt", "DESC"]]
+        order: [
+          [Sequelize.literal("totalFiles"), "DESC"],
+          ["createdAt", "DESC"]
+        ]
       });
 
       // Converter para formato simples
@@ -536,7 +544,7 @@ class UserServices {
 
         await User.update(updatedUser, { where });
 
-        const user = await User.findOne({ where });
+        const user = await User.findOne({ where, attributes: { exclude: ["password"] } });
 
         // Verifica se o usuário está solicitando ser contribuidor
         if (req.body.contributor === 1 && oldUser.contributor !== 1) {

@@ -59,8 +59,11 @@ class UnifiedUploadIntegrationService {
  */
   async saveToUserMainGrid(data, userId, adminId = null) {
     try {
+      // Usar nome original do preview para salvar (se disponível), sem quebrar sanitização do fluxo
+      const baseToPersist = data.originalName || data.name;
+      const nameToPersist = (baseToPersist || '').trim();
       logMultpleUpload("Saving to UserMainGrid:", {
-        name: data.name,
+        name: nameToPersist,
         format: data.format,
         user_id: userId,
         admin_id: adminId,
@@ -71,9 +74,8 @@ class UnifiedUploadIntegrationService {
 
       // Criar registro principal
       const userMainGrid = await UserMainGrid.create({
-        admin_id: adminId,
         user_id: userId, // Sempre salva o user_id
-        name: data.name,
+        name: nameToPersist,
         format: data.format,
         url_thumb: data.url_thumb,
         url_cover: data.url_cover,

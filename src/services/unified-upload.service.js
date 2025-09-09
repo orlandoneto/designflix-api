@@ -57,10 +57,29 @@ class UnifiedUploadService {
         const allowedMimes = [
           "application/zip",
           "application/x-zip-compressed",
-          "application/x-tar"
+          "application/x-rar-compressed",
+          "application/vnd.rar",
+          "application/x-7z-compressed",
+          "application/x-tar",
+          "application/gzip",
+          "application/x-gzip",
+          "application/x-bzip2",
+          "application/x-bzip",
+          "application/x-gtar",
+          "application/x-compressed",
         ];
 
-        const allowedExtensions = [".zip", ".tar"];
+        const allowedExtensions = [
+          ".zip",
+          ".rar",
+          ".7z",
+          ".tar",
+          ".gz",
+          ".bz2",
+          ".tgz",
+          ".tbz",
+          ".tbz2"
+        ];
 
         if (allowedMimes.includes(file.mimetype)) {
           cb(null, true);
@@ -69,7 +88,7 @@ class UnifiedUploadService {
           if (allowedExtensions.includes(fileExtension)) {
             cb(null, true);
           } else {
-            cb(new Error("Invalid file type. Supported types: ZIP, TAR"));
+            cb(new Error("Invalid file type. Supported types: ZIP, RAR, 7Z, TAR, GZ, BZ2, TGZ, TBZ"));
           }
         }
       },
@@ -201,8 +220,9 @@ class UnifiedUploadService {
         logMultpleUpload("Content uploaded:", contentResult.url);
       }
 
-      // Gerar nome baseado no arquivo de preview
+      // Gerar nome baseado no arquivo de preview (sanitizado) e manter o original
       const baseName = ArchiveProcessor.generateBaseName(archiveData.preview.name);
+      const originalBaseName = ArchiveProcessor.generateBaseName(archiveData.preview.originalName || archiveData.preview.name);
 
       // Detectar formato real da imagem
       const imageFormat = await ImageProcessor.detectImageFormat(previewBuffer);
@@ -232,6 +252,7 @@ class UnifiedUploadService {
       // Preparar dados para retorno
       const result = {
         name: baseName,
+        originalName: originalBaseName,
         format: finalFormat, // ✅ CORRIGIDO: Sempre extensão do CONTEÚDO
         url_thumb: thumbnailResult.url,
         url_cover: previewResult.url,
@@ -299,8 +320,9 @@ class UnifiedUploadService {
         logMultpleUpload("Content uploaded:", contentResult.url);
       }
 
-      // Gerar nome baseado no arquivo de preview
+      // Gerar nome baseado no arquivo de preview (sanitizado) e manter o original
       const baseName = ArchiveProcessor.generateBaseName(archiveData.preview.name);
+      const originalBaseName = ArchiveProcessor.generateBaseName(archiveData.preview.originalName || archiveData.preview.name);
 
       // Detectar formato real da imagem
       const imageFormat = await ImageProcessor.detectImageFormat(previewBuffer);
@@ -330,6 +352,7 @@ class UnifiedUploadService {
       // Preparar dados para retorno
       const result = {
         name: baseName,
+        originalName: originalBaseName,
         format: finalFormat,
         url_thumb: thumbnailResult.url,
         url_cover: previewResult.url,

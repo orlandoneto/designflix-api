@@ -4,17 +4,76 @@ const { pipeline } = require("stream/promises");
 const unzipper = require("unzipper");
 const tar = require("tar");
 const { spawn } = require("child_process");
-let path7za = null;
+
+// Detectar binário do 7-Zip de forma mais robusta (maior compatibilidade com RAR/RAR5)
+let sevenZipBinaryPath = null;
+let sevenZipCandidatePaths = [];
 try {
-  path7za = require("7zip-bin").path7za;
+  const seven = require("7zip-bin");
+  // Tentar as variantes conhecidas na ordem de preferência
+  sevenZipBinaryPath = seven.path7z || seven.path7za || seven.path7zr || null;
+  if (seven.path7z) sevenZipCandidatePaths.push(seven.path7z);
+  if (seven.path7za) sevenZipCandidatePaths.push(seven.path7za);
+  if (seven.path7zr) sevenZipCandidatePaths.push(seven.path7zr);
 } catch (_e) { }
-const ImageProcessor = require("./imageProcessor");
+
+// Permitir override via variável de ambiente para apontar para 7z.exe completo (RAR/RAR5)
+try {
+  const envSevenZip = process.env.SEVEN_ZIP || process.env.SEVEN_ZIP_PATH;
+  if (envSevenZip) {
+    sevenZipCandidatePaths.unshift(envSevenZip);
+  }
+} catch (_e) { }
 const { sanitizeFilename } = require("./filenameSanitizer");
 
 /**
  * Utilitário para processamento de arquivos compactados usando Node.js streams
  */
 class ArchiveProcessor {
+  static getSevenZipCandidates(archiveType) {
+    const candidates = [];
+    // Para RAR, preferir o 7z completo do PATH (suporta RAR/RAR5) antes de 7za
+    if (archiveType === 'rar') {
+      candidates.push('7z');
+      candidates.push('7zz');
+    }
+    // Incluir o binário detectado principal
+    if (sevenZipBinaryPath) candidates.push(sevenZipBinaryPath);
+    // Incluir demais caminhos conhecidos do pacote
+    for (const p of sevenZipCandidatePaths) {
+      if (p && !candidates.includes(p)) candidates.push(p);
+    }
+    // Fallback final: tentar '7z' mesmo para outros tipos
+    if (!candidates.includes('7z')) candidates.push('7z');
+    if (!candidates.includes('7zz')) candidates.push('7zz');
+    if (!candidates.includes('7za')) candidates.push('7za');
+    return candidates;
+  }
+
+  static async runSevenZip(args, archiveType) {
+    const candidates = this.getSevenZipCandidates(archiveType);
+    let lastError = null;
+    for (const cmd of candidates) {
+      try {
+        const stdout = await new Promise((resolve, reject) => {
+          const proc = spawn(cmd, args);
+          let out = "";
+          let err = "";
+          proc.stdout.on("data", (d) => { out += d.toString(); });
+          proc.stderr.on("data", (d) => { err += d.toString(); });
+          proc.on("error", (e) => reject(e));
+          proc.on("close", (code) => {
+            if (code === 0) resolve(out);
+            else reject(new Error(err || `${cmd} exited with code ${code}`));
+          });
+        });
+        return stdout;
+      } catch (e) {
+        lastError = new Error(`[7z try ${cmd}] ${e.message}`);
+      }
+    }
+    throw lastError || new Error("No 7-Zip command succeeded (consider setting SEVEN_ZIP to 7z.exe)");
+  }
 
   /**
    * Detecta o tipo de arquivo compactado
@@ -167,20 +226,7 @@ class ArchiveProcessor {
         });
         return entries;
       } else if (['rar', '7z', 'tarbz2', 'gzip', 'bzip2'].includes(archiveType)) {
-        if (!path7za) {
-          throw new Error("7zip binary not available to handle this archive type");
-        }
-        const stdout = await new Promise((resolve, reject) => {
-          const proc = spawn(path7za, ["l", "-ba", "-slt", archivePath]);
-          let out = "";
-          let err = "";
-          proc.stdout.on("data", (d) => { out += d.toString(); });
-          proc.stderr.on("data", (d) => { err += d.toString(); });
-          proc.on("close", (code) => {
-            if (code === 0) resolve(out);
-            else reject(new Error(err || `7z list exited with code ${code}`));
-          });
-        });
+        const stdout = await this.runSevenZip(["l", "-ba", "-slt", archivePath], archiveType);
 
         const lines = stdout.split(/\r?\n/);
         const items = [];
@@ -372,9 +418,6 @@ class ArchiveProcessor {
 
         return outputPath;
       } else if (['rar', '7z', 'tarbz2', 'gzip', 'bzip2'].includes(archiveType)) {
-        if (!path7za) {
-          throw new Error("7zip binary not available to handle this archive type");
-        }
         // Listar para mapear displayName -> originalName
         const entries = await this.listArchiveContents(archivePath);
         const usedNames = new Map();
@@ -396,18 +439,35 @@ class ArchiveProcessor {
           throw new Error(`File ${fileName} not found in archive`);
         }
 
-        await new Promise((resolve, reject) => {
-          const args = ["x", "-y", `-o${extractPath}`, archivePath, candidateOriginal];
-          const proc = spawn(path7za, args, { cwd: path.dirname(archivePath) });
-          let err = "";
-          proc.stderr.on("data", (d) => { err += d.toString(); });
-          proc.on("close", (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(err || `7z extract exited with code ${code}`));
-          });
-        });
+        const outputArg = `-o${extractPath.includes(' ') ? `"${extractPath}"` : extractPath}`;
+        // Usar 'e' para extrair sem manter diretórios, garantindo arquivo na raiz do extractPath
+        await this.runSevenZip(["e", "-y", outputArg, archivePath, candidateOriginal], archiveType);
 
-        return path.join(extractPath, path.basename(candidateOriginal));
+        // Verificar arquivo esperado na raiz
+        const expected = path.join(extractPath, path.basename(candidateOriginal));
+        if (fs.existsSync(expected)) {
+          return expected;
+        }
+
+        // Fallback: procurar recursivamente pelo arquivo extraído (caso algum 7z mantenha caminho)
+        const targetBase = path.basename(candidateOriginal).toLowerCase();
+        const stack = [extractPath];
+        while (stack.length) {
+          const cur = stack.pop();
+          try {
+            const dirents = fs.readdirSync(cur, { withFileTypes: true });
+            for (const de of dirents) {
+              const full = path.join(cur, de.name);
+              if (de.isDirectory()) stack.push(full);
+              else if (de.isFile() && de.name.toLowerCase() === targetBase) {
+                return full;
+              }
+            }
+          } catch (_e) { }
+        }
+
+        // Se não achou, falhar explicitamente
+        throw new Error(`Extracted file not found: ${path.basename(candidateOriginal)}`);
       }
 
       throw new Error(`Unsupported archive type: ${archiveType}`);
@@ -805,11 +865,13 @@ class ArchiveProcessor {
       return {
         preview: {
           name: previewFile.name,
+          originalName: path.basename(previewFile.originalName || previewFile.name),
           path: previewPath,
           size: previewFile.size || 0
         },
         content: contentPath ? {
           name: path.basename(contentPath),
+          originalName: path.basename(contentFile?.originalName || contentFile?.name || path.basename(contentPath)),
           path: contentPath,
           size: fs.statSync(contentPath).size
         } : null,

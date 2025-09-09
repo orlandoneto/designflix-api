@@ -28,6 +28,7 @@ module.exports = class UserMainGridController {
         categories,
         tags,
         terms,
+        reason,
       } = req.body;
 
       const userMainGrid = await UserMainGrid.create(
@@ -40,6 +41,7 @@ module.exports = class UserMainGridController {
           url_cover,
           url,
           terms,
+          reason,
         },
         { transaction }
       );
@@ -112,14 +114,43 @@ module.exports = class UserMainGridController {
         return res.status(200).send(cachedData);
       }
 
+      // Monta consulta FULLTEXT mais precisa em BOOLEAN MODE com prefixo
+      const buildBooleanQuery = (input) => {
+        const raw = String(input || '').trim();
+        const normalized = raw
+          .replace(/\s+/g, ' ')
+          .replace(/["'`]+/g, '');
+        const stopwords = new Set(['a', 'o', 'as', 'os', 'e', 'de', 'do', 'da', 'dos', 'das', 'um', 'uma', 'para', 'por', 'no', 'na', 'nos', 'nas', 'em', 'com', 'sem', 'ao', 'à', 'às', 'aos']);
+        const tokens = normalized.split(' ').filter(Boolean);
+        const booleanTokens = [];
+        for (const t of tokens) {
+          const token = t.toLowerCase();
+          if (stopwords.has(token)) continue;
+          if (token.length >= 4) booleanTokens.push(`+${token}*`);
+        }
+        const booleanQuery = booleanTokens.join(' ');
+        const likeQuery = `%${normalized}%`;
+        const natQuery = normalized;
+        return { booleanQuery, likeQuery, natQuery, hasBoolean: booleanQuery.length > 0 };
+      };
+
       if (searchTerm && searchTerm !== 'null' && format && format !== 'null') {
         let whereClauses = [];
         let replacements = {};
 
-        whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN NATURAL LANGUAGE MODE)`);
-        whereClauses.push(`MATCH (umg.terms) AGAINST (:format IN NATURAL LANGUAGE MODE)`);
+        const { booleanQuery, likeQuery, natQuery, hasBoolean } = buildBooleanQuery(searchTerm);
+        if (hasBoolean) {
+          whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN BOOLEAN MODE)`);
+          replacements.search = booleanQuery;
+        } else {
+          whereClauses.push(`umg.terms LIKE :search_like`);
+          replacements.search_like = likeQuery;
+        }
+        // parâmetros auxiliares para ranking
+        replacements.search_nat = natQuery;
+        replacements.phrase_like = likeQuery;
+        whereClauses.push(`umg.format = :format`);
         whereClauses.push(`umg.activite = 0`);
-        replacements.search = searchTerm;
         replacements.format = format;
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -146,7 +177,9 @@ module.exports = class UserMainGridController {
         const query = `
           SELECT
             umg.*,
-            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
+            MATCH (umg.terms) AGAINST (:search_nat IN NATURAL LANGUAGE MODE) AS score,
+            CASE WHEN umg.terms LIKE :phrase_like THEN 1 ELSE 0 END AS phrase_hit,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
           FROM user_main_grid umg
@@ -157,7 +190,7 @@ module.exports = class UserMainGridController {
           LEFT JOIN tags t ON t.id = umgt.tag_id
           ${whereSQL}
           GROUP BY umg.id
-          ORDER BY umg.created_at DESC, umg.updated_at DESC
+          ORDER BY phrase_hit DESC, score DESC, umg.created_at DESC, umg.updated_at DESC
           LIMIT :limit OFFSET :offset
         `;
 
@@ -176,10 +209,13 @@ module.exports = class UserMainGridController {
           url_cover: r.url_cover,
           url: r.url,
           activite: r.activite,
+          reason: r.reason,
           user: {
             id: r.user_id,
             name: r.user_name,
             photo: r.user_photo,
+            partnerCode: r.user_partner_code,
+            couponCode: r.user_coupon_code,
           },
           categories: r.categories
             ? JSON.parse(`[${r.categories}]`)
@@ -209,9 +245,18 @@ module.exports = class UserMainGridController {
         let whereClauses = [];
         let replacements = {};
 
-        whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN NATURAL LANGUAGE MODE)`);
+        const { booleanQuery, likeQuery, natQuery, hasBoolean } = buildBooleanQuery(searchTerm);
+        if (hasBoolean) {
+          whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN BOOLEAN MODE)`);
+          replacements.search = booleanQuery;
+        } else {
+          whereClauses.push(`umg.terms LIKE :search_like`);
+          replacements.search_like = likeQuery;
+        }
+        // parâmetros auxiliares para ranking
+        replacements.search_nat = natQuery;
+        replacements.phrase_like = likeQuery;
         whereClauses.push(`umg.activite = 0`);
-        replacements.search = searchTerm;
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
@@ -237,7 +282,9 @@ module.exports = class UserMainGridController {
         const query = `
           SELECT
             umg.*,
-            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
+            MATCH (umg.terms) AGAINST (:search_nat IN NATURAL LANGUAGE MODE) AS score,
+            CASE WHEN umg.terms LIKE :phrase_like THEN 1 ELSE 0 END AS phrase_hit,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
           FROM user_main_grid umg
@@ -248,7 +295,7 @@ module.exports = class UserMainGridController {
           LEFT JOIN tags t ON t.id = umgt.tag_id
           ${whereSQL}
           GROUP BY umg.id
-          ORDER BY umg.created_at DESC, umg.updated_at DESC
+          ORDER BY phrase_hit DESC, score DESC, umg.created_at DESC, umg.updated_at DESC
           LIMIT :limit OFFSET :offset
         `;
 
@@ -267,10 +314,13 @@ module.exports = class UserMainGridController {
           url_cover: r.url_cover,
           url: r.url,
           activite: r.activite,
+          reason: r.reason,
           user: {
             id: r.user_id,
             name: r.user_name,
             photo: r.user_photo,
+            partnerCode: r.user_partner_code,
+            couponCode: r.user_coupon_code,
           },
           categories: r.categories
             ? JSON.parse(`[${r.categories}]`)
@@ -300,7 +350,7 @@ module.exports = class UserMainGridController {
         let whereClauses = [];
         let replacements = {};
 
-        whereClauses.push(`MATCH (umg.terms) AGAINST (:format IN NATURAL LANGUAGE MODE)`);
+        whereClauses.push(`umg.format = :format`);
         whereClauses.push(`umg.activite = 0`);
         replacements.format = format;
 
@@ -328,7 +378,7 @@ module.exports = class UserMainGridController {
         const query = `
           SELECT
             umg.*,
-            u.id as user_id, u.name as user_name, u.photo as user_photo,
+            u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
           FROM user_main_grid umg
@@ -358,10 +408,13 @@ module.exports = class UserMainGridController {
           url_cover: r.url_cover,
           url: r.url,
           activite: r.activite,
+          reason: r.reason,
           user: {
             id: r.user_id,
             name: r.user_name,
             photo: r.user_photo,
+            partnerCode: r.user_partner_code,
+            couponCode: r.user_coupon_code,
           },
           categories: r.categories
             ? JSON.parse(`[${r.categories}]`)
@@ -394,7 +447,7 @@ module.exports = class UserMainGridController {
             {
               model: User,
               as: "user",
-              attributes: ["id", "name", "photo"],
+              attributes: ["id", "name", "photo", "partnerCode", "couponCode"],
             },
             {
               model: UserMainGridCategories,
@@ -437,10 +490,13 @@ module.exports = class UserMainGridController {
           url_cover: grid.url_cover,
           url: grid.url,
           activite: grid.activite,
+          reason: grid.reason,
           user: {
             id: grid.user?.id,
             name: grid.user?.name,
             photo: grid.user?.photo,
+            partnerCode: grid.user?.partnerCode,
+            couponCode: grid.user?.couponCode,
           },
           categories: grid.user_main_grid_categories.map((item) => ({
             id: item.category.id,
@@ -478,17 +534,103 @@ module.exports = class UserMainGridController {
     try {
       const { searchTerm, format, userId } = req.params;
 
-      const whereCondition = {};
-      if (searchTerm) {
-        whereCondition.terms = {
-          [Sequelize.Op.like]: `%${searchTerm}%`,
+      // Se houver termo de busca, aplicar a mesma lógica de relevância
+      if (searchTerm && searchTerm !== 'null') {
+        const buildBooleanQuery = (input) => {
+          const raw = String(input || '').trim();
+          const normalized = raw
+            .replace(/\s+/g, ' ')
+            .replace(/["'`]+/g, '');
+          const stopwords = new Set(['a', 'o', 'as', 'os', 'e', 'de', 'do', 'da', 'dos', 'das', 'um', 'uma', 'para', 'por', 'no', 'na', 'nos', 'nas', 'em', 'com', 'sem', 'ao', 'à', 'às', 'aos']);
+          const tokens = normalized.split(' ').filter(Boolean);
+          const booleanTokens = [];
+          for (const t of tokens) {
+            const token = t.toLowerCase();
+            if (stopwords.has(token)) continue;
+            if (token.length >= 4) booleanTokens.push(`+${token}*`);
+          }
+          const booleanQuery = booleanTokens.join(' ');
+          const likeQuery = `%${normalized}%`;
+          const natQuery = normalized;
+          return { booleanQuery, likeQuery, natQuery, hasBoolean: booleanQuery.length > 0 };
         };
+
+        let whereClauses = [];
+        let replacements = {};
+
+        const { booleanQuery, likeQuery, natQuery, hasBoolean } = buildBooleanQuery(searchTerm);
+        if (hasBoolean) {
+          whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN BOOLEAN MODE)`);
+          replacements.search = booleanQuery;
+        } else {
+          whereClauses.push(`umg.terms LIKE :search_like`);
+          replacements.search_like = likeQuery;
+        }
+        replacements.search_nat = natQuery;
+        replacements.phrase_like = likeQuery;
+
+        whereClauses.push(`umg.user_id = :userId`);
+        replacements.userId = userId;
+        whereClauses.push(`umg.activite = 0`);
+        if (format && format !== 'null') {
+          whereClauses.push(`umg.format = :format`);
+          replacements.format = format;
+        }
+
+        const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+        const query = `
+          SELECT
+            umg.*,
+            u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
+            MATCH (umg.terms) AGAINST (:search_nat IN NATURAL LANGUAGE MODE) AS score,
+            CASE WHEN umg.terms LIKE :phrase_like THEN 1 ELSE 0 END AS phrase_hit,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
+          FROM user_main_grid umg
+          LEFT JOIN user u ON umg.user_id = u.id
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+          GROUP BY umg.id
+          ORDER BY phrase_hit DESC, score DESC, umg.created_at DESC, umg.updated_at DESC
+        `;
+
+        const results = await sequelize.query(query, {
+          replacements,
+          type: Sequelize.QueryTypes.SELECT,
+        });
+
+        const result = results.map((r) => ({
+          id: r.id,
+          name: r.name,
+          format: r.format,
+          url_thumb: r.url_thumb,
+          url_cover: r.url_cover,
+          url: r.url,
+          activite: r.activite,
+          reason: r.reason,
+          user: {
+            id: r.user_id,
+            name: r.user_name,
+            photo: r.user_photo,
+            partnerCode: r.user_partner_code,
+            couponCode: r.user_coupon_code,
+          },
+          categories: r.categories ? JSON.parse(`[${r.categories}]`) : [],
+          tags: r.tags ? JSON.parse(`[${r.tags}]`) : [],
+        }));
+
+        return res.status(200).send({ data: result });
       }
 
+      // Sem termo de busca: mantém consulta via Sequelize
+      const whereCondition = {};
       if (format) {
         whereCondition.format = format;
       }
-
       if (userId) {
         whereCondition.user_id = userId;
       }
@@ -499,7 +641,7 @@ module.exports = class UserMainGridController {
           {
             model: User,
             as: "user",
-            attributes: ["id", "name", "photo"],
+            attributes: ["id", "name", "photo", "partnerCode", "couponCode"],
           },
           {
             model: UserMainGridCategories,
@@ -538,10 +680,13 @@ module.exports = class UserMainGridController {
         url_cover: grid.url_cover,
         url: grid.url,
         activite: grid.activite,
+        reason: grid.reason,
         user: {
           id: grid.user?.id,
           name: grid.user?.name,
           photo: grid.user?.photo,
+          partnerCode: grid.user?.partnerCode,
+          couponCode: grid.user?.couponCode,
         },
         categories: grid.user_main_grid_categories.map((item) => ({
           id: item.category.id,
@@ -554,7 +699,7 @@ module.exports = class UserMainGridController {
         })),
       }));
 
-      res.status(200).send({ data: result });
+      return res.status(200).send({ data: result });
     } catch (err) {
       console.error(err);
       res.status(500).send({ message: err.message });
@@ -631,8 +776,9 @@ module.exports = class UserMainGridController {
 
   async getOne(req, res) {
     try {
+      const { id } = req.params;
       const userMainGrid = await UserMainGrid.findOne({
-        where: { id: req.params.id, activite: 0 },
+        where: { id, activite: 0 },
         include: [
           {
             model: UserMainGridCategories,
@@ -660,7 +806,7 @@ module.exports = class UserMainGridController {
       });
 
       if (!userMainGrid) {
-        return res.status(404).send({ message: "Registro não encontrado" });
+        return res.status(403).send({ message: "Registro encontra-se inativo" });
       }
 
       res.status(200).send({ data: userMainGrid });
@@ -674,7 +820,13 @@ module.exports = class UserMainGridController {
     try {
       const where = { id: Number(req.params.id) };
 
-      const [updated] = await UserMainGrid.update(req.body, { where });
+      // Se reason vier vazio (''/null/undefined), definir 0
+      const body = { ...req.body };
+      if (Object.prototype.hasOwnProperty.call(body, 'reason') && (body.reason === '' || body.reason === null || typeof body.reason === 'undefined')) {
+        body.reason = 0;
+      }
+
+      const [updated] = await UserMainGrid.update(body, { where });
 
       if (updated === 0) {
         return res.status(404).send({ message: "Registro não encontrado" });

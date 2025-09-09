@@ -42,8 +42,8 @@ module.exports = (app) => {
 
         // Se o upload foi bem-sucedido, sempre salvar no grid
         if (uploadResult.status === "success") {
-          const userId = req.user.id;
-          const adminId = req.user.role === 'admin' ? req.user.id : null;
+          const userId = (req.body && (req.body.user_id || req.body.userId)) || req.params.userId || null;
+          const adminId = (req.params && req.params.adminId) ? req.params.adminId : null;
 
           console.log("💾 Salvando no grid:", { userId, adminId, categoryId, categoryName });
 
@@ -146,12 +146,10 @@ module.exports = (app) => {
 
         // Se o upload foi bem-sucedido, sempre salvar no grid
         if (uploadResult.status === "success") {
-          const userId = req.user && req.user.id ? req.user.id : null;
-
           // Salvar no UserMainGrid
           const savedRecords = await integrationService.processAndSave(
             uploadResult,
-            userId,
+            req.body.user_id || null,
           );
 
           // Adicionar informações dos registros salvos
