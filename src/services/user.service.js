@@ -213,7 +213,7 @@ class UserServices {
         fullName,
         email,
         password,
-        whatsapp,
+        phone,
         countryCode,
       } = req.body;
 
@@ -235,7 +235,7 @@ class UserServices {
         name: fullName,
         email,
         password,
-        phone: whatsapp,
+        phone,
         countryCode,
         status,
       });
@@ -490,120 +490,95 @@ class UserServices {
     }
   }
 
-  async updateUser(req, res) {
+  async updateUserProfile(req, res) {
     try {
-      const { userId, userType } = req.params;
+      const { userId } = req.params;
 
-      if (!userId || !userType) {
-        return res.status(400).send({ message: "userId e userType são obrigatórios" });
+      if (!userId) {
+        return res.status(400).send({ message: "userId é obrigatório" });
       }
 
-      let shouldUpdate = true;
-      let self = false;
+      const where = { id: userId };
+      const user = await User.findOne({ where });
 
-      if (userType === "user") {
-        self = true;
+      if (!user) {
+        return res.status(404).send({ message: "Usuário não encontrado" });
       }
 
-      if (shouldUpdate) {
-        const where = { id: userId };
+      //FIXME: Stripe com problema na conta conectada
+      // Criar conta conectada no Stripe
+      /* if (req.body.contributor) {
+         const accountId = await stripeModule.createConnectedAccount(
+           user.email
+         );
 
-        const oldUser = await User.findOne({ where });
+         req.body.stripeAccountId = accountId;
+       // Atualizar conta conectada para a chave pix
+       if (req.body.chavePix) {
+         await stripeModule.addPixKeyToAccount(
+           user.stripeAccountId,
+           req.body.chavePix
+         );
+       }*/
 
-        if (!oldUser) {
-          return res.status(404).send({ message: "Usuário não encontrado" });
-        }
+      let updatedUser = { ...user.dataValues, ...req.body };
+      await User.update(updatedUser, { where });
+      const userPublic = await User.findOne({ where, attributes: { exclude: ["password"] } });
 
-        //FIXME: Stripe com problema na conta conectada
-        // Criar conta conectada no Stripe
-        /* if (req.body.contributor) {
-           const accountId = await stripeModule.createConnectedAccount(
-             oldUser.email
-           );
- 
-           req.body.stripeAccountId = accountId;
-         // Atualizar conta conectada para a chave pix
-         if (req.body.chavePix) {
-           await stripeModule.addPixKeyToAccount(
-             oldUser.stripeAccountId,
-             req.body.chavePix
-           );
-         }*/
+      // Verifica se o usuário está solicitando ser contribuidor
+      if (req.body.contributor === 1 && user.contributor !== 1) {
+        const paramsEmail = {
+          email: userPublic.email,
+          name: userPublic.name,
+          title: "Solicitação de Contribuidor - FlixDesign",
+          description: "Recebemos sua solicitação para ser um contribuidor!",
+        };
 
-        let updatedUser = { ...oldUser.dataValues, ...req.body };
+        const contextParams = {
+          name: userPublic.name,
+          requestDate: new Date().toLocaleDateString("pt-BR"),
+          baseUrl: process.env.API_URL,
+        };
 
-        let codeUpdate = 1;
+        // Envia o email de confirmação para o usuário
+        sendEmail(paramsEmail, "contributorRequest", contextParams)
+          .then((response) => {
+            console.log("Email de solicitação de contribuidor enviado com sucesso:", response);
+          })
+          .catch((error) => {
+            console.error("Erro ao enviar email de solicitação de contribuidor:", error);
+          });
 
-        if (req.body.password) {
-          updatedUser.password = await bcrypt.hashSync(
-            req.body.password,
-            bcrypt.genSaltSync(10)
-          );
-          codeUpdate = 2;
-        }
-
-        await User.update(updatedUser, { where });
-
-        const user = await User.findOne({ where, attributes: { exclude: ["password"] } });
-
-        // Verifica se o usuário está solicitando ser contribuidor
-        if (req.body.contributor === 1 && oldUser.contributor !== 1) {
-          const paramsEmail = {
-            email: user.email,
-            name: user.name,
-            title: "Solicitação de Contribuidor - FlixDesign",
-            description: "Recebemos sua solicitação para ser um contribuidor!",
+        // Envia email para moderadores
+        const moderators = [
+          "orlandoneto23@gmail.com",
+          "arlinofilho@gmail.com",
+          "designflixs3@gmail.com"
+        ];
+        moderators.forEach((modEmail) => {
+          const paramsMod = {
+            email: modEmail,
+            name: userPublic.name,
+            title: "Nova Solicitação de Contribuidor - FlixDesign",
+            description: `O usuário ${userPublic.name} (${userPublic.email}) solicitou ser contribuidor.`
           };
-
-          const contextParams = {
-            name: user.name,
-            requestDate: new Date().toLocaleDateString("pt-BR"),
-            baseUrl: process.env.API_URL,
-          };
-
-          // Envia o email de confirmação para o usuário
-          sendEmail(paramsEmail, "contributorRequest", contextParams)
+          sendEmail(paramsMod, "contributorRequestAdmin", {
+            ...contextParams,
+            email: userPublic.email
+          })
             .then((response) => {
-              console.log("Email de solicitação de contribuidor enviado com sucesso:", response);
+              console.log("Email de notificação para moderador enviado:", modEmail, response.messageId);
             })
             .catch((error) => {
-              console.error("Erro ao enviar email de solicitação de contribuidor:", error);
+              console.error("Erro ao enviar email para moderador:", modEmail, error);
             });
-
-          // Envia email para moderadores
-          const moderators = [
-            "orlandoneto23@gmail.com",
-            "arlinofilho@gmail.com",
-            "designflixs3@gmail.com"
-          ];
-          moderators.forEach((modEmail) => {
-            const paramsMod = {
-              email: modEmail,
-              name: user.name,
-              title: "Nova Solicitação de Contribuidor - FlixDesign",
-              description: `O usuário ${user.name} (${user.email}) solicitou ser contribuidor.`
-            };
-            sendEmail(paramsMod, "contributorRequestAdmin", {
-              ...contextParams,
-              email: user.email
-            })
-              .then((response) => {
-                console.log("Email de notificação para moderador enviado:", modEmail, response.messageId);
-              })
-              .catch((error) => {
-                console.error("Erro ao enviar email para moderador:", modEmail, error);
-              });
-          });
-        }
-
-        res.status(200).send({
-          data: user,
-          statusUpdate: codeUpdate,
-          message: "Atualização concluída!",
         });
-      } else {
-        res.status(401).send({ message: "Você não pode fazer isto!" });
       }
+
+      res.status(200).send({
+        data: userPublic,
+        message: "Atualização concluída!",
+      });
     } catch (err) {
       res.status(500).send({ message: "Ocorreu um erro." });
     }
