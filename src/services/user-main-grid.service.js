@@ -719,6 +719,11 @@ module.exports = class UserMainGridController {
         where: whereCondition,
         include: [
           {
+            model: User,
+            as: "user",
+            attributes: ["id", "name", "photo", "partnerCode", "couponCode"],
+          },
+          {
             model: UserMainGridCategories,
             as: "user_main_grid_categories",
             required: !!categoryId,
@@ -756,6 +761,13 @@ module.exports = class UserMainGridController {
         url_thumb: grid.url_thumb,
         url_cover: grid.url_cover,
         url: grid.url,
+        user: {
+          id: grid.user?.id,
+          name: grid.user?.name,
+          photo: grid.user?.photo,
+          partnerCode: grid.user?.partnerCode,
+          couponCode: grid.user?.couponCode,
+        },
         categories: grid.user_main_grid_categories.map((item) => ({
           id: item.category.id,
           name: item.category.name,
@@ -820,7 +832,6 @@ module.exports = class UserMainGridController {
     try {
       const where = { id: Number(req.params.id) };
 
-      // Se reason vier vazio (''/null/undefined), definir 0
       const body = { ...req.body };
       if (Object.prototype.hasOwnProperty.call(body, 'reason') && (body.reason === '' || body.reason === null || typeof body.reason === 'undefined')) {
         body.reason = 0;
