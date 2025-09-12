@@ -101,7 +101,7 @@ module.exports = class UserMainGridController {
 
   async getAll(req, res) {
     try {
-      const { searchTerm, format, page = 1, limit = 20 } = req.query;
+      const { searchTerm, format, page = 1, limit = 40 } = req.query;
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
       // Gerar chave de cache única
@@ -533,6 +533,8 @@ module.exports = class UserMainGridController {
   async getAllByUserId(req, res) {
     try {
       const { searchTerm, format, userId } = req.params;
+      const { page = 1, limit = 40 } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limit);
 
       // Se houver termo de busca, aplicar a mesma lógica de relevância
       if (searchTerm && searchTerm !== 'null') {
@@ -571,7 +573,8 @@ module.exports = class UserMainGridController {
 
         whereClauses.push(`umg.user_id = :userId`);
         replacements.userId = userId;
-        whereClauses.push(`umg.activite = 0`);
+        // ✅ BUSCA TAMBÉM MOSTRA TODAS: Remover filtro activite = 0
+        // whereClauses.push(`umg.activite = 0`); // ← REMOVIDO para mostrar todas
         if (format && format !== 'null') {
           whereClauses.push(`umg.format = :format`);
           replacements.format = format;
@@ -579,6 +582,25 @@ module.exports = class UserMainGridController {
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
+        // Query para contar total de registros
+        const countQuery = `
+          SELECT COUNT(DISTINCT umg.id) as total
+          FROM user_main_grid umg
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+        `;
+
+        const totalResult = await sequelize.query(countQuery, {
+          replacements,
+          type: Sequelize.QueryTypes.SELECT,
+        });
+
+        const total = totalResult[0].total;
+
+        // Query principal com paginação
         const query = `
           SELECT
             umg.*,
@@ -596,14 +618,15 @@ module.exports = class UserMainGridController {
           ${whereSQL}
           GROUP BY umg.id
           ORDER BY phrase_hit DESC, score DESC, umg.created_at DESC, umg.updated_at DESC
+          LIMIT :limit OFFSET :offset
         `;
 
         const results = await sequelize.query(query, {
-          replacements,
+          replacements: { ...replacements, limit: parseInt(limit), offset },
           type: Sequelize.QueryTypes.SELECT,
         });
 
-        const result = results.map((r) => ({
+        const data = results.map((r) => ({
           id: r.id,
           name: r.name,
           format: r.format,
@@ -623,19 +646,31 @@ module.exports = class UserMainGridController {
           tags: r.tags ? JSON.parse(`[${r.tags}]`) : [],
         }));
 
-        return res.status(200).send({ data: result });
+        const responseData = {
+          data,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / parseInt(limit))
+          }
+        };
+
+        return res.status(200).send(responseData);
       }
 
-      // Sem termo de busca: mantém consulta via Sequelize
+      // ✅ CORREÇÃO PRINCIPAL: Sem termo de busca - usar consulta SQL direta para paginação correta
       const whereCondition = {};
-      if (format) {
+      if (format && format !== 'null') {
         whereCondition.format = format;
       }
       if (userId) {
         whereCondition.user_id = userId;
       }
+      // ✅ MOSTRAR TODAS: Não filtrar por activite - mostrar ativas E inativas
+      // whereCondition.activite = 0; // ← REMOVIDO para mostrar todas
 
-      const userMainGrids = await UserMainGrid.findAll({
+      const { count, rows: userMainGrids } = await UserMainGrid.findAndCountAll({
         where: whereCondition,
         include: [
           {
@@ -670,9 +705,12 @@ module.exports = class UserMainGridController {
           ["createdAt", "DESC"],
           ["updatedAt", "DESC"],
         ],
+        limit: parseInt(limit),
+        offset, // ✅ CORREÇÃO: Usar offset calculado corretamente
+        distinct: true, // ✅ CRÍTICO: Evitar contagem duplicada por causa dos JOINs
       });
 
-      const result = userMainGrids.map((grid) => ({
+      const data = userMainGrids.map((grid) => ({
         id: grid.id,
         name: grid.name,
         format: grid.format,
@@ -699,7 +737,17 @@ module.exports = class UserMainGridController {
         })),
       }));
 
-      return res.status(200).send({ data: result });
+      const responseData = {
+        data,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: count,
+          totalPages: Math.ceil(count / parseInt(limit))
+        }
+      };
+
+      return res.status(200).send(responseData);
     } catch (err) {
       console.error(err);
       res.status(500).send({ message: err.message });
@@ -708,14 +756,15 @@ module.exports = class UserMainGridController {
 
   async getAllByCategory(req, res) {
     try {
-      const { categoryId } = req.query;
+      const { categoryId, page = 1, limit = 40 } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limit);
 
       const whereCondition = { activite: 0 };
       if (categoryId) {
         whereCondition["$user_main_grid_categories.category_id$"] = categoryId;
       }
 
-      const userMainGrids = await UserMainGrid.findAll({
+      const { count, rows: userMainGrids } = await UserMainGrid.findAndCountAll({
         where: whereCondition,
         include: [
           {
@@ -752,9 +801,11 @@ module.exports = class UserMainGridController {
           ["createdAt", "DESC"],
           ["updatedAt", "DESC"],
         ],
+        limit: parseInt(limit),
+        offset,
       });
 
-      const result = userMainGrids.map((grid) => ({
+      const data = userMainGrids.map((grid) => ({
         id: grid.id,
         name: grid.name,
         format: grid.format,
@@ -779,7 +830,17 @@ module.exports = class UserMainGridController {
         })),
       }));
 
-      res.status(200).send({ data: result });
+      const responseData = {
+        data,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: count,
+          totalPages: Math.ceil(count / parseInt(limit))
+        }
+      };
+
+      res.status(200).send(responseData);
     } catch (err) {
       console.error(err);
       res.status(500).send({ message: err.message });
