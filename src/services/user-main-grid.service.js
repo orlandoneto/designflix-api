@@ -760,8 +760,9 @@ module.exports = class UserMainGridController {
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
       const whereCondition = { activite: 0 };
+      let includeWhereCondition = {};
       if (categoryId) {
-        whereCondition["$user_main_grid_categories.category_id$"] = categoryId;
+        includeWhereCondition.category_id = categoryId;
       }
 
       const { count, rows: userMainGrids } = await UserMainGrid.findAndCountAll({
@@ -776,7 +777,7 @@ module.exports = class UserMainGridController {
             model: UserMainGridCategories,
             as: "user_main_grid_categories",
             required: !!categoryId,
-            where: whereCondition.user_main_grid_categories,
+            where: includeWhereCondition,
             include: [
               {
                 model: Category,
