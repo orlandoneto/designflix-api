@@ -13,6 +13,10 @@ module.exports = class {
         invoice_settings: {
           default_payment_method: paymentMethodId,
         },
+        metadata: {
+          site: "flixdesign",
+          userId: userId.toString(),
+        },
       });
 
       await stripe.paymentMethods.attach(paymentMethodId, {
@@ -23,6 +27,10 @@ module.exports = class {
         customer: customer.id,
         items: [{ plan: priceId }],
         expand: ["latest_invoice.payment_intent"],
+        metadata: {
+          site: "flixdesign",
+          userId: userId.toString(),
+        },
       });
 
       const plan = await Plans.findOne({
@@ -249,6 +257,10 @@ module.exports = class {
       // Criar o reembolso
       const refund = await stripe.refunds.create({
         charge: chargeId,
+        metadata: {
+          site: "flixdesign",
+          userId: userPlan.user.id.toString(),
+        },
       });
 
       await UserPlans.destroy({

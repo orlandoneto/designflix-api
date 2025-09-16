@@ -3,7 +3,7 @@ const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-handlebars");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
-const { User, UserMainGrid, Sequelize } = require("../models");
+const { User, UserMainGrid, UserPartners, Partners, sequelize } = require("../models");
 const { sendEmail } = require("../utils/emailService");
 const { PALN_COMMISSION } = require("../utils/constants/constants");
 
@@ -81,10 +81,15 @@ class UserServices {
   async get(req, res) {
     const id = req.params.id;
     const user = await User.findOne({
-      where: { id: id },
-      attributes: { exclude: ["password"] },
+      where: { id: id }
     });
-    res.status(200).send({ data: user });
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    const simplifiedUser = this.simplifyUserData(user);
+    res.status(200).send({ data: simplifiedUser });
   }
 
   async getUserByEmail(req, res) {
@@ -199,9 +204,37 @@ class UserServices {
     }
   }
 
+  // ✅ MÉTODO AUXILIAR: Simplificar dados do usuário com parcerias
+  simplifyUserData(user) {
+    const userData = user.dataValues;
+    delete userData.password;
+
+    // Simplificar parcerias
+    if (userData.user_partners && userData.user_partners.length > 0) {
+      userData.partners = userData.user_partners.map(partnership => ({
+        id: partnership.id,
+        startDate: partnership.startPartner,
+        endDate: partnership.endPartner,
+        active: partnership.active,
+        partner: {
+          id: partnership.partner?.id,
+          name: partnership.partner?.name,
+          code: partnership.partner?.code
+        }
+      }));
+    } else {
+      userData.partners = [];
+    }
+
+    // Remover array original
+    delete userData.user_partners;
+
+    return userData;
+  }
+
   async getByEmail(email) {
     const user = await User.findOne({
-      where: { email },
+      where: { email }
     });
 
     return user;
@@ -215,6 +248,7 @@ class UserServices {
         password,
         phone,
         countryCode,
+        code_partner,
       } = req.body;
 
       const hasUserEmail = await this.getByEmail(email);
@@ -231,14 +265,59 @@ class UserServices {
       }
 
       const status = "CACTIVE";
-      const user = await User.create({
-        name: fullName,
-        email,
-        password,
-        phone,
-        countryCode,
-        status,
-      });
+
+      const transaction = await sequelize.transaction();
+      let user;
+
+      try {
+        let partnerId = null;
+        if (code_partner && code_partner.trim() !== '') {
+          const partner = await Partners.findOne({
+            where: {
+              code: code_partner.trim().toUpperCase(),
+              active: 1
+            },
+            attributes: ['id', 'name', 'code']
+          });
+
+          if (!partner) {
+            await transaction.rollback();
+            res.status(400).json({
+              success: false,
+              message: "Código do parceiro inválido"
+            });
+            return;
+          }
+
+          partnerId = partner.id;
+        }
+
+        user = await User.create({
+          name: fullName,
+          email,
+          password,
+          phone,
+          countryCode,
+          status,
+          partnerCode: code_partner || null,
+        }, { transaction });
+
+        if (partnerId) {
+          await UserPartners.create({
+            userId: user.id,
+            partnerId: partnerId,
+            startPartner: new Date(),
+            endPartner: null,
+            active: 1
+          }, { transaction });
+        }
+
+        await transaction.commit();
+
+      } catch (error) {
+        await transaction.rollback();
+        throw error;
+      }
 
       const userData = user.dataValues;
       let getTokenData = await this.authenticateSync(email, password);
@@ -387,17 +466,18 @@ class UserServices {
       }
 
       let userData = user.dataValues;
-
       delete userData.password;
-
       userData.userType = "user";
 
-      var token = jwt.sign(userData, privateKey, {
+      // ✅ SIMPLIFICAR: Usar método auxiliar para simplificar dados
+      const simplifiedUserData = this.simplifyUserData(user);
+
+      var token = jwt.sign(simplifiedUserData, privateKey, {
         algorithm: "RS256",
         expiresIn: 60 * 60 * 24 * 7 * 2,
       });
 
-      res.status(200).send({ data: userData, token: token });
+      res.status(200).send({ data: simplifiedUserData, token: token });
       return;
     } catch (err) {
       res.status(400).send({ message: err.message });
@@ -614,6 +694,36 @@ class UserServices {
       return res.status(200).json({ success: true, message: "Foto removida com sucesso" });
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  async deleteUser(req, res) {
+    const userId = req.params.userId;
+
+    try {
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Usuário não encontrado"
+        });
+      }
+
+      await User.destroy({
+        where: { id: userId }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Usuário excluído permanentemente com sucesso"
+      });
+
+    } catch (err) {
+      console.error("Erro ao excluir usuário:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Erro interno do servidor ao excluir usuário"
+      });
     }
   }
 
