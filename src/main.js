@@ -154,6 +154,9 @@ require("./controller/forgot.controller")(app);
 // Landing Pages
 require("./controller/landing-page.controller")(app);
 
+// Partners
+require("./controller/partners.controller")(app);
+
 // IA - Remove Background
 require("./controller/ia/remove-background.controller")(app);
 

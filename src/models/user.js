@@ -145,6 +145,10 @@ module.exports = (sequelize, DataTypes) => {
       }),
       User.hasMany(models.UserPlans, {
         foreignKey: "user_id",
+      }),
+      User.hasMany(models.UserPartners, {
+        foreignKey: "userId",
+        as: "user_partners",
       });
   };
 
