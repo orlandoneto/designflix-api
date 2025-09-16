@@ -3,7 +3,7 @@ const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-handlebars");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
-const { User, UserMainGrid, Sequelize } = require("../models");
+const { User, UserMainGrid, UserPartners, Partners, Sequelize } = require("../models");
 const { sendEmail } = require("../utils/emailService");
 const { PALN_COMMISSION } = require("../utils/constants/constants");
 
@@ -83,6 +83,21 @@ class UserServices {
     const user = await User.findOne({
       where: { id: id },
       attributes: { exclude: ["password"] },
+      include: [
+        {
+          model: UserPartners,
+          as: "user_partners",
+          include: [
+            {
+              model: Partners,
+              as: "partner",
+              attributes: ["id", "name", "code", "active"]
+            }
+          ],
+          where: { active: 1 },
+          required: false
+        }
+      ]
     });
     res.status(200).send({ data: user });
   }
@@ -202,6 +217,21 @@ class UserServices {
   async getByEmail(email) {
     const user = await User.findOne({
       where: { email },
+      include: [
+        {
+          model: UserPartners,
+          as: "user_partners",
+          include: [
+            {
+              model: Partners,
+              as: "partner",
+              attributes: ["id", "name", "code", "active"]
+            }
+          ],
+          where: { active: 1 },
+          required: false
+        }
+      ]
     });
 
     return user;

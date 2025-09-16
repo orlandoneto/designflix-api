@@ -107,11 +107,28 @@ module.exports = class PartnersController {
     try {
       const { userId, partnerId, startPartner, endPartner } = req.body;
 
+      let validatedStartPartner = null;
+      let validatedEndPartner = null;
+
+      if (startPartner && startPartner !== '' && startPartner !== 'null') {
+        const startDate = new Date(startPartner);
+        if (!isNaN(startDate.getTime())) {
+          validatedStartPartner = startDate;
+        }
+      }
+
+      if (endPartner && endPartner !== '' && endPartner !== 'null') {
+        const endDate = new Date(endPartner);
+        if (!isNaN(endDate.getTime())) {
+          validatedEndPartner = endDate;
+        }
+      }
+
       const userPartnership = await UserPartners.create({
         userId,
         partnerId,
-        startPartner,
-        endPartner,
+        startPartner: validatedStartPartner,
+        endPartner: validatedEndPartner,
       });
 
       // Buscar dados completos
@@ -131,10 +148,17 @@ module.exports = class PartnersController {
         ],
       });
 
-      res.status(200).send({ data: partnership });
+      res.status(200).json({
+        success: true,
+        message: "Parceria criada com sucesso",
+        data: partnership
+      });
     } catch (err) {
-      console.error(err);
-      res.status(400).send({ message: err.message });
+      console.error("Erro ao criar parceria:", err);
+      res.status(500).json({
+        success: false,
+        message: "Erro interno do servidor ao criar parceria"
+      });
     }
   }
 

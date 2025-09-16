@@ -43,7 +43,6 @@ module.exports = (app) => {
   // Rotas para gerenciar parcerias de usuários
   app.post(
     "/user-partnerships",
-    AuthenticateRoute(["user"]),
     (req, res) => partnersService.createUserPartnership(req, res)
   );
 
