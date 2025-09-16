@@ -25,7 +25,6 @@ module.exports = (app) => {
 
   app.get(
     "/partners/verify-code/:code",
-    AuthenticateRoute(["user"]),
     (req, res) => partnersService.verifyPartnerCode(req, res)
   );
 
