@@ -71,4 +71,9 @@ module.exports = (app) => {
     removeAvatarFromS3,
     (req, res) => UserService.removeUserPhoto(req, res)
   );
+
+  app.delete(
+    "/user/:userId",
+    (req, res) => UserService.deleteUser(req, res)
+  );
 };

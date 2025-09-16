@@ -617,5 +617,35 @@ class UserServices {
     }
   }
 
+  async deleteUser(req, res) {
+    const userId = req.params.userId;
+
+    try {
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Usuário não encontrado"
+        });
+      }
+
+      await User.destroy({
+        where: { id: userId }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Usuário excluído permanentemente com sucesso"
+      });
+
+    } catch (err) {
+      console.error("Erro ao excluir usuário:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Erro interno do servidor ao excluir usuário"
+      });
+    }
+  }
+
 }
 module.exports = new UserServices();
