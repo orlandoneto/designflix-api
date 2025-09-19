@@ -76,4 +76,10 @@ module.exports = (app) => {
     "/user/:userId",
     (req, res) => UserService.deleteUser(req, res)
   );
+
+  app.put(
+    "/user/:userId/password",
+    AuthenticateRoute(["user"]),
+    (req, res) => UserService.updatePassword(req, res)
+  );
 };

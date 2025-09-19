@@ -727,5 +727,89 @@ class UserServices {
     }
   }
 
+  async updatePassword(req, res) {
+    try {
+      const { userId } = req.params;
+      const { currentPassword, newPassword, confirmPassword } = req.body;
+
+      // Validações de entrada
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "Senha atual, nova senha e confirmação são obrigatórias"
+        });
+      }
+
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "Nova senha e confirmação não coincidem"
+        });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: "Nova senha deve ter pelo menos 6 caracteres"
+        });
+      }
+
+      // Buscar o usuário
+      const user = await User.findOne({ where: { id: userId } });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Usuário não encontrado"
+        });
+      }
+
+      // Verificar se a senha atual está correta
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          message: "Senha atual incorreta"
+        });
+      }
+
+      // Verificar se a nova senha é diferente da atual
+      const isSamePassword = await bcrypt.compare(newPassword, user.password);
+      if (isSamePassword) {
+        return res.status(400).json({
+          success: false,
+          message: "A nova senha deve ser diferente da senha atual"
+        });
+      }
+
+      // Criptografar a nova senha
+      const saltRounds = 10;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Atualizar a senha no banco
+      await User.update(
+        {
+          password: hashedNewPassword,
+          isResetPassword: 0 // Remove flag de reset de senha se existir
+        },
+        { where: { id: userId } }
+      );
+
+      // Log da alteração de senha
+      console.log(`🔐 Senha alterada para usuário ID: ${userId}`);
+
+      return res.status(200).json({
+        success: true,
+        message: "Senha alterada com sucesso"
+      });
+
+    } catch (error) {
+      console.error("Erro ao alterar senha:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erro interno do servidor ao alterar senha"
+      });
+    }
+  }
+
 }
 module.exports = new UserServices();
