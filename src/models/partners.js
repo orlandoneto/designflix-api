@@ -44,6 +44,15 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: "partner_id",
       as: "user_partners",
     });
+
+    if (models.Plans) {
+      Partners.hasMany(models.Plans, {
+        foreignKey: "partner_id",
+        as: "plans",
+        onDelete: "SET NULL",
+        onUpdate: "CASCADE"
+      });
+    }
   };
 
   return Partners;

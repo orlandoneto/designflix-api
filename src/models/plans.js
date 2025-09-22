@@ -14,10 +14,20 @@ module.exports = (sequelize, DataTypes) => {
       plan_name: {
         type: DataTypes.STRING,
         allowNull: false,
-      },    
+      },
       count_downloads: {
         type: DataTypes.INTEGER,
         allowNull: false,
+      },
+      partner_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'partners',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL'
       },
       createdAt: {
         type: DataTypes.DATE,
@@ -41,6 +51,15 @@ module.exports = (sequelize, DataTypes) => {
     if (models.UsePlans) {
       Plans.hasMany(models.UsePlans, {
         foreignKey: "plan_id",
+      });
+    }
+
+    if (models.Partners) {
+      Plans.belongsTo(models.Partners, {
+        foreignKey: "partner_id",
+        as: "partner",
+        onDelete: "SET NULL",
+        onUpdate: "CASCADE"
       });
     }
   };
