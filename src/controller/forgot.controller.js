@@ -1,5 +1,4 @@
 const Forgot = require("../services/forgot.service");
-const verifyRecaptcha = require("../middleware/recaptcha");
 
 module.exports = (app) => {
   const ForgotService = new Forgot();

@@ -34,6 +34,13 @@ const PLAN_VALUES = {
   "20_downloads": "72,90",
 };
 
+// Forgot redirect url
+const FORGOT_REDIRECT_URL = {
+  "test_url": "http://localhost:3000",
+  "dev_url": "https://test.flixdesign.com.br",
+  "prod_url": "https://flixdesign.com.br",
+};
+
 const PALN_COMMISSION = {
   comission_contributor: 35, // R$ 0,35 (35 centavos) em centavos
   payout_contributor: 10000, // R$ 100,00 em centavos
@@ -65,4 +72,5 @@ module.exports = {
   FOLDER_IMAGES_PROFILE_TEST,
   FOLDER_NAME_THUMBS_PATH_TEST,
   FOLDER_IMAGE_PREVIEWS_PATH_TEST,
+  FORGOT_REDIRECT_URL,
 };
