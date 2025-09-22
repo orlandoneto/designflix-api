@@ -484,7 +484,7 @@ class UserServices {
     }
   }
 
-  async resetPassword(req, res) {
+  async resetPasswordByEmail(req, res) {
     const scramble = (string) => {
       let a = string.split(""),
         n = a.length;
@@ -727,7 +727,7 @@ class UserServices {
     }
   }
 
-  async updatePassword(req, res) {
+  async updatePasswordById(req, res) {
     try {
       const { userId } = req.params;
       const { currentPassword, newPassword, confirmPassword } = req.body;
@@ -789,17 +789,19 @@ class UserServices {
       await User.update(
         {
           password: hashedNewPassword,
-          isResetPassword: 0 // Remove flag de reset de senha se existir
+          isResetPassword: 0, // Remove flag de reset de senha se existir
+          lastPasswordChange: new Date() // Campo para invalidar tokens antigos
         },
         { where: { id: userId } }
       );
 
       // Log da alteração de senha
-      console.log(`🔐 Senha alterada para usuário ID: ${userId}`);
+      console.log(`🔐 Senha alterada para usuário ID: ${userId} - Todos os tokens foram invalidados`);
 
       return res.status(200).json({
         success: true,
-        message: "Senha alterada com sucesso"
+        message: "Senha alterada com sucesso. Faça login novamente.",
+        requiresReauth: true // Flag para o frontend saber que precisa fazer login
       });
 
     } catch (error) {

@@ -67,6 +67,12 @@ module.exports = (sequelize, DataTypes) => {
         field: "is_reset_password",
         allowNull: false,
       },
+      lastPasswordChange: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "last_password_change",
+        comment: "Data da última alteração de senha - usado para invalidar tokens"
+      },
       stripeAccountId: {
         type: DataTypes.STRING,
         allowNull: true,
