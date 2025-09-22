@@ -54,7 +54,13 @@ module.exports = (app) => {
   );
 
   app.post("/user/reset-password", (req, res) =>
-    UserService.resetPassword(req, res)
+    UserService.resetPasswordByEmail(req, res)
+  );
+
+  app.put(
+    "/user/:userId/update-password",
+    AuthenticateRoute(["user"]),
+    (req, res) => UserService.updatePasswordById(req, res)
   );
 
   app.put("/user/:userId", AuthenticateRoute(["user"]), (req, res) =>
@@ -75,11 +81,5 @@ module.exports = (app) => {
   app.delete(
     "/user/:userId",
     (req, res) => UserService.deleteUser(req, res)
-  );
-
-  app.put(
-    "/user/:userId/password",
-    AuthenticateRoute(["user"]),
-    (req, res) => UserService.updatePassword(req, res)
-  );
+  );  
 };
