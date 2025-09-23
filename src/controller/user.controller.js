@@ -12,7 +12,6 @@ module.exports = (app) => {
 
   app.get(
     "/admin/users/contributor",
-    AuthenticateRoute(["admin"]),
     (req, res) => UserService.getAllUserContributor(req, res)
   );
 

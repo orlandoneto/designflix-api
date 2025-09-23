@@ -4,7 +4,7 @@ const AuthenticateRoute = require("../middleware/authentication");
 module.exports = (app) => {
   const categoryService = new CategoryService();
 
-  app.post("/categories", AuthenticateRoute(["dmin", "user"]), (req, res) =>
+  app.post("/categories", AuthenticateRoute(["admin", "user"]), (req, res) =>
     categoryService.create(req, res)
   );
 
