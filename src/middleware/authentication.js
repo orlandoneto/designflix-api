@@ -34,7 +34,7 @@ const authenticateResource = (resources) => {
           if (resources.includes(ROLES.ADMIN)) {
             if (decoded.userType === ROLES.ADMIN) {
               const admin = await Admin.findOne({
-                where: { id: decoded.id, email: decoded.email, super_admin: 0 },
+                where: { id: decoded.id, email: decoded.email },
               });
               if (admin && admin.id) {
                 req.params.adminId = admin.id;
