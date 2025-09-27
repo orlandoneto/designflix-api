@@ -3,7 +3,7 @@ const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-handlebars");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
-const { User, UserMainGrid, UserPartners, Partners, sequelize } = require("../models");
+const { User, UserMainGrid, UserPartners, Partners, sequelize, Sequelize } = require("../models");
 const { sendEmail } = require("../utils/emailService");
 const { PALN_COMMISSION } = require("../utils/constants/constants");
 
