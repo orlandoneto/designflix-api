@@ -178,6 +178,7 @@ module.exports = class UserMainGridController {
           SELECT
             umg.*,
             u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
+            (SELECT COUNT(*) FROM user_main_grid umg2 WHERE umg2.user_id = umg.user_id AND umg2.activite = 0) AS countFiles,
             MATCH (umg.terms) AGAINST (:search_nat IN NATURAL LANGUAGE MODE) AS score,
             CASE WHEN umg.terms LIKE :phrase_like THEN 1 ELSE 0 END AS phrase_hit,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
@@ -210,6 +211,7 @@ module.exports = class UserMainGridController {
           url: r.url,
           activite: r.activite,
           reason: r.reason,
+          countFiles: r.countFiles,
           user: {
             id: r.user_id,
             name: r.user_name,
@@ -283,6 +285,7 @@ module.exports = class UserMainGridController {
           SELECT
             umg.*,
             u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
+            (SELECT COUNT(*) FROM user_main_grid umg2 WHERE umg2.user_id = umg.user_id AND umg2.activite = 0) AS countFiles,
             MATCH (umg.terms) AGAINST (:search_nat IN NATURAL LANGUAGE MODE) AS score,
             CASE WHEN umg.terms LIKE :phrase_like THEN 1 ELSE 0 END AS phrase_hit,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
@@ -315,6 +318,7 @@ module.exports = class UserMainGridController {
           url: r.url,
           activite: r.activite,
           reason: r.reason,
+          countFiles: r.countFiles,
           user: {
             id: r.user_id,
             name: r.user_name,
@@ -379,6 +383,7 @@ module.exports = class UserMainGridController {
           SELECT
             umg.*,
             u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
+            (SELECT COUNT(*) FROM user_main_grid umg2 WHERE umg2.user_id = umg.user_id AND umg2.activite = 0) AS countFiles,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
             GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
           FROM user_main_grid umg
@@ -409,6 +414,7 @@ module.exports = class UserMainGridController {
           url: r.url,
           activite: r.activite,
           reason: r.reason,
+          countFiles: r.countFiles,
           user: {
             id: r.user_id,
             name: r.user_name,
@@ -479,6 +485,19 @@ module.exports = class UserMainGridController {
           limit: parseInt(limit),
           offset,
         });
+        // Calcular countFiles por usuário em uma única consulta
+        const userIds = Array.from(new Set(userMainGrids.map((g) => g.user_id).filter(Boolean)));
+        let countsByUserId = {};
+        if (userIds.length > 0) {
+          const countRows = await sequelize.query(
+            `SELECT user_id, COUNT(*) AS countFiles FROM user_main_grid WHERE activite = 0 AND user_id IN (:userIds) GROUP BY user_id`,
+            { replacements: { userIds }, type: Sequelize.QueryTypes.SELECT }
+          );
+          countsByUserId = countRows.reduce((acc, r) => {
+            acc[r.user_id] = Number(r.countFiles) || 0;
+            return acc;
+          }, {});
+        }
 
         const result = userMainGrids.map((grid) => ({
           id: grid.id,
@@ -491,6 +510,7 @@ module.exports = class UserMainGridController {
           url: grid.url,
           activite: grid.activite,
           reason: grid.reason,
+          countFiles: countsByUserId[grid.user_id] || 0,
           user: {
             id: grid.user?.id,
             name: grid.user?.name,
