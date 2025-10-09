@@ -191,7 +191,7 @@ module.exports = class UserMainGridController {
           LEFT JOIN tags t ON t.id = umgt.tag_id
           ${whereSQL}
           GROUP BY umg.id
-          ORDER BY phrase_hit DESC, score DESC, umg.created_at DESC, umg.updated_at DESC
+          ORDER BY CASE WHEN umg.format = 'PSD' THEN 0 ELSE 1 END, phrase_hit DESC, score DESC, umg.created_at DESC, umg.updated_at DESC
           LIMIT :limit OFFSET :offset
         `;
 
@@ -298,7 +298,7 @@ module.exports = class UserMainGridController {
           LEFT JOIN tags t ON t.id = umgt.tag_id
           ${whereSQL}
           GROUP BY umg.id
-          ORDER BY phrase_hit DESC, score DESC, umg.created_at DESC, umg.updated_at DESC
+          ORDER BY CASE WHEN umg.format = 'PSD' THEN 0 ELSE 1 END, phrase_hit DESC, score DESC, umg.created_at DESC, umg.updated_at DESC
           LIMIT :limit OFFSET :offset
         `;
 
@@ -394,7 +394,7 @@ module.exports = class UserMainGridController {
           LEFT JOIN tags t ON t.id = umgt.tag_id
           ${whereSQL}
           GROUP BY umg.id
-          ORDER BY umg.created_at DESC, umg.updated_at DESC
+          ORDER BY CASE WHEN umg.format = 'PSD' THEN 0 ELSE 1 END, umg.created_at DESC, umg.updated_at DESC
           LIMIT :limit OFFSET :offset
         `;
 
@@ -479,6 +479,7 @@ module.exports = class UserMainGridController {
             },
           ],
           order: [
+            sequelize.literal("CASE WHEN format = 'PSD' THEN 0 ELSE 1 END ASC"),
             ["created_at", "DESC"],
             ["updated_at", "DESC"],
           ],
