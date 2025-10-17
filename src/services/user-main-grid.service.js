@@ -101,11 +101,11 @@ module.exports = class UserMainGridController {
 
   async getAll(req, res) {
     try {
-      const { searchTerm, format, page = 1, limit = 40 } = req.query;
+      const { searchTerm, format, categoryId, page = 1, limit = 40 } = req.query;
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
       // Gerar chave de cache única
-      const cacheKey = RedisCache.generateCacheKey('user_main_grid', searchTerm, format, page, limit);
+      const cacheKey = RedisCache.generateCacheKey('user_main_grid', searchTerm, format, categoryId, page, limit);
 
       // Tentar buscar do cache
       const cachedData = await RedisCache.getFromCache(req.redis, cacheKey);
@@ -134,7 +134,128 @@ module.exports = class UserMainGridController {
         return { booleanQuery, likeQuery, natQuery, hasBoolean: booleanQuery.length > 0 };
       };
 
-      if (searchTerm && searchTerm !== 'null' && format && format !== 'null') {
+      // Se tiver categoryId, dá prioridade a filtro por categoria (podendo combinar com searchTerm/format)
+      if (categoryId && categoryId !== 'null') {
+        let whereClauses = [];
+        let replacements = {};
+
+        // Filtro por categoria e ativos
+        whereClauses.push(`umgc.category_id = :categoryId`);
+        whereClauses.push(`umg.activite = 0`);
+        replacements.categoryId = parseInt(categoryId);
+
+        // Filtro opcional por formato, se presente
+        if (format && format !== 'null') {
+          whereClauses.push(`umg.format = :format`);
+          replacements.format = format;
+        }
+
+        // Lógica de busca opcional por termo (mantém ranking e relevância)
+        let hasSearch = false;
+        if (searchTerm && searchTerm !== 'null') {
+          const { booleanQuery, likeQuery, natQuery, hasBoolean } = buildBooleanQuery(searchTerm);
+          hasSearch = true;
+          if (hasBoolean) {
+            whereClauses.push(`MATCH (umg.terms) AGAINST (:search IN BOOLEAN MODE)`);
+            replacements.search = booleanQuery;
+          } else {
+            whereClauses.push(`umg.terms LIKE :search_like`);
+            replacements.search_like = likeQuery;
+          }
+          // parâmetros auxiliares para ranking
+          replacements.search_nat = natQuery;
+          replacements.phrase_like = likeQuery;
+        }
+
+        const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+        // Query para contar total de registros
+        const countQuery = `
+          SELECT COUNT(DISTINCT umg.id) as total
+          FROM user_main_grid umg
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+        `;
+
+        const totalResult = await sequelize.query(countQuery, {
+          replacements,
+          type: Sequelize.QueryTypes.SELECT,
+        });
+
+        const total = totalResult[0].total;
+
+        // Query principal com paginação (inclui ranking quando há searchTerm)
+        const query = `
+          SELECT
+            umg.*,
+            u.id as user_id, u.name as user_name, u.photo as user_photo, u.partner_code as user_partner_code, u.coupon_code as user_coupon_code,
+            (SELECT COUNT(*) FROM user_main_grid umg2 WHERE umg2.user_id = umg.user_id AND umg2.activite = 0) AS countFiles,
+            ${hasSearch ? `MATCH (umg.terms) AGAINST (:search_nat IN NATURAL LANGUAGE MODE) AS score,` : ''}
+            ${hasSearch ? `CASE WHEN umg.terms LIKE :phrase_like THEN 1 ELSE 0 END AS phrase_hit,` : ''}
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', c.id, 'name', c.name, 'active', c.active)) AS categories,
+            GROUP_CONCAT(DISTINCT JSON_OBJECT('id', t.id, 'name', t.name)) AS tags
+          FROM user_main_grid umg
+          LEFT JOIN user u ON umg.user_id = u.id
+          LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+          LEFT JOIN categories c ON c.id = umgc.category_id
+          LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+          LEFT JOIN tags t ON t.id = umgt.tag_id
+          ${whereSQL}
+          GROUP BY umg.id
+          ORDER BY CASE WHEN umg.format = 'PSD' THEN 0 ELSE 1 END${hasSearch ? `, phrase_hit DESC, score DESC` : ''}, umg.created_at DESC, umg.updated_at DESC
+          LIMIT :limit OFFSET :offset
+        `;
+
+        const results = await sequelize.query(query, {
+          replacements: { ...replacements, limit: parseInt(limit), offset },
+          type: Sequelize.QueryTypes.SELECT,
+        });
+
+        const data = results.map((r) => ({
+          id: r.id,
+          contributor_id: r.user_id,
+          contributor_admin_id: r.admin_id,
+          name: r.name,
+          format: r.format,
+          url_thumb: r.url_thumb,
+          url_cover: r.url_cover,
+          url: r.url,
+          activite: r.activite,
+          reason: r.reason,
+          countFiles: r.countFiles,
+          user: {
+            id: r.user_id,
+            name: r.user_name,
+            photo: r.user_photo,
+            partnerCode: r.user_partner_code,
+            couponCode: r.user_coupon_code,
+          },
+          categories: r.categories
+            ? JSON.parse(`[${r.categories}]`)
+            : [],
+          tags: r.tags
+            ? JSON.parse(`[${r.tags}]`)
+            : [],
+        }));
+
+        const responseData = {
+          data,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / parseInt(limit))
+          }
+        };
+
+        // Salvar no cache de forma assíncrona (não bloqueia a resposta)
+        RedisCache.saveToCache(req.redis, cacheKey, responseData);
+
+        return res.status(200).send(responseData);
+      } else if (searchTerm && searchTerm !== 'null' && format && format !== 'null') {
         let whereClauses = [];
         let replacements = {};
 
