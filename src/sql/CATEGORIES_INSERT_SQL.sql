@@ -176,4 +176,5 @@ INSERT INTO categories (name, active, createdAt, updatedAt) VALUES
 ('VETORES', 1, NOW(), NOW()),
 ('VEÍCULOS', 1, NOW(), NOW()),
 ('VOLTA ÀS AULAS', 1, NOW(), NOW()),
-('YOGA', 1, NOW(), NOW());
+('YOGA', 1, NOW(), NOW()),
+('GRÁTIS', 1, NOW(), NOW());
