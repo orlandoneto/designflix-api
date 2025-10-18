@@ -251,6 +251,8 @@ module.exports = class UserMainGridController {
           }
         };
 
+        console.log("responseData", responseData);
+
         // Salvar no cache de forma assíncrona (não bloqueia a resposta)
         RedisCache.saveToCache(req.redis, cacheKey, responseData);
 

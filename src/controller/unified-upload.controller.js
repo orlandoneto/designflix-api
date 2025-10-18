@@ -92,7 +92,7 @@ module.exports = (app) => {
             if (!fs.existsSync(uploadTempDir)) {
               fs.mkdirSync(uploadTempDir, { recursive: true });
             }
-          } catch (e) { }
+          } catch (e) { console.error("Error in multer multiple:", e); }
           cb(null, uploadTempDir);
         },
         filename: (req, file, cb) => {

@@ -217,7 +217,7 @@ class UnifiedUploadService {
           archiveData.content.path,
           archiveData.content.name
         );
-        logMultpleUpload("Content uploaded:", contentResult.url);
+        logMultpleUpload("Url download:", contentResult.url);
       }
 
       // Gerar nome baseado no arquivo de preview (sanitizado) e manter o original
@@ -256,7 +256,7 @@ class UnifiedUploadService {
         format: finalFormat, // ✅ CORRIGIDO: Sempre extensão do CONTEÚDO
         url_thumb: thumbnailResult.url,
         url_cover: previewResult.url,
-        url: contentResult ? contentResult.url : null,
+        url: contentResult.url,
         terms: terms,
         tags: tags,
         categoryId: categoryId,

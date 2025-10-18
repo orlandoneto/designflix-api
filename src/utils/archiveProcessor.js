@@ -564,7 +564,7 @@ class ArchiveProcessor {
             ruleType: 'single_image_rule',
             description: 'Zip com imagem - .jpg ou .jpeg (preview é o mesmo do original)',
             priority: 5,
-            contentFile: null,
+            contentFile: imageFiles,
             previewFiles: imageFiles
           };
         }
@@ -762,7 +762,7 @@ class ArchiveProcessor {
         case 'single_image_rule':
           // REGRA 5: Zip com 1 imagem
           previewFile = detectedRule.previewFiles[0];
-          contentFile = null; // Sem arquivo de conteúdo separado
+          contentFile = detectedRule.previewFiles[0];
           selectionMethod = 'single_image_rule';
           console.log(`🖼️ Aplicando regra imagem única: ${previewFile.name} como preview`);
           break;
