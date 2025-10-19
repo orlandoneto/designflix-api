@@ -1043,10 +1043,40 @@ module.exports = class UserMainGridController {
         body.reason = 0;
       }
 
-      const [updated] = await UserMainGrid.update(body, { where });
+      // Inicia transação para garantir consistência entre o update principal e o de categoria
+      const transaction = await sequelize.transaction();
+      try {
+        const [updated] = await UserMainGrid.update(body, { where, transaction });
 
-      if (updated === 0) {
-        return res.status(404).send({ message: "Registro não encontrado" });
+        if (updated === 0) {
+          await transaction.rollback();
+          return res.status(404).send({ message: "Registro não encontrado" });
+        }
+
+        // Atualizar categoria se categoryId/category_id vier no corpo
+        const rawCategoryId = body.categoryId ?? body.category_id;
+        if (rawCategoryId !== undefined && rawCategoryId !== null && rawCategoryId !== '') {
+          const categoryIdNum = Number(rawCategoryId);
+          if (!Number.isNaN(categoryIdNum) && categoryIdNum > 0) {
+            const existsCount = await UserMainGridCategories.count({ where: { user_main_grid_id: where.id }, transaction });
+            if (existsCount > 0) {
+              await UserMainGridCategories.update(
+                { category_id: categoryIdNum },
+                { where: { user_main_grid_id: where.id }, transaction }
+              );
+            } else {
+              await UserMainGridCategories.create(
+                { user_main_grid_id: where.id, category_id: categoryIdNum },
+                { transaction }
+              );
+            }
+          }
+        }
+
+        await transaction.commit();
+      } catch (innerErr) {
+        await transaction.rollback();
+        throw innerErr;
       }
 
       const updatedUserMainGrid = await UserMainGrid.findOne({
