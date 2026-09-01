@@ -23,6 +23,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      availability: {
+        type: DataTypes.ENUM("free", "paid"),
+        allowNull: false,
+        defaultValue: "paid",
+      },
       url_thumb: {
         type: DataTypes.STRING,
         allowNull: true,

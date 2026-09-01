@@ -11,6 +11,11 @@ const {
 
 const RedisCache = require("../utils/redisCache");
 const { logRedis } = require("../config/testingLogs");
+const {
+  appendFormatFilter,
+  buildSequelizeFormatWhere,
+  mapGridItemFields,
+} = require("../utils/grid-item");
 
 module.exports = class UserMainGridController {
   async create(req, res) {
@@ -145,10 +150,7 @@ module.exports = class UserMainGridController {
         replacements.categoryId = parseInt(categoryId);
 
         // Filtro opcional por formato, se presente
-        if (format && format !== 'null') {
-          whereClauses.push(`umg.format = :format`);
-          replacements.format = format;
-        }
+        appendFormatFilter(whereClauses, replacements, format);
 
         // Lógica de busca opcional por termo (mantém ranking e relevância)
         let hasSearch = false;
@@ -219,7 +221,7 @@ module.exports = class UserMainGridController {
           contributor_id: r.user_id,
           contributor_admin_id: r.admin_id,
           name: r.name,
-          format: r.format,
+          ...mapGridItemFields(r),
           url_thumb: r.url_thumb,
           url_cover: r.url_cover,
           url: r.url,
@@ -272,9 +274,8 @@ module.exports = class UserMainGridController {
         // parâmetros auxiliares para ranking
         replacements.search_nat = natQuery;
         replacements.phrase_like = likeQuery;
-        whereClauses.push(`umg.format = :format`);
+        appendFormatFilter(whereClauses, replacements, format);
         whereClauses.push(`umg.activite = 0`);
-        replacements.format = format;
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
@@ -328,7 +329,7 @@ module.exports = class UserMainGridController {
           contributor_id: r.user_id,
           contributor_admin_id: r.admin_id,
           name: r.name,
-          format: r.format,
+          ...mapGridItemFields(r),
           url_thumb: r.url_thumb,
           url_cover: r.url_cover,
           url: r.url,
@@ -435,7 +436,7 @@ module.exports = class UserMainGridController {
           contributor_id: r.user_id,
           contributor_admin_id: r.admin_id,
           name: r.name,
-          format: r.format,
+          ...mapGridItemFields(r),
           url_thumb: r.url_thumb,
           url_cover: r.url_cover,
           url: r.url,
@@ -477,9 +478,8 @@ module.exports = class UserMainGridController {
         let whereClauses = [];
         let replacements = {};
 
-        whereClauses.push(`umg.format = :format`);
+        appendFormatFilter(whereClauses, replacements, format);
         whereClauses.push(`umg.activite = 0`);
-        replacements.format = format;
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
@@ -531,7 +531,7 @@ module.exports = class UserMainGridController {
           contributor_id: r.user_id,
           contributor_admin_id: r.admin_id,
           name: r.name,
-          format: r.format,
+          ...mapGridItemFields(r),
           url_thumb: r.url_thumb,
           url_cover: r.url_cover,
           url: r.url,
@@ -628,7 +628,7 @@ module.exports = class UserMainGridController {
           contributor_id: grid.user_id,
           contributor_admin_id: grid.admin_id,
           name: grid.name,
-          format: grid.format,
+          ...mapGridItemFields(grid),
           url_thumb: grid.url_thumb,
           url_cover: grid.url_cover,
           url: grid.url,
@@ -721,10 +721,7 @@ module.exports = class UserMainGridController {
         replacements.userId = userId;
         // ✅ BUSCA TAMBÉM MOSTRA TODAS: Remover filtro activite = 0
         // whereClauses.push(`umg.activite = 0`); // ← REMOVIDO para mostrar todas
-        if (format && format !== 'null') {
-          whereClauses.push(`umg.format = :format`);
-          replacements.format = format;
-        }
+        appendFormatFilter(whereClauses, replacements, format);
 
         const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
@@ -775,7 +772,7 @@ module.exports = class UserMainGridController {
         const data = results.map((r) => ({
           id: r.id,
           name: r.name,
-          format: r.format,
+          ...mapGridItemFields(r),
           url_thumb: r.url_thumb,
           url_cover: r.url_cover,
           url: r.url,
@@ -807,9 +804,8 @@ module.exports = class UserMainGridController {
 
       // ✅ CORREÇÃO PRINCIPAL: Sem termo de busca - usar consulta SQL direta para paginação correta
       const whereCondition = {};
-      if (format && format !== 'null') {
-        whereCondition.format = format;
-      }
+      const formatWhere = buildSequelizeFormatWhere(format);
+      if (formatWhere) Object.assign(whereCondition, formatWhere);
       if (userId) {
         whereCondition.user_id = userId;
       }
@@ -859,7 +855,7 @@ module.exports = class UserMainGridController {
       const data = userMainGrids.map((grid) => ({
         id: grid.id,
         name: grid.name,
-        format: grid.format,
+        ...mapGridItemFields(grid),
         url_thumb: grid.url_thumb,
         url_cover: grid.url_cover,
         url: grid.url,
@@ -955,7 +951,7 @@ module.exports = class UserMainGridController {
       const data = userMainGrids.map((grid) => ({
         id: grid.id,
         name: grid.name,
-        format: grid.format,
+        ...mapGridItemFields(grid),
         url_thumb: grid.url_thumb,
         url_cover: grid.url_cover,
         url: grid.url,

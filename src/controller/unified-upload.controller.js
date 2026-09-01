@@ -38,10 +38,11 @@ module.exports = (app) => {
     async (req, res) => {
       try {
         // Capturar dados do FormData
-        const { categoryId, categoryName } = req.body;
+        const { categoryId, categoryName, availability } = req.body;
         logMultpleUpload("Upload único - Dados recebidos:", {
           categoryId,
           categoryName,
+          availability,
           fileName: req.file ? req.file.originalname : 'N/A'
         });
 
@@ -57,7 +58,7 @@ module.exports = (app) => {
 
           // Salvar no UserMainGrid
           const savedRecord = await integrationService.saveToUserMainGrid(
-            uploadResult.data,
+            { ...uploadResult.data, availability: req.body.availability },
             userId,
             adminId
           );
@@ -176,10 +177,13 @@ module.exports = (app) => {
 
         // Se o upload foi bem-sucedido, sempre salvar no grid
         if (uploadResult.status === "success") {
+          const availability = req.body.availability;
           // Salvar no UserMainGrid
           const savedRecords = await integrationService.processAndSave(
             uploadResult,
             req.body.user_id || null,
+            null,
+            { availability }
           );
 
           // Adicionar informações dos registros salvos

@@ -1,5 +1,14 @@
 const { UserMainGrid, UserMainGridCategories, UserMainGridTags, Category, Tags } = require("../models");
 const { logMultpleUpload } = require("../config/testingLogs");
+const {
+  resolveAvailabilityFromInput,
+  resolveFileFormat,
+} = require("../utils/grid-item");
+
+/** @deprecated use resolveFileFormat — mantido para testes legados */
+function resolvePersistedFormat(data) {
+  return resolveFileFormat(data);
+}
 
 /**
  * Serviço para integrar upload unificado com UserMainGrid
@@ -76,7 +85,8 @@ class UnifiedUploadIntegrationService {
       const userMainGrid = await UserMainGrid.create({
         user_id: userId, // Sempre salva o user_id
         name: nameToPersist,
-        format: data.format,
+        format: resolveFileFormat(data),
+        availability: resolveAvailabilityFromInput(data),
         url_thumb: data.url_thumb,
         url_cover: data.url_cover,
         url: data.url,
@@ -163,13 +173,18 @@ class UnifiedUploadIntegrationService {
   /**
    * Processa resultado do upload unificado e salva no banco
    */
-  async processAndSave(uploadResult, userId, adminId = null) {
+  async processAndSave(uploadResult, userId, adminId = null, options = {}) {
+    const availability = options.availability;
     try {
       logMultpleUpload("Processing upload result for user:", userId);
 
       // Se for upload único
       if (uploadResult.data && !uploadResult.data.success) {
-        return await this.saveToUserMainGrid(uploadResult.data, userId, adminId);
+        return await this.saveToUserMainGrid(
+          { ...uploadResult.data, availability },
+          userId,
+          adminId
+        );
       }
 
       // Se for upload múltiplo
@@ -179,7 +194,7 @@ class UnifiedUploadIntegrationService {
         for (const item of uploadResult.data.success) {
           try {
             const savedRecord = await this.saveToUserMainGrid(
-              item.result,
+              { ...item.result, availability },
               userId,
               adminId
             );
@@ -326,3 +341,6 @@ class UnifiedUploadIntegrationService {
 }
 
 module.exports = UnifiedUploadIntegrationService;
+module.exports.resolvePersistedFormat = resolvePersistedFormat;
+module.exports.resolveFileFormat = resolveFileFormat;
+module.exports.resolveAvailabilityFromInput = resolveAvailabilityFromInput;
