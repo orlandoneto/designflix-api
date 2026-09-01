@@ -24,6 +24,8 @@
     "copy-keys": "cp ./src/middleware/private.key ./dist/middleware/",
     "build": "babel src --out-dir dist && npm run copy-keys",
     "migrate": "node scripts/setEnv.js development && npx sequelize-cli db:migrate",
+    "migrate:development": "node scripts/setEnv.js development && npx sequelize-cli db:migrate",
+    "migrate:production": "node scripts/setEnv.js production && npx sequelize-cli db:migrate",
     "db:setup": "node scripts/setEnv.js development && node scripts/setupLocalDb.js && node scripts/syncModels.js && node scripts/markMigrations.js"
   },
   "author": "FlixDesign",
