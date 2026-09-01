@@ -91,128 +91,63 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware de detecção de bots
+// Middleware de detecção de bots (marca req.isBot; HTML legado em routes/bot-seo)
 app.use(botDetection.middleware());
 
-// user main grid
+// ----- Domínio: catálogo -----
 require("./controller/user-main-grid.controller")(app);
-
-// category
 require("./controller/category.controller")(app);
-
-// tags
 require("./controller/tags.controller")(app);
 
-// otp
-require("./controller/otps.controller")(app);
-
-// system
+// ----- Domínio: auth / usuário -----
+require("./controller/auth-public.controller")(app);
 require("./controller/system.controller")(app);
-
-// user
 require("./controller/user.controller")(app);
 require("./controller/user-address.controller")(app);
 
-// admin
+// ----- Domínio: admin (separado do app público) -----
 require("./controller/admin.controller")(app);
 
-// serviços
-require("./controller/upload.controller")(app);
-
-// upload unificado
+// ----- Domínio: upload -----
+// Env: STORAGE_TYPE=local|s3 (ou STORAGE_DRIVER) escolhe cópia local vs S3 original
+// Avatar: /upload/avatar/site | Packs/grid: /unified-upload/* (ver docs/ARCHITECTURE.md)
+const { isLocalUploadMode } = require("./utils/isLocalUploadMode");
+if (isLocalUploadMode()) {
+  require("./controller/upload.local.controller")(app);
+} else {
+  require("./controller/upload.controller")(app);
+}
 require("./controller/unified-upload.controller")(app);
 
-// google
+// ----- Domínio: billing / social / misc -----
 require("./controller/google-api.controller")(app);
-
-// Payment
 require("./controller/payment.controller")(app);
-
-// Bug Reports
 require("./controller/user-bug.controller")(app);
-
-// Complaints
 require("./controller/complaints.controller")(app);
-
-// Favorites
 require("./controller/favorites.controller")(app);
-
-// Downloads S3
 require("./controller/downloadS3.controller")(app);
-
-// User Downloads
 require("./controller/user-downloads.controller")(app);
-
-// User Follows
 require("./controller/user-follows.controller")(app);
-
-// Plans Download Limits
 require("./controller/plans-download-limit.controller")(app);
-
-// User Commissions
 require("./controller/user-commissions.controller")(app);
-
-// Plans
 require("./controller/user-plans.controller")(app);
-
-// Forgot Signup
-require("./controller/forgot.controller")(app);
-
-// Landing Pages
 require("./controller/landing-page.controller")(app);
-
-// Partners
 require("./controller/partners.controller")(app);
-
-// IA - Remove Background
 require("./controller/ia/remove-background.controller")(app);
 
-// ===== ROTAS PARA BOTS (SEO/SOCIAL MEDIA) =====
-// Página inicial para bots
-app.get('/', botDetection.serveBotHTML({
-  title: 'Flixdesign - Sua galeria de design',
-  description: 'Flixdesign: Plataforma para designers compartilharem, atualizarem e exibirem seus trabalhos em uma galeria moderna.',
-  image: '/favflix.png'
-}));
-
-// Página de templates para bots
-app.get('/templates', botDetection.serveBotHTML({
-  title: 'Templates Premium - Flixdesign',
-  description: 'Coleção exclusiva de templates profissionais para web, mobile e print. Designs modernos e responsivos prontos para uso.',
-  image: '/favflix.png'
-}));
-
-// Página de categorias para bots
-app.get('/category/:id', botDetection.serveBotHTML({
-  title: 'Categoria de Design - Flixdesign',
-  description: 'Explore nossa coleção de recursos de design organizados por categoria. Encontre exatamente o que precisa para seu projeto.',
-  image: '/favflix.png'
-}));
-
-// Página de usuário/contribuidor para bots
-app.get('/user/:id', botDetection.serveBotHTML({
-  title: 'Contribuidor - Flixdesign',
-  description: 'Conheça nossos contribuidores e explore seus trabalhos exclusivos de design.',
-  image: '/favflix.png'
-}));
-
-// Fallback para qualquer rota não encontrada - servir HTML para bots
-app.get('*', (req, res) => {
-  if (req.isBot) {
-    return botDetection.serveBotHTML({
-      title: 'Flixdesign - Sua galeria de design',
-      description: 'Plataforma para designers compartilharem, atualizarem e exibirem seus trabalhos em uma galeria moderna.',
-      image: '/favflix.png'
-    })(req, res);
-  }
-
-  // Para usuários reais, retornar 404 ou redirecionar para SPA
-  res.status(404).json({ message: 'Página não encontrada' });
-});
+// ----- Legado SEO HTML (desligar com ENABLE_BOT_HTML=false) -----
+require("./routes/bot-seo.routes")(app, botDetection);
 
 server.listen(process.env.NODE_PORT, () => {
   console.log('\n=== Servidor Iniciado ===');
   console.log(`Servidor rodando na porta ${process.env.NODE_PORT}`);
   console.log(`Ambiente: ${process.env.NODE_ENV}`);
+  const { isLocalUploadMode } = require("./utils/isLocalUploadMode");
+  const LocalObjectStore = require("./utils/localObjectStore");
+  if (isLocalUploadMode()) {
+    console.log(`Upload: LOCAL copy → ${LocalObjectStore.getPublicBaseUrl()}/uploads`);
+  } else {
+    console.log('Upload: S3 original');
+  }
   console.log('========================\n');
 });

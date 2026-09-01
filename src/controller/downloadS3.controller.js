@@ -1,8 +1,12 @@
-const DownloadS3 = require("../services/downloadS3.service");
+const { isLocalUploadMode } = require("../utils/isLocalUploadMode");
 const AuthenticateRoute = require("../middleware/authentication");
 
 module.exports = (app) => {
+  const Download = isLocalUploadMode()
+    ? require("../services/downloadS3.local.service")
+    : require("../services/downloadS3.service");
+
   app.get("/signed/url", AuthenticateRoute(["user"]), (req, res) =>
-    DownloadS3.getSignedUrlS3(req, res)
+    Download.getSignedUrlS3(req, res)
   );
 };

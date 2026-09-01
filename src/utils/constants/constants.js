@@ -36,9 +36,9 @@ const PLAN_VALUES = {
 
 // Forgot redirect url
 const FORGOT_REDIRECT_URL = {
-  "test_url": "http://localhost:3000",
-  "dev_url": "https://test.flixdesign.com.br",
-  "prod_url": "https://flixdesign.com.br",
+  test_url: "http://localhost:3001",
+  dev_url: "http://localhost:3001",
+  prod_url: "https://flixdesign.com.br",
 };
 
 const PALN_COMMISSION = {

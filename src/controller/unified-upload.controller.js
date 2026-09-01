@@ -4,13 +4,21 @@ const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 const { logMultpleUpload } = require("../config/testingLogs");
-const UnifiedUploadService = require("../services/unified-upload.service");
+const { getUnifiedUploadService } = require("../services/unified-upload.factory");
 const UnifiedUploadIntegrationService = require("../services/unified-upload-integration.service");
 const AuthenticateRoute = require("../middleware/authentication");
 const { CONST } = require("../utils/constants/constants");
 
+/**
+ * Upload de packs/conteúdo do grid (canônico: /unified-upload/*).
+ * Avatar continua em /upload/avatar/site — ver docs/ARCHITECTURE.md.
+ *
+ * Env decide a implementação:
+ * - STORAGE_TYPE=local | STORAGE_DRIVER=local → cópia local (disco)
+ * - caso contrário → UnifiedUploadService S3 original
+ */
 module.exports = (app) => {
-  const unifiedUploadService = new UnifiedUploadService();
+  const unifiedUploadService = getUnifiedUploadService();
   const integrationService = new UnifiedUploadIntegrationService();
 
   /**
@@ -48,7 +56,7 @@ module.exports = (app) => {
           console.log("💾 Salvando no grid:", { userId, adminId, categoryId, categoryName });
 
           // Salvar no UserMainGrid
-          const savedRecord = await integrationService.saveToGrid(
+          const savedRecord = await integrationService.saveToUserMainGrid(
             uploadResult.data,
             userId,
             adminId
@@ -101,6 +109,23 @@ module.exports = (app) => {
         }
       });
 
+      const allowedMimes = [
+        "application/zip",
+        "application/x-zip-compressed",
+        "application/x-rar-compressed",
+        "application/vnd.rar",
+        "application/x-7z-compressed",
+        "application/x-tar",
+        "application/gzip",
+        "application/x-gzip",
+        "application/x-bzip2",
+        "application/x-bzip",
+        "application/x-gtar",
+        "application/x-compressed",
+        "application/octet-stream", // Windows/Chrome costuma mandar ZIP assim
+      ];
+      const allowedExtensions = [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".tgz", ".tbz", ".tbz2"];
+
       const multerConfig = multer({
         storage,
         limits: {
@@ -108,36 +133,41 @@ module.exports = (app) => {
           files: CONST.MAX_UPLOAD_FILES_PER_UPLOAD // Máximo de arquivos
         },
         fileFilter: (req, file, cb) => {
-          const allowedMimes = [
-            "application/zip",
-            "application/x-zip-compressed",
-            "application/x-rar-compressed",
-            "application/x-7z-compressed",
-            "application/x-tar",
-            "application/gzip",
-            "application/x-bzip2",
-            "application/x-gtar",
-          ];
+          const fileExtension = path.extname(file.originalname || "").toLowerCase();
+          const mimeOk = allowedMimes.includes(file.mimetype);
+          const extOk = allowedExtensions.includes(fileExtension);
 
-          const allowedExtensions = [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".tgz", ".tbz", ".tbz2"];
-
-          if (allowedMimes.includes(file.mimetype)) {
-            cb(null, true);
-          } else {
-            const fileExtension = require("path").extname(file.originalname).toLowerCase();
-            if (allowedExtensions.includes(fileExtension)) {
-              cb(null, true);
-            } else {
-              cb(new Error("Invalid file type. Supported types: ZIP, RAR, 7Z, TAR, GZ, BZ2, TGZ, TBZ"));
-            }
+          // octet-stream só passa se a extensão for de arquivo compactado
+          if (file.mimetype === "application/octet-stream" && !extOk) {
+            console.warn("[unified-upload] rejected:", {
+              name: file.originalname,
+              mime: file.mimetype,
+            });
+            return cb(new Error("Invalid file type. Supported types: ZIP, RAR, 7Z, TAR, GZ, BZ2, TGZ, TBZ"));
           }
+
+          if (mimeOk || extOk) {
+            return cb(null, true);
+          }
+
+          console.warn("[unified-upload] rejected:", {
+            name: file.originalname,
+            mime: file.mimetype,
+          });
+          cb(new Error("Invalid file type. Supported types: ZIP, RAR, 7Z, TAR, GZ, BZ2, TGZ, TBZ"));
         },
       }).fields([
-        { name: 'files', maxCount: CONST.MAX_UPLOAD_FILES_PER_UPLOAD },           // ← Arquivos (campo comum)
-        { name: 'files[]', maxCount: CONST.MAX_UPLOAD_FILES_PER_UPLOAD }          // ← Suporte a campo 'files[]'
+        { name: 'files', maxCount: CONST.MAX_UPLOAD_FILES_PER_UPLOAD },
+        { name: 'files[]', maxCount: CONST.MAX_UPLOAD_FILES_PER_UPLOAD }
       ]);
 
-      multerConfig(req, res, next);
+      multerConfig(req, res, (err) => {
+        if (err) {
+          const status = err.code === "LIMIT_FILE_SIZE" || err.code === "LIMIT_FILE_COUNT" ? 413 : 400;
+          return res.status(status).send({ status: "error", message: err.message });
+        }
+        next();
+      });
     },
     async (req, res) => {
       try {

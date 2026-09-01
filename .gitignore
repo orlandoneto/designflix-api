@@ -49,6 +49,10 @@ docker-compose.yml
 /logs/*
 !/logs/.gitkeep
 
+# Local object storage (STORAGE_TYPE=local)
+/uploads/*
+!/uploads/.gitkeep
+
 # Lock files (keep only the one you use)
 yarn.lock
 pnpm-lock.yaml

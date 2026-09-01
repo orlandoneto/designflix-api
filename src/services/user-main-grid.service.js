@@ -676,7 +676,9 @@ module.exports = class UserMainGridController {
 
   async getAllByUserId(req, res) {
     try {
-      const { searchTerm, format, userId } = req.params;
+      // Route is /user-main-grid/user/:id — accept both :id and legacy :userId
+      const { searchTerm, format, id, userId: userIdParam } = req.params;
+      const userId = userIdParam || id;
       const { page = 1, limit = 40 } = req.query;
       const offset = (parseInt(page) - 1) * parseInt(limit);
 

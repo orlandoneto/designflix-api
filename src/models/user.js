@@ -37,13 +37,13 @@ module.exports = (sequelize, DataTypes) => {
       },
       phone: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       countryCode: {
         type: DataTypes.INTEGER,
-        defaultValue: 0,
+        defaultValue: null,
         field: "country_code",
-        allowNull: false,
+        allowNull: true,
       },
       privacyPolicy: {
         type: DataTypes.INTEGER,

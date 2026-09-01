@@ -1,7 +1,6 @@
 const UserService = require("../services/user.service");
 const AuthenticateRoute = require("../middleware/authentication");
-const verifyRecaptcha = require("../middleware/recaptcha");
-const removeAvatarFromS3 = require("../middleware/removeAvatarFromS3");
+const removeAvatar = require("../middleware/removeAvatar");
 
 module.exports = (app) => {
   app.get(
@@ -19,10 +18,6 @@ module.exports = (app) => {
     UserService.get(req, res)
   );
 
-  app.get("/user/find/:email", (req, res) =>
-    UserService.getUserByEmail(req, res)
-  );
-
   app.get("/user/balance/:userId",
     AuthenticateRoute(["user"]),
     (req, res) => UserService.userBalanceById(req, res)
@@ -38,22 +33,10 @@ module.exports = (app) => {
     (req, res) => UserService.updateBalance(req, res)
   );
 
-  app.post("/user", (req, res) =>
-    UserService.create(req, res)
-  );
-
   app.post(
     "/admin/user",
     AuthenticateRoute(["admin", "super_admin"]),
     (req, res) => UserService.createFromAdmin(req, res)
-  );
-
-  app.post("/user/authenticate", verifyRecaptcha('login'), (req, res) =>
-    UserService.authenticate(req, res)
-  );
-
-  app.post("/user/reset-password", (req, res) =>
-    UserService.resetPasswordByEmail(req, res)
   );
 
   app.put(
@@ -73,7 +56,7 @@ module.exports = (app) => {
   app.delete(
     "/user/:userId/photo",
     AuthenticateRoute(["user"]),
-    removeAvatarFromS3,
+    removeAvatar,
     (req, res) => UserService.removeUserPhoto(req, res)
   );
 

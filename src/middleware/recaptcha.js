@@ -3,6 +3,20 @@ const axios = require('axios');
 const verifyRecaptcha = (formType) => {
   return async (req, res, next) => {
     try {
+      const skipRecaptcha =
+        process.env.SKIP_RECAPTCHA === 'true' ||
+        (!process.env.RECAPTCHA_SECRET_KEY &&
+          process.env.NODE_ENV === 'development');
+
+      if (skipRecaptcha) {
+        req.recaptchaData = {
+          success: true,
+          message: 'Skipped in development',
+          formType,
+        };
+        return next();
+      }
+
       const { recaptchaToken } = req.body;
 
       if (!recaptchaToken) {
