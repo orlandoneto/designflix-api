@@ -11,23 +11,28 @@ Objetivo: qualquer dev ou agente de IA ler um contexto e saber **rotas, códigos
 
 ## Regra global (contextos públicos padronizados)
 
-| Status | Significado |
-|--------|-------------|
-| **200** | Sucesso |
-| **400** | Erro do cliente (validação, credencial, token, regra de negócio) |
-| **500** | Erro interno |
+| Status | Significado | Uso típico |
+|--------|-------------|------------|
+| **200** | Sucesso | Toda operação OK (inclui lista vazia) |
+| **400** | Erro do cliente | Validação, credencial, parâmetro inválido |
+| **404** | Não encontrado | Recurso por id (ex.: `/catalog/:id`) |
+| **410** | Removido | Endpoint legado descontinuado |
+| **500** | Erro interno | Falha inesperada no servidor |
+
+Auth público usa **200 / 400 / 500**. Catálogo/home também usa **404 / 410** quando aplicável.
 
 Envelope JSON:
 
 ```json
 // 200
-{ "success": true, "message": "opcional", "data": { } }
+{ "success": true, "message": "opcional", "data": { }, "pagination": {}, "meta": {} }
 
-// 400 / 500
+// 400 / 404 / 410 / 500
 { "success": false, "message": "descrição legível" }
 ```
 
-Helper: `src/utils/authHttpResponse.js` (hoje usado no contexto auth público; replicar padrão em novos contextos).
+Helper canônico: `src/utils/httpResponse.js`  
+Alias legado de auth: `src/utils/authHttpResponse.js` (reexporta o mesmo helper).
 
 ---
 
@@ -36,21 +41,24 @@ Helper: `src/utils/authHttpResponse.js` (hoje usado no contexto auth público; r
 | Contexto | Arquivo | Código |
 |----------|---------|--------|
 | **Auth público** (login, cadastro, OTP, recuperar/redefinir senha) | [auth-publico.md](./auth-publico.md) | `src/controller/auth-public.controller.js`, `src/services/auth-public.service.js` |
+| **Home / Explorer público** (feed, busca, explorar, detalhe) | [home-publico.md](./home-publico.md) | `src/controller/catalog.controller.js`, `src/services/catalog/` |
+| **Catálogo HTTP** (contrato `/catalog/*`) | [catalog.md](./catalog.md) | idem |
 
-### Próximos contextos (criar quando integrar no Next)
+### Próximos contextos
 
-- Perfil logado (`PUT /user/:id`, troca de senha autenticada)
+- Perfil logado
 - Planos / checkout
-- Grid / downloads
+- Downloads / favoritos
 - Colaborador / upload
 
 ---
 
 ## Logout
 
-Não existe endpoint de logout nesta API. A sessão é **stateless (JWT)**; o cliente descarta token + cookie. Documentado em [auth-publico.md](./auth-publico.md).
+Não existe endpoint de logout. Sessão **JWT**; cliente descarta token. Ver [auth-publico.md](./auth-publico.md).
 
 ## Front de referência
 
-O Next consome estes contratos via `designflix-next-new/features/auth/api.ts`.  
-Docs de integração no front: `designflix-next-new/docs/integrado/`.
+- Auth: `designflix-next-new/features/auth/api.ts`
+- Home/Explorer: `designflix-next-new/features/catalog/api.ts`
+- Docs integração: `designflix-next-new/docs/integrado/`

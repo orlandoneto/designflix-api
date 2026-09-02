@@ -7,7 +7,9 @@ module.exports = {
   restoreMocks: true,
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   collectCoverageFrom: [
+    'src/utils/httpResponse.js',
     'src/utils/authHttpResponse.js',
     'src/services/auth-public.service.js',
+    'src/services/catalog/catalog.service.js',
   ],
 };

@@ -162,6 +162,14 @@ class UnifiedUploadIntegrationService {
         ],
       });
 
+      // Sync Meilisearch (não bloqueia se Meili estiver off)
+      try {
+        const { syncCatalogDocument } = require('./catalog/catalog-sync');
+        await syncCatalogDocument(completeRecord);
+      } catch (_) {
+        /* ignore */
+      }
+
       return completeRecord;
 
     } catch (error) {
@@ -330,6 +338,13 @@ class UnifiedUploadIntegrationService {
           },
         ],
       });
+
+      try {
+        const { syncCatalogDocument } = require('./catalog/catalog-sync');
+        await syncCatalogDocument(updatedRecord);
+      } catch (_) {
+        /* ignore */
+      }
 
       return updatedRecord;
 

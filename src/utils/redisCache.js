@@ -23,20 +23,29 @@ class RedisCache {
   }
 
   /**
-   * Gera chave única para o cache baseada nos parâmetros da requisição
-   * @param {string} entity - Nome da entidade (ex: 'user_main_grid')
-   * @param {string} searchTerm - Termo de busca
-   * @param {string} format - Formato do arquivo
-   * @param {number} page - Página da paginação
-   * @param {number} limit - Limite de itens por página
-   * @returns {string} Chave única para o cache
+   * Gera chave única para o cache.
+   * Preferir objeto de filtros: generateCacheKey('catalog', { q, format, categoryId, page, limit })
+   * Assinatura legada (posicional) ainda suportada.
    */
-  static generateCacheKey(entity, searchTerm, format, page, limit) {
+  static generateCacheKey(entity, searchTermOrParams, format, page, limit) {
     const env = process.env.NODE_ENV || 'development';
-    // Em desenvolvimento, adiciona _dev ao nome da entidade
-    // Em produção, mantém o nome original
     const entityName = env === 'development' ? `${entity}_dev` : entity;
-    return `${entityName}:${searchTerm || 'null'}:${format || 'null'}:${page}:${limit}`;
+
+    if (searchTermOrParams && typeof searchTermOrParams === 'object' && !Array.isArray(searchTermOrParams)) {
+      const p = searchTermOrParams;
+      return [
+        entityName,
+        p.q || p.searchTerm || 'null',
+        p.format || 'null',
+        p.categoryId || p.category || p.categorySlug || 'null',
+        p.availability || 'null',
+        p.sort || 'null',
+        p.page || 1,
+        p.limit || 40,
+      ].join(':');
+    }
+
+    return `${entityName}:${searchTermOrParams || 'null'}:${format || 'null'}:${page}:${limit}`;
   }
 
   /**

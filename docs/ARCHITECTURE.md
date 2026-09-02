@@ -2,6 +2,19 @@
 
 Contratos HTTP atuais **não mudam** enquanto o Next consome esta API.
 
+## Catalog / Home pública
+
+Contrato de produto: **[docs/contextos/home-publico.md](./contextos/home-publico.md)**  
+Contrato HTTP: **[docs/contextos/catalog.md](./contextos/catalog.md)**
+
+```
+GET /catalog/search | /catalog/facets | /catalog/:id
+```
+
+Removidos (não usar): `/user-main-grid/flter`, `/user-main-grid/detail/:id`, `/user-main-grid/categories/filter`.
+
+Provider: Meilisearch se up (`CATALOG_SEARCH_PROVIDER=auto`), senão MySQL.
+
 ## Models
 
 - **Canônico:** `src/models/`

@@ -95,6 +95,8 @@ app.use((req, res, next) => {
 app.use(botDetection.middleware());
 
 // ----- Domínio: catálogo -----
+// Canônico: /catalog/* (ver docs/contextos/catalog.md)
+require("./controller/catalog.controller")(app);
 require("./controller/user-main-grid.controller")(app);
 require("./controller/category.controller")(app);
 require("./controller/tags.controller")(app);

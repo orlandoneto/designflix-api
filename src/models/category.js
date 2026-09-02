@@ -11,6 +11,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      slug: {
+        type: DataTypes.STRING(120),
+        allowNull: true,
+      },
       active: {
         type: DataTypes.INTEGER,
         allowNull: false,

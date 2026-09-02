@@ -990,6 +990,116 @@ module.exports = class UserMainGridController {
     }
   }
 
+  async getFormats(req, res) {
+    try {
+      const cacheKey = RedisCache.generateCacheKey('user_main_grid_formats');
+      const cached = await RedisCache.getFromCache(req.redis, cacheKey);
+      if (cached?.data?.length) {
+        return res.status(200).send(cached);
+      }
+
+      const rows = await sequelize.query(
+        `SELECT format
+         FROM (
+           SELECT DISTINCT UPPER(umg.format) AS format
+           FROM user_main_grid umg
+           WHERE umg.activite = 0
+             AND umg.format IS NOT NULL
+             AND TRIM(umg.format) <> ''
+             AND UPPER(umg.format) NOT IN ('GRATIS', 'FILE')
+         ) AS formats
+         ORDER BY CASE WHEN format = 'PSD' THEN 0 ELSE 1 END, format ASC`,
+        { type: Sequelize.QueryTypes.SELECT }
+      );
+
+      const data = rows.map((row) => row.format).filter(Boolean);
+      const responseData = { data };
+      RedisCache.saveToCache(req.redis, cacheKey, responseData);
+      return res.status(200).send(responseData);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).send({ message: err.message });
+    }
+  }
+
+  async getPublicDetail(req, res) {
+    try {
+      const { id } = req.params;
+      const userMainGrid = await UserMainGrid.findOne({
+        where: { id, activite: 0 },
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "name", "photo", "partnerCode", "couponCode"],
+          },
+          {
+            model: UserMainGridCategories,
+            as: "user_main_grid_categories",
+            include: [
+              {
+                model: Category,
+                as: "category",
+                attributes: ["id", "name", "active"],
+              },
+            ],
+          },
+          {
+            model: UserMainGridTags,
+            as: "user_main_grid_tags",
+            include: [
+              {
+                model: Tags,
+                as: "tag",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+        ],
+      });
+
+      if (!userMainGrid) {
+        return res.status(404).send({ message: "Arquivo não encontrado" });
+      }
+
+      const plain = userMainGrid.get({ plain: true });
+      const data = {
+        id: plain.id,
+        contributor_id: plain.user_id,
+        contributor_admin_id: plain.admin_id,
+        name: plain.name,
+        ...mapGridItemFields(plain),
+        url_thumb: plain.url_thumb,
+        url_cover: plain.url_cover,
+        url: plain.url,
+        count_download: plain.count_download,
+        user: plain.user
+          ? {
+              id: plain.user.id,
+              name: plain.user.name,
+              photo: plain.user.photo,
+              partnerCode: plain.user.partnerCode,
+              couponCode: plain.user.couponCode,
+            }
+          : null,
+        categories: (plain.user_main_grid_categories || []).map((row) => ({
+          id: row.category?.id,
+          name: row.category?.name,
+          active: row.category?.active,
+        })),
+        tags: (plain.user_main_grid_tags || []).map((row) => ({
+          id: row.tag?.id,
+          name: row.tag?.name,
+        })),
+      };
+
+      return res.status(200).send({ data });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).send({ message: err.message });
+    }
+  }
+
   async getOne(req, res) {
     try {
       const { id } = req.params;
@@ -1160,10 +1270,19 @@ module.exports = class UserMainGridController {
 
       await UserMainGrid.destroy({ where });
 
+      try {
+        const { removeCatalogDocument } = require('./catalog/catalog-sync');
+        await removeCatalogDocument(where.id || userMainGrid.id);
+      } catch (_) {
+        /* ignore */
+      }
+
       // Limpar cache relacionado após deletar registro
       if (req.redis) {
         try {
           await RedisCache.removePatternFromCache(req.redis, 'user_main_grid:*');
+          await RedisCache.removePatternFromCache(req.redis, 'catalog_search:*');
+          await RedisCache.removePatternFromCache(req.redis, 'catalog_facets:*');
           logRedis('Cache limpo após deletar registro');
         } catch (cacheError) {
           logRedis('Erro ao limpar cache (não crítico):', cacheError.message);

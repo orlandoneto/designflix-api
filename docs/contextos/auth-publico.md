@@ -7,7 +7,7 @@ Login, cadastro com OTP, recuperação e redefinição de senha.
 |------|---------|
 | Controller | `src/controller/auth-public.controller.js` |
 | Service | `src/services/auth-public.service.js` |
-| Respostas HTTP | `src/utils/authHttpResponse.js` |
+| Respostas HTTP | `src/utils/httpResponse.js` (`authHttpResponse.js` reexporta) |
 | E-mail reset | `src/views/forgot.hbs` |
 | E-mail OTP | `src/views/otps.hbs` |
 | reCAPTCHA login | `src/middleware/recaptcha.js` (`SKIP_RECAPTCHA=true` em dev) |
