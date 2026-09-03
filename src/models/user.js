@@ -83,6 +83,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         field: "chave_pix",
       },
+      username: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+      },
+      contributorStatus: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "none",
+        field: "contributor_status",
+      },
       balance: {
         type: DataTypes.DECIMAL(10, 2),
         defaultValue: 0.0,
@@ -155,6 +165,9 @@ module.exports = (sequelize, DataTypes) => {
       User.hasMany(models.UserPartners, {
         foreignKey: "userId",
         as: "user_partners",
+      }),
+      User.hasMany(models.ContributorApplication, {
+        foreignKey: "user_id",
       });
   };
 

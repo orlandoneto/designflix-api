@@ -66,6 +66,8 @@ app.use(express.json({ limit: CONST.LIMIT_MAIN }));
 app.use(morgan("dev"));
 app.use("/", express.static(path.resolve(__dirname, "..", "public")));
 app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
+// Proxy R2/S3 para o browser quando não há CDN (R2_PUBLIC_URL)
+require("./controller/storage.controller")(app);
 
 app.use(
   express.urlencoded({
@@ -105,15 +107,17 @@ require("./controller/tags.controller")(app);
 require("./controller/auth-public.controller")(app);
 require("./controller/system.controller")(app);
 require("./controller/user.controller")(app);
+require("./controller/contributor.controller")(app);
 require("./controller/user-address.controller")(app);
 
 // ----- Domínio: admin (separado do app público) -----
 require("./controller/admin.controller")(app);
 
 // ----- Domínio: upload -----
-// Env: STORAGE_TYPE=local|s3 (ou STORAGE_DRIVER) escolhe cópia local vs S3 original
+// Env: STORAGE_TYPE=local|s3|r2 (ou STORAGE_DRIVER)
 // Avatar: /upload/avatar/site | Packs/grid: /unified-upload/* (ver docs/ARCHITECTURE.md)
 const { isLocalUploadMode } = require("./utils/isLocalUploadMode");
+const { getStorageDriver } = require("./utils/objectStorage");
 if (isLocalUploadMode()) {
   require("./controller/upload.local.controller")(app);
 } else {
@@ -145,11 +149,12 @@ server.listen(process.env.NODE_PORT, () => {
   console.log(`Servidor rodando na porta ${process.env.NODE_PORT}`);
   console.log(`Ambiente: ${process.env.NODE_ENV}`);
   const { isLocalUploadMode } = require("./utils/isLocalUploadMode");
+  const { getStorageDriver } = require("./utils/objectStorage");
   const LocalObjectStore = require("./utils/localObjectStore");
   if (isLocalUploadMode()) {
     console.log(`Upload: LOCAL copy → ${LocalObjectStore.getPublicBaseUrl()}/uploads`);
   } else {
-    console.log('Upload: S3 original');
+    console.log(`Upload: ${getStorageDriver() === "r2" ? "Cloudflare R2" : "AWS S3"}`);
   }
   console.log('========================\n');
 });

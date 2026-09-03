@@ -12,6 +12,7 @@ const {
   appendFormatFilter,
   mapGridItemFields,
 } = require('../../utils/grid-item');
+const { mapBrowserAssetUrls } = require('../../utils/objectStorage');
 const {
   normalizeCatalogSearchParams,
   buildBooleanQuery,
@@ -62,7 +63,7 @@ function mapLightRow(r) {
     categories = [];
   }
 
-  return {
+  return mapBrowserAssetUrls({
     id: r.id,
     name: r.name,
     ...mapGridItemFields(r),
@@ -71,7 +72,7 @@ function mapLightRow(r) {
     url: r.url,
     count_download: r.count_download,
     categories,
-  };
+  });
 }
 
 async function search(rawQuery) {
@@ -355,7 +356,7 @@ async function getById(id) {
   if (!userMainGrid) return null;
 
   const plain = userMainGrid.get({ plain: true });
-  return {
+  return mapBrowserAssetUrls({
     id: plain.id,
     contributor_id: plain.user_id,
     contributor_admin_id: plain.admin_id,
@@ -383,7 +384,7 @@ async function getById(id) {
       id: row.tag?.id,
       name: row.tag?.name,
     })),
-  };
+  });
 }
 
 module.exports = {

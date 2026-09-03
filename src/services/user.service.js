@@ -3,9 +3,11 @@ const nodemailer = require("nodemailer");
 const hbs = require("nodemailer-handlebars");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
-const { User, UserMainGrid, UserPartners, Partners, sequelize, Sequelize } = require("../models");
+const { User, UserMainGrid, UserPartners, Partners, ContributorApplication, sequelize, Sequelize } = require("../models");
 const { sendEmail } = require("../utils/emailService");
 const { PALN_COMMISSION } = require("../utils/constants/constants");
+const { ok, notFound, serverError } = require("../utils/httpResponse");
+const { mapAccount } = require("./contributor/contributor-rules");
 
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
@@ -29,8 +31,7 @@ class UserServices {
           [Sequelize.fn("COUNT", Sequelize.col("UserMainGrids.id")), "totalFiles"]
         ],
         where: {
-          contributor: 1,
-          acceptTerms: 1,
+          [Sequelize.Op.or]: [{ contributorStatus: "active" }, { contributor: 1 }],
         },
         include: [
           {
@@ -68,28 +69,25 @@ class UserServices {
     }
   }
 
-  async getAllUserContributor(req, res) {
-    const acceptTerms = 0;
-    const contributor = 1;
-    const users = await User.findAll({
-      where: { contributor: contributor, accept_terms: acceptTerms },
-      attributes: { exclude: ["password"] },
-    });
-    res.status(200).send({ data: users });
-  }
-
   async get(req, res) {
-    const id = req.params.id;
-    const user = await User.findOne({
-      where: { id: id }
-    });
-
-    if (!user) {
-      return res.status(404).json({ message: "Usuário não encontrado" });
+    try {
+      const id = req.params.id;
+      const user = await User.findByPk(id);
+      if (!user) {
+        return notFound(res, "Usuário não encontrado");
+      }
+      const application = await ContributorApplication.findOne({
+        where: { userId: id },
+        order: [["createdAt", "DESC"]],
+      });
+      return ok(res, {
+        message: "Conta carregada",
+        data: mapAccount(user, application),
+      });
+    } catch (err) {
+      console.error("[user/get]", err);
+      return serverError(res, "Erro ao carregar a conta");
     }
-
-    const simplifiedUser = this.simplifyUserData(user);
-    res.status(200).send({ data: simplifiedUser });
   }
 
   // FIXME: Criar um service único que reunina todos os metodo da carteira.
@@ -261,123 +259,6 @@ class UserServices {
       res.status(200).send({ user });
     } catch (err) {
       res.status(400).send({ message: err.message });
-    }
-  }
-
-  async updateUserProfile(req, res) {
-    try {
-      const { userId } = req.params;
-
-      if (!userId) {
-        return res.status(400).send({ message: "userId é obrigatório" });
-      }
-
-      const where = { id: userId };
-      const user = await User.findOne({ where });
-
-      if (!user) {
-        return res.status(404).send({ message: "Usuário não encontrado" });
-      }
-
-      //FIXME: Stripe com problema na conta conectada
-      // Criar conta conectada no Stripe
-      /* if (req.body.contributor) {
-         const accountId = await stripeModule.createConnectedAccount(
-           user.email
-         );
-
-         req.body.stripeAccountId = accountId;
-       // Atualizar conta conectada para a chave pix
-       if (req.body.chavePix) {
-         await stripeModule.addPixKeyToAccount(
-           user.stripeAccountId,
-           req.body.chavePix
-         );
-       }*/
-
-      let updatedUser = { ...user.dataValues, ...req.body };
-      await User.update(updatedUser, { where });
-      const userPublic = await User.findOne({ where, attributes: { exclude: ["password"] } });
-
-      // Verifica se o usuário está solicitando ser contribuidor
-      if (req.body.contributor === 1 && user.contributor !== 1) {
-        const paramsEmail = {
-          email: userPublic.email,
-          name: userPublic.name,
-          title: "Solicitação de Contribuidor - FlixDesign",
-          description: "Recebemos sua solicitação para ser um contribuidor!",
-        };
-
-        const contextParams = {
-          name: userPublic.name,
-          requestDate: new Date().toLocaleDateString("pt-BR"),
-          baseUrl: process.env.API_URL,
-        };
-
-        // Envia o email de confirmação para o usuário
-        sendEmail(paramsEmail, "contributorRequest", contextParams)
-          .then((response) => {
-            console.log("Email de solicitação de contribuidor enviado com sucesso:", response);
-          })
-          .catch((error) => {
-            console.error("Erro ao enviar email de solicitação de contribuidor:", error);
-          });
-
-        // Envia email para moderadores
-        const moderators = [
-          "orlandoneto23@gmail.com",
-          "arlinofilho@gmail.com",
-          "designflixs3@gmail.com"
-        ];
-        moderators.forEach((modEmail) => {
-          const paramsMod = {
-            email: modEmail,
-            name: userPublic.name,
-            title: "Nova Solicitação de Contribuidor - FlixDesign",
-            description: `O usuário ${userPublic.name} (${userPublic.email}) solicitou ser contribuidor.`
-          };
-          sendEmail(paramsMod, "contributorRequestAdmin", {
-            ...contextParams,
-            email: userPublic.email
-          })
-            .then((response) => {
-              console.log("Email de notificação para moderador enviado:", modEmail, response.messageId);
-            })
-            .catch((error) => {
-              console.error("Erro ao enviar email para moderador:", modEmail, error);
-            });
-        });
-      }
-
-      res.status(200).send({
-        data: userPublic,
-        message: "Atualização concluída!",
-      });
-    } catch (err) {
-      res.status(500).send({ message: "Ocorreu um erro." });
-    }
-  }
-
-  async updateUserContributorInternal(req, res) {
-    try {
-      let idToUpdate = req.query.userId;
-
-      const where = { id: idToUpdate };
-
-      const oldUser = await User.findOne({ where });
-
-      let updatedUser = { ...oldUser, ...req.body };
-
-      await User.update(updatedUser, { where });
-
-      const user = await User.findOne({ where });
-
-      res.status(200).send({
-        data: user,
-        message: "Contributor Atualizado com sucesso!",
-      });
-    } catch (err) {
-      res.status(500).send({ message: "Ocorreu um erro." });
     }
   }
 

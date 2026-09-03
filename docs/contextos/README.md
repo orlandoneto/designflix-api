@@ -43,13 +43,13 @@ Alias legado de auth: `src/utils/authHttpResponse.js` (reexporta o mesmo helper)
 | **Auth público** (login, cadastro, OTP, recuperar/redefinir senha) | [auth-publico.md](./auth-publico.md) | `src/controller/auth-public.controller.js`, `src/services/auth-public.service.js` |
 | **Home / Explorer público** (feed, busca, explorar, detalhe) | [home-publico.md](./home-publico.md) | `src/controller/catalog.controller.js`, `src/services/catalog/` |
 | **Catálogo HTTP** (contrato `/catalog/*`) | [catalog.md](./catalog.md) | idem |
+| **Colaborador / conta** (candidatura, `/me`, aprovação) | [colaborador.md](./colaborador.md) | `src/controller/contributor.controller.js`, `src/services/contributor.service.js` |
 
 ### Próximos contextos
 
-- Perfil logado
-- Planos / checkout
-- Downloads / favoritos
-- Colaborador / upload
+- Planos / checkout (legado de pagamento — última leva)
+- Downloads / favoritos (cliente)
+- Upload / grid do painel (já usado; contrato fino depois)
 
 ---
 
@@ -61,4 +61,5 @@ Não existe endpoint de logout. Sessão **JWT**; cliente descarta token. Ver [au
 
 - Auth: `designflix-next-new/features/auth/api.ts`
 - Home/Explorer: `designflix-next-new/features/catalog/api.ts`
+- Colaborador: `designflix-next-new/features/contributor/api.ts`
 - Docs integração: `designflix-next-new/docs/integrado/`

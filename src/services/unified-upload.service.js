@@ -6,8 +6,13 @@ const multer = require("multer");
 const { logMultpleUpload } = require("../config/testingLogs");
 const { CONST } = require("../utils/constants/constants");
 const ImageProcessor = require("../utils/imageProcessor");
-const { S3Client } = require("@aws-sdk/client-s3");
 const { Upload } = require("@aws-sdk/lib-storage");
+const {
+  createObjectStorageClient,
+  putObjectParams,
+  buildPublicObjectUrl,
+  guessContentType,
+} = require("../utils/objectStorage");
 const ArchiveProcessor = require("../utils/archiveProcessor");
 const TagGenerator = require("../utils/tagGenerator");
 const EnvironmentPaths = require("../utils/environmentPaths");
@@ -137,13 +142,7 @@ class UnifiedUploadService {
       // Obter path do ambiente
       const downloadPath = this.getEnvironmentDownloadPath();
       const fileName = ImageProcessor.generateFileName(originalName, downloadPath);
-      const s3 = new S3Client({
-        region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION,
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
-      });
+      const s3 = createObjectStorageClient();
 
       const fileStream = fs.createReadStream(contentPath);
 
@@ -152,13 +151,11 @@ class UnifiedUploadService {
 
       const upload = new Upload({
         client: s3,
-        params: {
-          Bucket: process.env.AWS_BUCKET_NAME,
+        params: putObjectParams({
           Key: fileName,
           Body: fileStream,
-          ContentType: "application/octet-stream",
-          ACL: "public-read",
-        },
+          ContentType: guessContentType(originalName || fileName),
+        }),
         queueSize: 4,      // paralelismo de partes
         partSize: 8 * 1024 * 1024, // 8MB por parte
         leavePartsOnError: false,
@@ -171,7 +168,7 @@ class UnifiedUploadService {
         clearTimeout(timeout);
       }
 
-      const url = `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+      const url = buildPublicObjectUrl(fileName);
 
       return { url, fileName };
     } catch (error) {

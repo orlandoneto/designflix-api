@@ -1,21 +1,12 @@
 const UserService = require("../services/user.service");
+const ContributorService = require("../services/contributor.service");
 const AuthenticateRoute = require("../middleware/authentication");
 const removeAvatar = require("../middleware/removeAvatar");
 
 module.exports = (app) => {
-  app.get(
-    "/admin/users",
+  app.get("/admin/users",
     AuthenticateRoute(["admin", "super_admin"]),
     (req, res) => UserService.getAll(req, res)
-  );
-
-  app.get(
-    "/admin/users/contributor",
-    (req, res) => UserService.getAllUserContributor(req, res)
-  );
-
-  app.get("/user/:id", AuthenticateRoute(["admin", "user"]), (req, res) =>
-    UserService.get(req, res)
   );
 
   app.get("/user/balance/:userId",
@@ -25,6 +16,10 @@ module.exports = (app) => {
 
   app.get("/user-photos",
     (req, res) => UserService.getAllAvatars(req, res)
+  );
+
+  app.get("/user/:id", AuthenticateRoute(["admin", "user"]), (req, res) =>
+    UserService.get(req, res)
   );
 
   app.patch(
@@ -46,11 +41,7 @@ module.exports = (app) => {
   );
 
   app.put("/user/:userId", AuthenticateRoute(["user"]), (req, res) =>
-    UserService.updateUserProfile(req, res)
-  );
-
-  app.put("/user/internal", AuthenticateRoute(["internal_user"]), (req, res) =>
-    UserService.updateUserContributorInternal(req, res)
+    ContributorService.updateMe(req, res)
   );
 
   app.delete(
@@ -62,6 +53,7 @@ module.exports = (app) => {
 
   app.delete(
     "/user/:userId",
+    AuthenticateRoute(["user"]),
     (req, res) => UserService.deleteUser(req, res)
   );  
 };

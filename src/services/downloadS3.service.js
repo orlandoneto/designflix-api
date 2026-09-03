@@ -1,20 +1,17 @@
-const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+const {
+  createObjectStorageClient,
+  getBucketName,
+} = require("../utils/objectStorage");
 
 class DownloadS3 {
   async getSignedUrlS3(req, res) {
     const key = req.query.key;
     try {
+      const s3Client = createObjectStorageClient();
       const command = new GetObjectCommand({
-        Bucket: process.env.AWS_BUCKET_NAME,
+        Bucket: getBucketName(),
         Key: key,
       });
 

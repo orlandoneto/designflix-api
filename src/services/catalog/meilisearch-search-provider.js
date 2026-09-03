@@ -1,6 +1,7 @@
 const { normalizeCatalogSearchParams } = require('./catalog-query');
 const { ensureIndex, pingMeili, searchIndex } = require('./meili-client');
 const mysqlProvider = require('./mysql-search-provider');
+const { mapBrowserAssetUrls } = require('../../utils/objectStorage');
 
 function buildMeiliFilter(params, categoryId) {
   const parts = ['activite = 0'];
@@ -24,7 +25,7 @@ function buildMeiliFilter(params, categoryId) {
 }
 
 function mapHit(hit) {
-  return {
+  return mapBrowserAssetUrls({
     id: hit.id,
     name: hit.name,
     format: hit.format,
@@ -38,7 +39,7 @@ function mapHit(hit) {
       name,
       slug: hit.category_slugs?.[i] ?? null,
     })),
-  };
+  });
 }
 
 async function search(rawQuery) {

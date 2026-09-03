@@ -2,6 +2,8 @@
  * Documento indexado no Meilisearch (read path do Explorer).
  */
 
+const { mapBrowserAssetUrls } = require('../../utils/objectStorage');
+
 function mapGridToCatalogDocument(plain) {
   const categories = plain.categories
     || (plain.user_main_grid_categories || []).map((row) => ({
@@ -22,15 +24,21 @@ function mapGridToCatalogDocument(plain) {
     ? 'free'
     : 'paid';
 
+  const assets = mapBrowserAssetUrls({
+    url_thumb: plain.url_thumb || null,
+    url_cover: plain.url_cover || null,
+    url: plain.url || null,
+  });
+
   return {
     id: Number(plain.id),
     name: plain.name || '',
     terms: plain.terms || '',
     format,
     availability,
-    url_thumb: plain.url_thumb || null,
-    url_cover: plain.url_cover || null,
-    url: plain.url || null,
+    url_thumb: assets.url_thumb,
+    url_cover: assets.url_cover,
+    url: assets.url,
     count_download: Number(plain.count_download || 0),
     category_ids: categories.map((c) => Number(c.id)).filter(Boolean),
     category_slugs: categories.map((c) => c.slug).filter(Boolean),

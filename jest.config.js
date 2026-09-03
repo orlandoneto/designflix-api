@@ -9,6 +9,7 @@ module.exports = {
   collectCoverageFrom: [
     'src/utils/httpResponse.js',
     'src/utils/authHttpResponse.js',
+    'src/utils/objectStorage.js',
     'src/services/auth-public.service.js',
     'src/services/catalog/catalog.service.js',
   ],

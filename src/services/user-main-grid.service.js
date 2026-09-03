@@ -16,6 +16,7 @@ const {
   buildSequelizeFormatWhere,
   mapGridItemFields,
 } = require("../utils/grid-item");
+const { mapBrowserAssetUrls } = require("../utils/objectStorage");
 
 module.exports = class UserMainGridController {
   async create(req, res) {
@@ -216,7 +217,8 @@ module.exports = class UserMainGridController {
           type: Sequelize.QueryTypes.SELECT,
         });
 
-        const data = results.map((r) => ({
+        const data = results.map((r) =>
+          mapBrowserAssetUrls({
           id: r.id,
           contributor_id: r.user_id,
           contributor_admin_id: r.admin_id,
@@ -324,7 +326,8 @@ module.exports = class UserMainGridController {
           type: Sequelize.QueryTypes.SELECT,
         });
 
-        const data = results.map((r) => ({
+        const data = results.map((r) =>
+          mapBrowserAssetUrls({
           id: r.id,
           contributor_id: r.user_id,
           contributor_admin_id: r.admin_id,
@@ -431,7 +434,8 @@ module.exports = class UserMainGridController {
           type: Sequelize.QueryTypes.SELECT,
         });
 
-        const data = results.map((r) => ({
+        const data = results.map((r) =>
+          mapBrowserAssetUrls({
           id: r.id,
           contributor_id: r.user_id,
           contributor_admin_id: r.admin_id,
@@ -526,7 +530,8 @@ module.exports = class UserMainGridController {
           type: Sequelize.QueryTypes.SELECT,
         });
 
-        const data = results.map((r) => ({
+        const data = results.map((r) =>
+          mapBrowserAssetUrls({
           id: r.id,
           contributor_id: r.user_id,
           contributor_admin_id: r.admin_id,
@@ -769,7 +774,8 @@ module.exports = class UserMainGridController {
           type: Sequelize.QueryTypes.SELECT,
         });
 
-        const data = results.map((r) => ({
+        const data = results.map((r) =>
+          mapBrowserAssetUrls({
           id: r.id,
           name: r.name,
           ...mapGridItemFields(r),

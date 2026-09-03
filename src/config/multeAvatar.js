@@ -1,7 +1,8 @@
 const multer = require("multer");
 const { CONST } = require("../utils/constants/constants");
+const { assertObjectStorageConfigured } = require("../utils/objectStorage");
 
-// Armazena em memória; o upload ao S3 será feito no controller
+// Armazena em memória; o upload ao S3/R2 será feito no controller
 const memoryStorage = multer.memoryStorage();
 
 module.exports = () => {
@@ -11,12 +12,10 @@ module.exports = () => {
       fileSize: CONST.LIMIT_SIZE_IMG,
     },
     fileFilter: (req, file, cb) => {
-      // Pré-validação de ambiente AWS para evitar erros do provider
-      const hasCreds = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-      const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION;
-      const bucket = process.env.AWS_BUCKET_NAME;
-      if (!region || !bucket || !hasCreds) {
-        return cb(new Error("AWS S3 não configurado corretamente (region/bucket/credentials)"));
+      try {
+        assertObjectStorageConfigured();
+      } catch (e) {
+        return cb(new Error(e.message || "Object storage não configurado"));
       }
 
       const allowedMimes = [
