@@ -14,7 +14,7 @@ Pagamento (Stripe, Mercado Pago, planos, saldo, Pix, comissões, saque) **perman
 | Respostas | `src/utils/httpResponse.js` |
 | E-mails | `src/views/contributorRequest.hbs`, `contributorRequestAdmin.hbs` |
 
-**Última revisão:** set/2026 — envelope `{ success, message, data }`, status 200/400/404/410/500; UI do Next deriva menu da aba pelo `contributorStatus` do `/me`.
+**Última revisão:** set/2026 — envelope `{ success, message, data }`, status 200/400/404/410/500; UI do Next deriva menu da aba pelo `contributorStatus` do `/me`. Painel admin de aprovação: **`designflix-admin`** (porta 3002).
 
 ---
 
@@ -45,13 +45,15 @@ CLIENTE
   POST /contributor/applications   → candidatura (termos obrigatórios)
   GET  /contributor/application
 
-ADMIN
+ADMIN (UI: designflix-admin → /collaborators)
   GET  /admin/contributor/applications?status=pending
   POST /admin/contributor/applications/:id/approve
   POST /admin/contributor/applications/:id/reject
 ```
 
 Painel de arquivos/ganhos: continua `GET /user-main-grid/user/:id`, `GET /user-commissions/:userId`, `GET /user/balance/:userId`, `POST /unified-upload/*` (pagamento/ledger na última leva).
+
+**Front admin:** repositório `designflix-admin` — login via `POST /admin/authenticate`, fila de candidaturas e aprovar/rejeitar.
 
 ---
 
@@ -179,7 +181,8 @@ O Next **não** inventa status: lê `data.contributorStatus` (e `application`) d
 
 Candidatura: `/contributor/apply` → `POST /contributor/applications`  
 Perfil: `/profile` → `GET/PUT /me`  
-Espelho: `designflix-next-new/docs/integrado/colaborador.md`
+Espelho: `designflix-next-new/docs/integrado/colaborador.md`  
+Admin (aprovar/rejeitar): `designflix-admin` → `/collaborators`
 
 ---
 

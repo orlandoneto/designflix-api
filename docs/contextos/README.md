@@ -61,5 +61,7 @@ Não existe endpoint de logout. Sessão **JWT**; cliente descarta token. Ver [au
 
 - Auth: `designflix-next-new/features/auth/api.ts`
 - Home/Explorer: `designflix-next-new/features/catalog/api.ts`
-- Colaborador: `designflix-next-new/features/contributor/api.ts`
+- Colaborador (cliente): `designflix-next-new/features/contributor/api.ts`
+- Colaborador (admin — aprovar/rejeitar): `designflix-admin` (`/collaborators`, auth `POST /admin/authenticate`)
 - Docs integração: `designflix-next-new/docs/integrado/`
+- Arquitetura admin: `designflix-admin/docs/ARCHITECTURE.md`
