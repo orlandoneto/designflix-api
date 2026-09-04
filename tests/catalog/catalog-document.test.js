@@ -42,6 +42,11 @@ describe('meilisearch-search-provider helpers', () => {
     expect(f).toContain('category_ids = 3');
   });
 
+  it('buildMeiliFilter trata JPEG como JPG', () => {
+    const f = buildMeiliFilter({ format: 'JPEG', categorySlug: null }, null);
+    expect(f).toContain('format = "JPG" OR format = "JPEG"');
+  });
+
   it('mapHit normaliza hit', () => {
     const item = mapHit({
       id: 1,

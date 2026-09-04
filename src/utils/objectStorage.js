@@ -156,13 +156,20 @@ function rewriteBrowserAssetUrl(assetUrl) {
 
 function mapBrowserAssetUrls(row) {
   if (!row || typeof row !== 'object') return row;
-  return {
+  const mapped = {
     ...row,
     url_thumb: rewriteBrowserAssetUrl(row.url_thumb),
     url_cover: rewriteBrowserAssetUrl(row.url_cover),
     url: rewriteBrowserAssetUrl(row.url),
     photo: rewriteBrowserAssetUrl(row.photo),
   };
+  if (row.user && typeof row.user === 'object') {
+    mapped.user = {
+      ...row.user,
+      photo: rewriteBrowserAssetUrl(row.user.photo),
+    };
+  }
+  return mapped;
 }
 
 /**

@@ -132,6 +132,7 @@ require("./controller/payment.controller")(app);
 require("./controller/user-bug.controller")(app);
 require("./controller/complaints.controller")(app);
 require("./controller/favorites.controller")(app);
+require("./controller/ratings.controller")(app);
 require("./controller/downloadS3.controller")(app);
 require("./controller/user-downloads.controller")(app);
 require("./controller/user-follows.controller")(app);

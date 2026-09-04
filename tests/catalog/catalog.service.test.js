@@ -18,6 +18,7 @@ function createApp(service) {
   const app = express();
   app.get('/catalog/search', (req, res) => service.search(req, res));
   app.get('/catalog/facets', (req, res) => service.facets(req, res));
+  app.get('/catalog/:id/similar', (req, res) => service.getSimilar(req, res));
   app.get('/catalog/:id', (req, res) => service.getById(req, res));
   return app;
 }
@@ -32,6 +33,7 @@ describe('CatalogService HTTP envelope', () => {
       search: jest.fn(),
       facets: jest.fn(),
       getById: jest.fn(),
+      findSimilar: jest.fn(),
     };
     createSearchProvider.mockReturnValue(provider);
     service = new CatalogService();
@@ -50,7 +52,7 @@ describe('CatalogService HTTP envelope', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.message).toBe('Busca realizada com sucesso');
-    expect(response.body.data).toEqual([{ id: 1 }]);
+    expect(response.body.data).toEqual([{ id: 1, url: null }]);
     expect(response.body.pagination.total).toBe(1);
     expect(response.body.meta.provider).toBe('mysql');
   });
@@ -137,5 +139,41 @@ describe('CatalogService HTTP envelope', () => {
       success: false,
       message: 'Erro ao buscar catálogo',
     });
+  });
+
+  it('getSimilar 200 com data + meta', async () => {
+    provider.findSimilar.mockResolvedValue({
+      data: [{ id: 2, name: 'Rel', url: 'https://cdn/clean.psd' }],
+      meta: { provider: 'mysql', strategy: 'multi-signal', sourceId: 14 },
+    });
+
+    const response = await request(app).get('/catalog/14/similar?limit=8');
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('Recursos semelhantes encontrados');
+    expect(response.body.data).toEqual([{ id: 2, name: 'Rel', url: null }]);
+    expect(response.body.meta.strategy).toBe('multi-signal');
+    expect(provider.findSimilar).toHaveBeenCalledWith(14, { limit: 8 });
+  });
+
+  it('getSimilar 404 quando origem não existe', async () => {
+    provider.findSimilar.mockResolvedValue(null);
+
+    const response = await request(app).get('/catalog/999/similar');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      success: false,
+      message: 'Arquivo não encontrado',
+    });
+  });
+
+  it('getSimilar 400 para limit inválido', async () => {
+    const response = await request(app).get('/catalog/14/similar?limit=0');
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('Parâmetro limit inválido');
+    expect(provider.findSimilar).not.toHaveBeenCalled();
   });
 });

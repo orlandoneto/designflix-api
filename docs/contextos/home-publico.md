@@ -55,6 +55,7 @@ EXPLORAR (busca / filtro)
 
 DETALHE
   GET /catalog/:id
+  GET /catalog/:id/similar?limit=15   → Recursos semelhantes (multi-sinal)
 
 FORMATOS DO SELECT (header)
   GET /user-main-grid/formats                       → lista de formatos (ainda neste path)
@@ -91,7 +92,9 @@ Lista o grid (home e explorer).
 
 Lista vazia continua **200** com `data: []`.
 
-`data[]` (item leve): `id`, `name`, `format`, `availability`, `url_thumb`, `url_cover`, `url`, `count_download`, `categories[]`.
+`data[]` (item leve): `id`, `name`, `format`, `availability`, `url_thumb`, `url_cover`, `count_download`, `categories[]`.
+
+**Marca d’água:** listagens públicas **não** incluem `url` (arquivo limpo). Só `url_thumb` / `url_cover` (com watermark). O arquivo limpo sai no download autorizado.
 
 ---
 

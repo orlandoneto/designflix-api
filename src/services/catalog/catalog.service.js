@@ -1,6 +1,8 @@
 const { createSearchProvider } = require('./search-provider');
 const { buildCatalogCacheKey, getCached, setCached } = require('./catalog-cache');
 const { normalizeCatalogSearchParams } = require('./catalog-query');
+const { redactCleanFileUrlList } = require('./public-catalog-item');
+const { clampLimit, DEFAULT_LIMIT } = require('./catalog-similar');
 const { ok, badRequest, notFound, serverError } = require('../../utils/httpResponse');
 
 function parsePositiveId(raw) {
@@ -36,15 +38,16 @@ module.exports = class CatalogService {
       if (cached?.data) {
         return ok(res, {
           message: 'Busca realizada com sucesso',
-          data: cached.data,
+          data: redactCleanFileUrlList(cached.data),
           pagination: cached.pagination,
           meta: cached.meta,
         });
       }
 
       const result = await this.provider.search(req.query || {});
+      const safeData = redactCleanFileUrlList(result.data);
       const payload = {
-        data: result.data,
+        data: safeData,
         pagination: result.pagination,
         meta: result.meta,
       };
@@ -108,6 +111,42 @@ module.exports = class CatalogService {
     } catch (err) {
       console.error('[catalog/:id]', err);
       return serverError(res, 'Erro ao buscar detalhe');
+    }
+  }
+
+  async getSimilar(req, res) {
+    try {
+      const id = parsePositiveId(req.params.id);
+      if (!id) {
+        return badRequest(res, 'ID inválido');
+      }
+
+      let limit = DEFAULT_LIMIT;
+      if (req.query?.limit != null && String(req.query.limit).trim() !== '') {
+        const limitNum = Number(req.query.limit);
+        if (!Number.isInteger(limitNum) || limitNum < 1) {
+          return badRequest(res, 'Parâmetro limit inválido');
+        }
+        limit = clampLimit(limitNum);
+      }
+
+      if (typeof this.provider.findSimilar !== 'function') {
+        return serverError(res, 'Erro ao buscar semelhantes');
+      }
+
+      const result = await this.provider.findSimilar(id, { limit });
+      if (!result) {
+        return notFound(res, 'Arquivo não encontrado');
+      }
+
+      return ok(res, {
+        message: 'Recursos semelhantes encontrados',
+        data: redactCleanFileUrlList(result.data || []),
+        meta: result.meta || { strategy: 'multi-signal' },
+      });
+    } catch (err) {
+      console.error('[catalog/:id/similar]', err);
+      return serverError(res, 'Erro ao buscar semelhantes');
     }
   }
 };

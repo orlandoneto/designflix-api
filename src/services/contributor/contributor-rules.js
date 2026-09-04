@@ -3,6 +3,8 @@
  * Testável sem DB.
  */
 
+const { rewriteBrowserAssetUrl } = require('../../utils/objectStorage');
+
 const APPLICATION_STATUSES = ['pending', 'approved', 'rejected', 'withdrawn'];
 const ACCOUNT_STATUSES = ['none', 'pending', 'active', 'rejected'];
 
@@ -146,7 +148,7 @@ function mapAccount(user, application) {
     id: plain.id,
     name: plain.name,
     email: plain.email,
-    photo: plain.photo || null,
+    photo: rewriteBrowserAssetUrl(plain.photo) || null,
     phone: plain.phone || null,
     countryCode: plain.countryCode || plain.country_code || null,
     username: plain.username || null,

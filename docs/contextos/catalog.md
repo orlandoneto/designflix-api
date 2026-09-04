@@ -46,6 +46,7 @@ Fluxo de produto (home → explorer → detalhe): **[home-publico.md](./home-pub
 |--------|------|------|-----------|
 | GET | `/catalog/search` | público | Lista + filtros + paginação |
 | GET | `/catalog/facets` | público | Contagens |
+| GET | `/catalog/:id/similar` | público | Recursos semelhantes (score multi-sinal) |
 | GET | `/catalog/:id` | público | Detalhe |
 
 ### Query — `/catalog/search`
@@ -74,7 +75,6 @@ Fluxo de produto (home → explorer → detalhe): **[home-publico.md](./home-pub
       "availability": "paid",
       "url_thumb": "...",
       "url_cover": "...",
-      "url": "...",
       "count_download": 10,
       "categories": [{ "id": 1, "name": "Academia", "slug": "academia" }]
     }
@@ -104,9 +104,48 @@ Fluxo de produto (home → explorer → detalhe): **[home-publico.md](./home-pub
 {
   "success": true,
   "message": "Arquivo encontrado",
-  "data": { "id": 1, "name": "..." }
+  "data": {
+    "id": 1,
+    "name": "...",
+    "average_rating": 4.9,
+    "ratings_count": 12
+  }
 }
 ```
+
+`average_rating` é 0 quando não há notas; `ratings_count` é a quantidade de avaliações. Ver [ratings.md](./ratings.md).
+
+### Semelhantes `/catalog/:id/similar`
+
+Ranking estilo stock profissional (não é “mesma categoria só”):
+
+| Sinal | Peso |
+|-------|------|
+| Categorias em comum | alto |
+| Tags em comum (sem dumps WhatsApp) | alto |
+| Mesmo formato | médio |
+| Tokens do nome / terms | médio |
+| Popularidade (downloads) | leve |
+
+Também diversifica para evitar grade de quase-duplicatas.
+
+Query: `limit` (default 12, max 40).
+
+```json
+{
+  "success": true,
+  "message": "Recursos semelhantes encontrados",
+  "data": [{ "id": 2, "name": "...", "format": "PSD", "categories": [] }],
+  "meta": { "provider": "mysql", "strategy": "multi-signal", "sourceId": 14, "candidates": 40 }
+}
+```
+
+| Status | Quando |
+|--------|--------|
+| **200** | Lista (pode ser vazia) |
+| **400** | `id` ou `limit` inválido |
+| **404** | Item origem inexistente |
+| **500** | Erro interno |
 
 Erros:
 

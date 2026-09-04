@@ -79,8 +79,14 @@ function appendFormatFilter(whereClauses, replacements, format) {
     );
     return;
   }
-  whereClauses.push("umg.format = :format");
-  replacements.format = format;
+  const fmt = String(format).trim().toUpperCase();
+  // JPG e JPEG são o mesmo formato na prática
+  if (fmt === "JPG" || fmt === "JPEG") {
+    whereClauses.push("UPPER(TRIM(umg.format)) IN ('JPG', 'JPEG')");
+    return;
+  }
+  whereClauses.push("UPPER(TRIM(umg.format)) = :format");
+  replacements.format = fmt;
 }
 
 /** Where Sequelize para listagens por usuário. */

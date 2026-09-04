@@ -47,11 +47,13 @@ Alias legado de auth: `src/utils/authHttpResponse.js` (reexporta o mesmo helper)
 | **Avatar / foto de perfil** | [avatar.md](./avatar.md) | `src/controller/upload.controller.js`, `src/services/upload.service.js`, `DELETE /user/:userId/photo` |
 | **Usuários (admin)** | [admin-users.md](./admin-users.md) | `GET /admin/users`, `src/services/user/admin-user-list.js` |
 | **Calendário do Marketing** | [marketing-calendar.md](./marketing-calendar.md) | `GET /marketing-calendar`, CRUD `/admin/marketing-calendar` |
+| **Favoritos** | [favorites.md](./favorites.md) | `GET/POST/DELETE /user/favorites…` |
+| **Avaliações (estrelas)** | [ratings.md](./ratings.md) | `POST/GET /user/ratings…`, campos no `GET /catalog/:id` |
 
 ### Próximos contextos
 
 - Planos / checkout (legado de pagamento — última leva)
-- Downloads / favoritos (cliente)
+- Downloads (cliente)
 - Upload / grid do painel (já usado; contrato fino depois)
 
 ---
@@ -70,4 +72,6 @@ Não existe endpoint de logout. Sessão **JWT**; cliente descarta token. Ver [au
 - Usuários (admin): `designflix-admin` (`/users`, `GET /admin/users`)
 - Calendário: `designflix-next-new` (home) + `designflix-admin` (`/calendar`)
 - Docs integração: `designflix-next-new/docs/integrado/`
+- Favoritos: `designflix-next-new/services/UserFavoritesService.ts`
+- Avaliações: `designflix-next-new/features/download/ratingApi.ts`
 - Arquitetura admin: `designflix-admin/docs/ARCHITECTURE.md`

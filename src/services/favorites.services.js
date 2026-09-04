@@ -1,65 +1,90 @@
-const { UserFavorites } = require("../models");
+const { UserFavorites } = require('../models');
+const { ok, badRequest, serverError } = require('../utils/httpResponse');
 
 class UserFavoritesServices {
   async getAll(req, res) {
     try {
-      const userFavoritesServices = await UserFavorites.findAll();
-      res.status(200).json(userFavoritesServices);
+      const rows = await UserFavorites.findAll();
+      return ok(res, {
+        message: 'Favoritos listados',
+        data: rows,
+      });
     } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar UserFavoritesServices", error: error.message });
+      console.error('[favorites/getAll]', error.message);
+      return serverError(res, 'Erro ao listar favoritos');
     }
   }
 
+  /**
+   * Consulta se o item está favoritado.
+   * Sempre 200: { favorited: true|false } — nunca 404 só por “não favoritou”.
+   */
   async getById(req, res) {
     try {
-      const { user_id, user_main_grid_id } = req.params;
-      const userFavoritesServices = await UserFavorites.findOne({
-        where: { user_id, user_main_grid_id }
-      });
-
-      if (!userFavoritesServices) {
-        return res.status(404).json({ message: "UserFavorites não encontrada" });
+      const userId = Number(req.params.user_id);
+      const gridId = Number(req.params.user_main_grid_id);
+      if (!userId || !gridId) {
+        return badRequest(res, 'user_id e user_main_grid_id inválidos');
       }
 
-      res.status(200).json(userFavoritesServices);
+      const favorite = await UserFavorites.findOne({
+        where: { user_id: userId, user_main_grid_id: gridId },
+      });
+
+      return ok(res, {
+        message: favorite ? 'Item favoritado' : 'Item não favoritado',
+        data: {
+          favorited: Boolean(favorite),
+          favorite: favorite || null,
+        },
+      });
     } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar UserFavorites", error: error.message });
+      console.error('[favorites/getById]', error.message);
+      return serverError(res, 'Erro ao consultar favorito');
     }
   }
 
   async create(req, res) {
     try {
-      const userFavoritesServices = await UserFavorites.create(req.body);
-      res.status(201).json(userFavoritesServices);
+      const created = await UserFavorites.create(req.body);
+      return ok(res, {
+        message: 'Favorito adicionado',
+        data: created,
+      });
     } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erro ao criar UserFavoritesServices", error: error.message });
+      console.error('[favorites/create]', error.message);
+      return serverError(res, 'Erro ao criar favorito');
     }
   }
 
   async delete(req, res) {
     try {
-      const { user_id, user_main_grid_id } = req.params;
-      const userFavoritesServices = await UserFavorites.findOne({
-        where: { user_id, user_main_grid_id }
-      });
-
-      if (!userFavoritesServices) {
-        return res.status(404).json({ message: "UserFavorites não encontrada" });
+      const userId = Number(req.params.user_id);
+      const gridId = Number(req.params.user_main_grid_id);
+      if (!userId || !gridId) {
+        return badRequest(res, 'user_id e user_main_grid_id inválidos');
       }
 
-      await userFavoritesServices.destroy();
+      const favorite = await UserFavorites.findOne({
+        where: { user_id: userId, user_main_grid_id: gridId },
+      });
 
-      res.status(200).json({ message: "UserFavorites excluída com sucesso" });
+      if (!favorite) {
+        // Idempotente: já não está favoritado
+        return ok(res, {
+          message: 'Favorito já removido',
+          data: { removed: false },
+        });
+      }
+
+      await favorite.destroy();
+      return ok(res, {
+        message: 'Favorito removido',
+        data: { removed: true },
+      });
     } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erro ao excluir UserFavorites", error: error.message });
+      console.error('[favorites/delete]', error.message);
+      return serverError(res, 'Erro ao remover favorito');
     }
   }
 }

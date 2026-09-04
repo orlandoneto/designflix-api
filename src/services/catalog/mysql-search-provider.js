@@ -13,27 +13,46 @@ const {
   mapGridItemFields,
 } = require('../../utils/grid-item');
 const { mapBrowserAssetUrls } = require('../../utils/objectStorage');
+const TagGenerator = require('../../utils/tagGenerator');
 const {
   normalizeCatalogSearchParams,
   buildBooleanQuery,
   buildOrderSql,
 } = require('./catalog-query');
+const {
+  CANDIDATE_POOL,
+  clampLimit,
+  pickSimilar,
+  buildSearchQueryFromSource,
+  categoryIdsFromItem,
+  tagNamesFromItem,
+} = require('./catalog-similar');
 
 async function resolveCategoryId(params) {
   if (params.categoryId) return params.categoryId;
   if (!params.categorySlug) return null;
 
+  const raw = String(params.categorySlug).trim();
+  const lower = raw.toLowerCase();
+  const hyphen = lower.replace(/\s+/g, '-');
+  const spaced = lower.replace(/-/g, ' ');
+
   try {
     const rows = await sequelize.query(
       `SELECT id FROM categories
-       WHERE slug = :slug
-          OR LOWER(REPLACE(name, ' ', '-')) = :slug
+       WHERE LOWER(COALESCE(slug, '')) = :lower
+          OR LOWER(COALESCE(slug, '')) = :hyphen
+          OR LOWER(REPLACE(name, ' ', '-')) = :hyphen
+          OR LOWER(name) = :spaced
+          OR LOWER(name) = :lower
           OR LOWER(name) LIKE :nameLike
        LIMIT 1`,
       {
         replacements: {
-          slug: params.categorySlug.toLowerCase(),
-          nameLike: `%${params.categorySlug}%`,
+          lower,
+          hyphen,
+          spaced,
+          nameLike: `%${spaced}%`,
         },
         type: Sequelize.QueryTypes.SELECT,
       }
@@ -43,9 +62,12 @@ async function resolveCategoryId(params) {
     // slug column may not exist yet — fall back to name only
     if (String(err.message || '').includes('slug')) {
       const rows = await sequelize.query(
-        `SELECT id FROM categories WHERE LOWER(name) LIKE :nameLike LIMIT 1`,
+        `SELECT id FROM categories
+         WHERE LOWER(name) = :spaced
+            OR LOWER(name) LIKE :nameLike
+         LIMIT 1`,
         {
-          replacements: { nameLike: `%${params.categorySlug}%` },
+          replacements: { spaced, nameLike: `%${spaced}%` },
           type: Sequelize.QueryTypes.SELECT,
         }
       );
@@ -356,6 +378,20 @@ async function getById(id) {
   if (!userMainGrid) return null;
 
   const plain = userMainGrid.get({ plain: true });
+  const categories = (plain.user_main_grid_categories || []).map((row) => ({
+    id: row.category?.id,
+    name: row.category?.name,
+    active: row.category?.active,
+  }));
+  const rawTags = (plain.user_main_grid_tags || []).map((row) => ({
+    id: row.tag?.id,
+    name: row.tag?.name,
+  }));
+  const primaryCategory = categories[0]?.name || '';
+
+  const { getRatingSummary } = require('../ratings.service');
+  const ratingSummary = await getRatingSummary(plain.id);
+
   return mapBrowserAssetUrls({
     id: plain.id,
     contributor_id: plain.user_id,
@@ -366,6 +402,10 @@ async function getById(id) {
     url_cover: plain.url_cover,
     url: plain.url,
     count_download: plain.count_download,
+    average_rating: ratingSummary.average_rating,
+    ratings_count: ratingSummary.ratings_count,
+    created_at: plain.created_at || plain.createdAt || null,
+    updated_at: plain.updated_at || plain.updatedAt || null,
     user: plain.user
       ? {
           id: plain.user.id,
@@ -375,22 +415,179 @@ async function getById(id) {
           couponCode: plain.user.couponCode,
         }
       : null,
-    categories: (plain.user_main_grid_categories || []).map((row) => ({
-      id: row.category?.id,
-      name: row.category?.name,
-      active: row.category?.active,
-    })),
-    tags: (plain.user_main_grid_tags || []).map((row) => ({
-      id: row.tag?.id,
-      name: row.tag?.name,
-    })),
+    categories,
+    tags: TagGenerator.sanitizeStoredTags(rawTags, {
+      categoryName: primaryCategory,
+      format: plain.format,
+    }),
   });
+}
+
+function mapCandidateRow(r) {
+  const base = mapLightRow(r);
+  const tagNames = r.tag_names
+    ? String(r.tag_names)
+        .split('||')
+        .map((name) => name.trim())
+        .filter(Boolean)
+    : [];
+  return {
+    ...base,
+    terms: r.terms || '',
+    tags: TagGenerator.sanitizeStoredTags(
+      tagNames.map((name, i) => ({ id: -(i + 1), name })),
+      {
+        categoryName: base.categories?.[0]?.name || '',
+        format: base.format,
+      }
+    ),
+  };
+}
+
+/**
+ * Candidatos: mesma categoria, mesma tag, mesmo formato ou overlap de terms.
+ * Depois re-rankeia com score multi-sinal + diversificação.
+ */
+async function findSimilar(id, { limit } = {}) {
+  const source = await getById(id);
+  if (!source) return null;
+
+  const outLimit = clampLimit(limit);
+  const categoryIds = categoryIdsFromItem(source);
+  const tagLabels = tagNamesFromItem(source);
+  const format = String(source.format || '').trim().toUpperCase();
+  const searchQ = buildSearchQueryFromSource(source);
+
+  const orParts = [];
+  const replacements = {
+    excludeId: id,
+    pool: CANDIDATE_POOL,
+  };
+
+  if (categoryIds.length) {
+    orParts.push(`EXISTS (
+      SELECT 1 FROM user_main_grid_categories x
+      WHERE x.user_main_grid_id = umg.id AND x.category_id IN (:categoryIds)
+    )`);
+    replacements.categoryIds = categoryIds;
+  }
+
+  if (tagLabels.length) {
+    orParts.push(`EXISTS (
+      SELECT 1
+      FROM user_main_grid_tags umgt2
+      INNER JOIN tags t2 ON t2.id = umgt2.tag_id
+      WHERE umgt2.user_main_grid_id = umg.id
+        AND LOWER(t2.name) IN (:tagLabels)
+    )`);
+    replacements.tagLabels = tagLabels;
+  }
+
+  if (format) {
+    orParts.push('UPPER(TRIM(umg.format)) = :format');
+    replacements.format = format;
+  }
+
+  let useFulltext = false;
+  if (searchQ) {
+    const { booleanQuery, likeQuery, hasBoolean } = buildBooleanQuery(searchQ);
+    if (hasBoolean) {
+      useFulltext = true;
+      orParts.push('MATCH (umg.terms) AGAINST (:search IN BOOLEAN MODE)');
+      replacements.search = booleanQuery;
+    } else {
+      orParts.push('umg.terms LIKE :search_like');
+      replacements.search_like = likeQuery;
+    }
+  }
+
+  if (!orParts.length) {
+    // Sem sinais: populares recentes (ainda exclui o próprio)
+    orParts.push('1=1');
+  }
+
+  const query = `
+    SELECT
+      umg.id,
+      umg.name,
+      umg.format,
+      umg.availability,
+      umg.url_thumb,
+      umg.url_cover,
+      umg.url,
+      umg.count_download,
+      umg.terms,
+      umg.created_at,
+      umg.updated_at,
+      GROUP_CONCAT(DISTINCT JSON_OBJECT(
+        'id', c.id,
+        'name', c.name
+      )) AS categories,
+      GROUP_CONCAT(DISTINCT t.name SEPARATOR '||') AS tag_names
+    FROM user_main_grid umg
+    LEFT JOIN user_main_grid_categories umgc ON umgc.user_main_grid_id = umg.id
+    LEFT JOIN categories c ON c.id = umgc.category_id
+    LEFT JOIN user_main_grid_tags umgt ON umgt.user_main_grid_id = umg.id
+    LEFT JOIN tags t ON t.id = umgt.tag_id
+    WHERE umg.activite = 0
+      AND umg.id != :excludeId
+      AND (${orParts.join(' OR ')})
+    GROUP BY umg.id
+    ORDER BY umg.count_download DESC, umg.id DESC
+    LIMIT :pool
+  `;
+
+  let rows;
+  try {
+    rows = await sequelize.query(query, {
+      replacements,
+      type: Sequelize.QueryTypes.SELECT,
+    });
+  } catch (err) {
+    if (
+      useFulltext &&
+      (String(err.message || '').includes("Can't find FULLTEXT") ||
+        String(err.message || '').includes('MATCH'))
+    ) {
+      const fallbackOr = orParts.filter((p) => !p.includes('MATCH'));
+      fallbackOr.push('umg.terms LIKE :search_like');
+      replacements.search_like = `%${searchQ}%`;
+      delete replacements.search;
+      const fallbackQuery = query.replace(
+        `AND (${orParts.join(' OR ')})`,
+        `AND (${fallbackOr.join(' OR ')})`
+      );
+      rows = await sequelize.query(fallbackQuery, {
+        replacements,
+        type: Sequelize.QueryTypes.SELECT,
+      });
+    } else {
+      throw err;
+    }
+  }
+
+  const candidates = (rows || []).map(mapCandidateRow);
+  const data = pickSimilar(source, candidates, outLimit).map((item) => {
+    const { terms: _terms, ...light } = item;
+    return light;
+  });
+
+  return {
+    data,
+    meta: {
+      provider: 'mysql',
+      strategy: 'multi-signal',
+      sourceId: id,
+      candidates: candidates.length,
+    },
+  };
 }
 
 module.exports = {
   search,
   facets,
   getById,
+  findSimilar,
   resolveCategoryId,
   mapLightRow,
 };

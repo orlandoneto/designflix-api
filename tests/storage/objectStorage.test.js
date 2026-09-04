@@ -72,6 +72,27 @@ describe('objectStorage', () => {
     );
   });
 
+  it('mapBrowserAssetUrls reescreve photo aninhada em user', () => {
+    const { mapBrowserAssetUrls } = require('../../src/utils/objectStorage');
+    process.env.STORAGE_TYPE = 'r2';
+    process.env.R2_BUCKET_NAME = 'new-design-storage';
+    process.env.R2_ACCOUNT_ID = 'abc';
+    delete process.env.R2_PUBLIC_URL;
+    process.env.LOCAL_STORAGE_PUBLIC_URL = 'http://localhost:3000';
+    const mapped = mapBrowserAssetUrls({
+      id: 1,
+      url_cover: null,
+      user: {
+        id: 2,
+        photo:
+          'https://abc.r2.cloudflarestorage.com/new-design-storage/avatars/a.webp',
+      },
+    });
+    expect(mapped.user.photo).toBe(
+      'http://localhost:3000/storage/avatars/a.webp'
+    );
+  });
+
   it('guessContentType detecta jpeg/webp', () => {
     expect(guessContentType('a.jpeg')).toBe('image/jpeg');
     expect(guessContentType('b.webp')).toBe('image/webp');

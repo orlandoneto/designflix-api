@@ -7,7 +7,7 @@ function buildMeiliFilter(params, categoryId) {
   const parts = ['activite = 0'];
   if (params.format) {
     const fmt = params.format.toUpperCase();
-    if (fmt === 'JPG') {
+    if (fmt === 'JPG' || fmt === 'JPEG') {
       parts.push('(format = "JPG" OR format = "JPEG")');
     } else {
       parts.push(`format = "${fmt}"`);
@@ -136,10 +136,16 @@ async function getById(id) {
   return mysqlProvider.getById(id);
 }
 
+async function findSimilar(id, options) {
+  // Similaridade multi-sinal usa MySQL (fonte da verdade + tags/categorias).
+  return mysqlProvider.findSimilar(id, options);
+}
+
 module.exports = {
   search,
   facets,
   getById,
+  findSimilar,
   buildMeiliFilter,
   mapHit,
 };

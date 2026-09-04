@@ -53,4 +53,14 @@ describe("grid-item utils", () => {
     expect(where[0]).toContain("availability = 'free'");
     expect(isLegacyFreeFormat("gratis")).toBe(true);
   });
+
+  it("appendFormatFilter trata JPG e JPEG como equivalentes", () => {
+    const whereJpg = [];
+    appendFormatFilter(whereJpg, {}, "JPG");
+    expect(whereJpg[0]).toContain("IN ('JPG', 'JPEG')");
+
+    const whereJpeg = [];
+    appendFormatFilter(whereJpeg, {}, "JPEG");
+    expect(whereJpeg[0]).toContain("IN ('JPG', 'JPEG')");
+  });
 });
