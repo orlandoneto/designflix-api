@@ -74,5 +74,6 @@ Documentação de APIs por contexto de negócio — rotas, status HTTP, payloads
 - Home / Explorer: [home-publico.md](./contextos/home-publico.md)
 - Catálogo HTTP: [catalog.md](./contextos/catalog.md)
 - Colaborador / conta (`/me`, candidatura): [colaborador.md](./contextos/colaborador.md)
+- Avatar / foto de perfil: [avatar.md](./contextos/avatar.md)
 
 Pagamento (Stripe, MP, planos, saldo, Pix, saque) permanece legado até a última leva.

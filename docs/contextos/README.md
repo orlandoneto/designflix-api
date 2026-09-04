@@ -44,6 +44,9 @@ Alias legado de auth: `src/utils/authHttpResponse.js` (reexporta o mesmo helper)
 | **Home / Explorer público** (feed, busca, explorar, detalhe) | [home-publico.md](./home-publico.md) | `src/controller/catalog.controller.js`, `src/services/catalog/` |
 | **Catálogo HTTP** (contrato `/catalog/*`) | [catalog.md](./catalog.md) | idem |
 | **Colaborador / conta** (candidatura, `/me`, aprovação) | [colaborador.md](./colaborador.md) | `src/controller/contributor.controller.js`, `src/services/contributor.service.js` |
+| **Avatar / foto de perfil** | [avatar.md](./avatar.md) | `src/controller/upload.controller.js`, `src/services/upload.service.js`, `DELETE /user/:userId/photo` |
+| **Usuários (admin)** | [admin-users.md](./admin-users.md) | `GET /admin/users`, `src/services/user/admin-user-list.js` |
+| **Calendário do Marketing** | [marketing-calendar.md](./marketing-calendar.md) | `GET /marketing-calendar`, CRUD `/admin/marketing-calendar` |
 
 ### Próximos contextos
 
@@ -63,5 +66,8 @@ Não existe endpoint de logout. Sessão **JWT**; cliente descarta token. Ver [au
 - Home/Explorer: `designflix-next-new/features/catalog/api.ts`
 - Colaborador (cliente): `designflix-next-new/features/contributor/api.ts`
 - Colaborador (admin — aprovar/rejeitar): `designflix-admin` (`/collaborators`, auth `POST /admin/authenticate`)
+- Avatar: `designflix-next-new/features/profile/avatarApi.ts`
+- Usuários (admin): `designflix-admin` (`/users`, `GET /admin/users`)
+- Calendário: `designflix-next-new` (home) + `designflix-admin` (`/calendar`)
 - Docs integração: `designflix-next-new/docs/integrado/`
 - Arquitetura admin: `designflix-admin/docs/ARCHITECTURE.md`

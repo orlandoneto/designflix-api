@@ -6,8 +6,13 @@ const { v4: uuidv4 } = require("uuid");
 const { User, UserMainGrid, UserPartners, Partners, ContributorApplication, sequelize, Sequelize } = require("../models");
 const { sendEmail } = require("../utils/emailService");
 const { PALN_COMMISSION } = require("../utils/constants/constants");
-const { ok, notFound, serverError } = require("../utils/httpResponse");
+const { ok, notFound, serverError, badRequest } = require("../utils/httpResponse");
 const { mapAccount } = require("./contributor/contributor-rules");
+const {
+  mapAdminUserListItem,
+  matchesRoleFilter,
+  matchesSearch,
+} = require("./user/admin-user-list");
 
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
@@ -16,8 +21,37 @@ const privateKey = fs.readFileSync(DIR_key);
 
 class UserServices {
   async getAll(req, res) {
-    const users = await User.findAll({ attributes: { exclude: ["password"] } });
-    res.status(200).send({ data: users });
+    try {
+      const role = String(req.query.role || "all").trim();
+      const allowedRoles = ["all", "contributor", "customer_only"];
+      if (!allowedRoles.includes(role)) {
+        return badRequest(res, "role inválido. Use all, contributor ou customer_only");
+      }
+
+      const users = await User.findAll({
+        attributes: { exclude: ["password"] },
+        order: [["id", "DESC"]],
+      });
+
+      const mapped = users
+        .map((row) => mapAdminUserListItem(row))
+        .filter(Boolean)
+        .filter((item) => matchesRoleFilter(item, role))
+        .filter((item) => matchesSearch(item, req.query.q));
+
+      return ok(res, {
+        message: "Usuários listados",
+        data: mapped,
+        meta: {
+          total: mapped.length,
+          role,
+          q: String(req.query.q || "").trim() || null,
+        },
+      });
+    } catch (err) {
+      console.error("[admin/users]", err.message);
+      return serverError(res, "Erro ao listar usuários");
+    }
   }
 
   async getAllAvatars(req, res) {
@@ -266,9 +300,10 @@ class UserServices {
     const userId = req.params.userId;
     try {
       await User.update({ photo: null }, { where: { id: userId } });
-      return res.status(200).json({ success: true, message: "Foto removida com sucesso" });
+      return ok(res, { message: "Foto removida com sucesso", data: { photo: null } });
     } catch (err) {
-      return res.status(500).json({ success: false, message: err.message });
+      console.error("[user/removePhoto]", err.message);
+      return serverError(res, "Erro ao remover a foto");
     }
   }
 

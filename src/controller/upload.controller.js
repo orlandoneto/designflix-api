@@ -4,6 +4,8 @@ const multerAvatarConfig = require("../config/multeAvatar");
 const { PutObjectCommand } = require("@aws-sdk/client-s3");
 const crypto = require("crypto");
 const EnvironmentPaths = require("../utils/environmentPaths");
+const AuthenticateRoute = require("../middleware/authentication");
+const { badRequest, serverError } = require("../utils/httpResponse");
 const {
   createObjectStorageClient,
   putObjectParams,
@@ -15,17 +17,23 @@ module.exports = (app) => {
 
   app.post(
     "/upload/avatar/site",
+    AuthenticateRoute(["user"]),
     (req, res, next) =>
       multer(multerAvatarConfig()).single("file")(req, res, (err) => {
         if (err) {
-          const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
-          return res.status(status).send({ status: "error", message: err.message });
+          const message =
+            err.code === "LIMIT_FILE_SIZE"
+              ? "Arquivo muito grande"
+              : err.message || "Arquivo inválido";
+          return badRequest(res, message);
         }
         next();
       }),
     async (req, res) => {
       try {
-        if (!req.file) return res.status(400).send({ status: "error", message: "Nenhum arquivo enviado" });
+        if (!req.file) {
+          return badRequest(res, "Nenhum arquivo enviado");
+        }
         const s3 = createObjectStorageClient();
         const profilePath = EnvironmentPaths.getProfilePath();
         const rand = crypto.randomBytes(12).toString("hex");
@@ -40,9 +48,10 @@ module.exports = (app) => {
           )
         );
         req.file.location = buildPublicObjectUrl(fileName);
-        UploadService.file(req, res);
+        return UploadService.file(req, res);
       } catch (e) {
-        res.status(500).send({ status: "error", message: e.message });
+        console.error("[upload/avatar/site]", e.message);
+        return serverError(res, "Erro ao enviar o avatar");
       }
     }
   );

@@ -1,14 +1,21 @@
-module.exports = class {
+const { ok, badRequest } = require("../utils/httpResponse");
+
+/**
+ * Resposta HTTP do upload de avatar (após gravar no storage).
+ * Envelope canônico: { success, message, data: { url } }
+ */
+module.exports = class UploadService {
   async imagem(req, res) {
-    if (!req.file || !req.file.location) {
-      return res.status(400).send({ data: null, message: "Nenhum arquivo enviado" });
-    }
-    res.status(200).send({ data: { url: req.file.location }, message: null });
+    return this.file(req, res);
   }
+
   async file(req, res) {
     if (!req.file || !req.file.location) {
-      return res.status(400).send({ data: null, message: "Nenhum arquivo enviado" });
+      return badRequest(res, "Nenhum arquivo enviado");
     }
-    res.status(200).send({ data: { url: req.file.location }, message: null });
+    return ok(res, {
+      message: "Avatar enviado",
+      data: { url: req.file.location },
+    });
   }
 };

@@ -108,6 +108,7 @@ require("./controller/auth-public.controller")(app);
 require("./controller/system.controller")(app);
 require("./controller/user.controller")(app);
 require("./controller/contributor.controller")(app);
+require("./controller/marketing-calendar.controller")(app);
 require("./controller/user-address.controller")(app);
 
 // ----- Domínio: admin (separado do app público) -----
