@@ -260,7 +260,8 @@ class UnifiedUploadService {
         categoryName: categoryName,
         archiveType: archiveData.archiveType,
         imageMetadata: imageFormat,
-        contentSize: archiveData.content ? archiveData.content.size : null
+        contentSize: archiveData.content ? archiveData.content.size : null,
+        previewSize: previewBuffer.length,
       };
 
       console.log("Archive processing completed successfully");
@@ -360,7 +361,8 @@ class UnifiedUploadService {
         categoryName: categoryName,
         archiveType: archiveData.archiveType,
         imageMetadata: imageFormat,
-        contentSize: archiveData.content ? archiveData.content.size : null
+        contentSize: archiveData.content ? archiveData.content.size : null,
+        previewSize: previewBuffer.length,
       };
 
       console.log("Archive processing completed successfully");

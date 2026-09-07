@@ -18,7 +18,8 @@ module.exports = (app) => {
     (req, res) => UserService.getAllAvatars(req, res)
   );
 
-  app.get("/user/:id", AuthenticateRoute(["admin", "user"]), (req, res) =>
+  // Só numérico — senão engole GET /user/favorites, /user/bug, etc.
+  app.get("/user/:id(\\d+)", AuthenticateRoute(["admin", "user"]), (req, res) =>
     UserService.get(req, res)
   );
 

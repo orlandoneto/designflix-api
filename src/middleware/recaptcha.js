@@ -3,10 +3,15 @@ const axios = require('axios');
 const verifyRecaptcha = (formType) => {
   return async (req, res, next) => {
     try {
+      // SKIP_RECAPTCHA=true → bypass (Jest / CI).
+      // SKIP_RECAPTCHA=false → força validação mesmo em development.
+      // Sem flag + sem secret em development → bypass (legado).
+      const forceRecaptcha = process.env.SKIP_RECAPTCHA === 'false';
       const skipRecaptcha =
-        process.env.SKIP_RECAPTCHA === 'true' ||
-        (!process.env.RECAPTCHA_SECRET_KEY &&
-          process.env.NODE_ENV === 'development');
+        !forceRecaptcha &&
+        (process.env.SKIP_RECAPTCHA === 'true' ||
+          (!process.env.RECAPTCHA_SECRET_KEY &&
+            process.env.NODE_ENV === 'development'));
 
       if (skipRecaptcha) {
         req.recaptchaData = {
@@ -15,6 +20,14 @@ const verifyRecaptcha = (formType) => {
           formType,
         };
         return next();
+      }
+
+      const secret = process.env.RECAPTCHA_SECRET_KEY;
+      if (!secret) {
+        return res.status(500).json({
+          success: false,
+          message: 'reCAPTCHA não configurado (RECAPTCHA_SECRET_KEY)',
+        });
       }
 
       const { recaptchaToken } = req.body;
@@ -28,7 +41,7 @@ const verifyRecaptcha = (formType) => {
 
       // Chamada direta para o serviço do Google reCAPTCHA
       const response = await axios.post(
-        `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptchaToken}`
+        `https://www.google.com/recaptcha/api/siteverify?secret=${secret}&response=${recaptchaToken}`
       );
 
       if (response.data.success) {

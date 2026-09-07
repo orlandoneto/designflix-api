@@ -108,6 +108,9 @@ function mapGridItemFields(row) {
   return {
     format: resolveDisplayFormat(row),
     availability: resolveAvailability(row),
+    width: row?.width != null ? Number(row.width) || null : null,
+    height: row?.height != null ? Number(row.height) || null : null,
+    file_size: row?.file_size != null ? Number(row.file_size) || null : null,
   };
 }
 

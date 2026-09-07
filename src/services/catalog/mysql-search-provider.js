@@ -184,6 +184,9 @@ async function search(rawQuery) {
         umg.url_cover,
         umg.url,
         umg.count_download,
+        umg.width,
+        umg.height,
+        umg.file_size,
         umg.created_at,
         umg.updated_at,
         ${localHasFulltext ? `MATCH (umg.terms) AGAINST (:search_nat IN NATURAL LANGUAGE MODE) AS score,` : '0 AS score,'}
@@ -392,6 +395,14 @@ async function getById(id) {
   const { getRatingSummary } = require('../ratings.service');
   const ratingSummary = await getRatingSummary(plain.id);
 
+  const contributorId = plain.user_id;
+  const totalUploads =
+    contributorId != null
+      ? await UserMainGrid.count({
+          where: { user_id: contributorId, activite: 0 },
+        })
+      : 0;
+
   return mapBrowserAssetUrls({
     id: plain.id,
     contributor_id: plain.user_id,
@@ -402,6 +413,7 @@ async function getById(id) {
     url_cover: plain.url_cover,
     url: plain.url,
     count_download: plain.count_download,
+    countFiles: totalUploads,
     average_rating: ratingSummary.average_rating,
     ratings_count: ratingSummary.ratings_count,
     created_at: plain.created_at || plain.createdAt || null,
@@ -413,6 +425,7 @@ async function getById(id) {
           photo: plain.user.photo,
           partnerCode: plain.user.partnerCode,
           couponCode: plain.user.couponCode,
+          total_uploads: totalUploads,
         }
       : null,
     categories,
@@ -516,6 +529,9 @@ async function findSimilar(id, { limit } = {}) {
       umg.url_cover,
       umg.url,
       umg.count_download,
+      umg.width,
+      umg.height,
+      umg.file_size,
       umg.terms,
       umg.created_at,
       umg.updated_at,

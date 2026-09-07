@@ -10,7 +10,7 @@ Login, cadastro com OTP, recuperação e redefinição de senha.
 | Respostas HTTP | `src/utils/httpResponse.js` (`authHttpResponse.js` reexporta) |
 | E-mail reset | `src/views/forgot.hbs` |
 | E-mail OTP | `src/views/otps.hbs` |
-| reCAPTCHA login | `src/middleware/recaptcha.js` (`SKIP_RECAPTCHA=true` em dev) |
+| reCAPTCHA login | `src/middleware/recaptcha.js` (`SKIP_RECAPTCHA=false` + keys em localhost; Jest usa `true`) |
 | Mail dev | `docs/LOCAL-MAILPIT.md` |
 
 **Última revisão:** set/2026 — envelope `{ success, message, data }`, status 200/400/500.
@@ -231,12 +231,14 @@ Define nova senha.
 
 ```env
 FRONTEND_URL=http://localhost:3001
-SKIP_RECAPTCHA=true
+SKIP_RECAPTCHA=false
+RECAPTCHA_SECRET_KEY=sua-secret-key
 EMAIL_USE_MAILPIT=true
 EMAIL_HOST_SMTP=localhost
 EMAIL_PORT_SMTP=1025
 ```
 
+Jest (`tests/setup.js`) força `SKIP_RECAPTCHA=true`. Front local: `NEXT_PUBLIC_RECAPTCHA_SITE_KEY`.
 ---
 
 ## Front (referência)

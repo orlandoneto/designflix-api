@@ -53,6 +53,9 @@ EXPLORAR (busca / filtro)
   GET /catalog/search?q=&format=&category=&availability=&sort=&page=&limit=
   GET /catalog/facets?q=&category=&availability=     → contagens das tabs
 
+  UI Next: chips **acima** = `format`; lateral = `category`/`niche` (não misturar).
+  Busca pode ativar chip de formato e destacar categoria relacionada.
+
 DETALHE
   GET /catalog/:id
   GET /catalog/:id/similar?limit=15   → Recursos semelhantes (multi-sinal)
@@ -92,7 +95,7 @@ Lista o grid (home e explorer).
 
 Lista vazia continua **200** com `data: []`.
 
-`data[]` (item leve): `id`, `name`, `format`, `availability`, `url_thumb`, `url_cover`, `count_download`, `categories[]`.
+`data[]` (item leve): `id`, `name`, `format`, `availability`, `url_thumb`, `url_cover`, `count_download`, `width`, `height`, `file_size`, `categories[]`.
 
 **Marca d’água:** listagens públicas **não** incluem `url` (arquivo limpo). Só `url_thumb` / `url_cover` (com watermark). O arquivo limpo sai no download autorizado.
 

@@ -52,6 +52,18 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      width: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      height: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      file_size: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+      },
       terms: {
         type: DataTypes.TEXT,
         allowNull: true,

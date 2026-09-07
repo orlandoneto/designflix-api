@@ -32,14 +32,31 @@ describe("grid-item utils", () => {
     expect(resolvePersistedFormat({ availability: "free", format: "jpeg" })).toBe("JPEG");
   });
 
-  it("mapGridItemFields expõe availability e format normalizado", () => {
+  it("mapGridItemFields expõe availability, format e meta de imagem", () => {
     expect(
       mapGridItemFields({ format: "GRATIS", availability: "free", url: "x.psd" })
-    ).toEqual({ format: "PSD", availability: "free" });
+    ).toEqual({
+      format: "PSD",
+      availability: "free",
+      width: null,
+      height: null,
+      file_size: null,
+    });
 
-    expect(mapGridItemFields({ format: "jpeg", availability: "paid" })).toEqual({
+    expect(
+      mapGridItemFields({
+        format: "jpeg",
+        availability: "paid",
+        width: 1920,
+        height: 1080,
+        file_size: 2048,
+      })
+    ).toEqual({
       format: "JPEG",
       availability: "paid",
+      width: 1920,
+      height: 1080,
+      file_size: 2048,
     });
 
     expect(resolveAvailability({ format: "GRATIS" })).toBe("free");

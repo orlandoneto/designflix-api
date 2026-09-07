@@ -16,6 +16,12 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         field: 'event_date',
       },
+      /** Fim da campanha (mês inteiro / período). Null = data única. */
+      endDate: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+        field: 'end_date',
+      },
       icon: {
         type: DataTypes.STRING(32),
         allowNull: false,

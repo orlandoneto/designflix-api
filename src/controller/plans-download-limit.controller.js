@@ -4,6 +4,12 @@ const AuthenticateRoute = require("../middleware/authentication");
 module.exports = (app) => {
   const plansDownloadLimitsServices = new PlansDownloadLimitsServices();
 
+  app.get(
+    "/user/plans/download-limits/me",
+    AuthenticateRoute(["user"]),
+    (req, res) => plansDownloadLimitsServices.getMyQuota(req, res)
+  );
+
   app.post(
     "/user/plans/download-limits",
     AuthenticateRoute(["user"]),

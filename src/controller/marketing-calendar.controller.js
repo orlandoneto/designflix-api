@@ -15,6 +15,12 @@ module.exports = (app) => {
   );
 
   app.post(
+    '/admin/marketing-calendar/regenerate',
+    AuthenticateRoute(['admin', 'super_admin']),
+    (req, res) => MarketingCalendarService.regenerate(req, res)
+  );
+
+  app.post(
     '/admin/marketing-calendar',
     AuthenticateRoute(['admin', 'super_admin']),
     (req, res) => MarketingCalendarService.create(req, res)

@@ -76,6 +76,9 @@ Fluxo de produto (home → explorer → detalhe): **[home-publico.md](./home-pub
       "url_thumb": "...",
       "url_cover": "...",
       "count_download": 10,
+      "width": 1920,
+      "height": 1080,
+      "file_size": 2048000,
       "categories": [{ "id": 1, "name": "Academia", "slug": "academia" }]
     }
   ],
@@ -107,13 +110,21 @@ Fluxo de produto (home → explorer → detalhe): **[home-publico.md](./home-pub
   "data": {
     "id": 1,
     "name": "...",
+    "countFiles": 12,
     "average_rating": 4.9,
-    "ratings_count": 12
+    "ratings_count": 12,
+    "user": {
+      "id": 3,
+      "name": "...",
+      "photo": "...",
+      "total_uploads": 12
+    }
   }
 }
 ```
 
-`average_rating` é 0 quando não há notas; `ratings_count` é a quantidade de avaliações. Ver [ratings.md](./ratings.md).
+`average_rating` é 0 quando não há notas; `ratings_count` é a quantidade de avaliações. Ver [ratings.md](./ratings.md).  
+`countFiles` / `user.total_uploads` = quantidade de itens do colaborador em `user_main_grid` (`activite = 0`).
 
 ### Semelhantes `/catalog/:id/similar`
 

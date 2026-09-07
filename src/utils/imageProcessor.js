@@ -351,6 +351,17 @@ class ImageProcessor {
    */
   static async detectImageFormat(imageBuffer) {
     try {
+      if (!imageBuffer || imageBuffer.length === 0) {
+        return {
+          format: null,
+          width: null,
+          height: null,
+          channels: null,
+          hasAlpha: null,
+          isOpaque: null,
+        };
+      }
+
       const metadata = await sharp(imageBuffer).metadata();
 
       // Mapear formatos baseado no formato interno do Sharp
@@ -365,19 +376,27 @@ class ImageProcessor {
         'avif': 'AVIF'
       };
 
-      const detectedFormat = formatMap[metadata.format] || metadata.format?.toUpperCase() || 'UNKNOWN';
+      const detectedFormat = formatMap[metadata.format] || metadata.format?.toUpperCase() || null;
 
       return {
         format: detectedFormat,
-        width: metadata.width,
-        height: metadata.height,
-        channels: metadata.channels,
-        hasAlpha: metadata.hasAlpha,
-        isOpaque: metadata.isOpaque
+        width: metadata.width || null,
+        height: metadata.height || null,
+        channels: metadata.channels ?? null,
+        hasAlpha: metadata.hasAlpha ?? null,
+        isOpaque: metadata.isOpaque ?? null
       };
     } catch (error) {
-      console.error("Error detecting image format:", error);
-      throw error;
+      console.error("Error detecting image format:", error.message || error);
+      // Não derruba o upload — metadata é opcional
+      return {
+        format: null,
+        width: null,
+        height: null,
+        channels: null,
+        hasAlpha: null,
+        isOpaque: null,
+      };
     }
   }
 

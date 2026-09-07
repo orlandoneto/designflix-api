@@ -1,26 +1,60 @@
-const { UserDownloads, sequelize } = require("../models");
+const { UserDownloads, UserMainGrid, sequelize } = require("../models");
 const UserService = require("./user.service");
 const UserCommissionsServices = require("./user-commissions.service");
+const { ok, badRequest, serverError } = require("../utils/httpResponse");
+const {
+  GRID_LIST_ATTRIBUTES,
+  mapLibraryGridItem,
+} = require("./library/map-library-grid-item");
 
 class UserDownloadsServices {
   async getUserDownloads(req, res) {
     try {
-      const { user_id } = req.params;
-      const downloads = await UserDownloads.findAll({
-        where: { user_id },
-        attributes: [
-          "contributor_image_user_id",
-          "user_main_grid_id",
-          "total_downloads",
+      const authUserId = Number(req.params.userId);
+      const requestedId = Number(req.params.user_id);
+      if (!authUserId || !requestedId) {
+        return badRequest(res, "Usuário inválido");
+      }
+      if (authUserId !== requestedId) {
+        return badRequest(res, "Só é permitido consultar os próprios downloads");
+      }
+
+      const rows = await UserDownloads.findAll({
+        where: { user_id: requestedId },
+        include: [
+          {
+            model: UserMainGrid,
+            as: "user_main_grid",
+            attributes: GRID_LIST_ATTRIBUTES,
+            required: false,
+          },
         ],
+        order: [["updatedAt", "DESC"]],
       });
 
-      res.status(200).json(downloads);
-    } catch (error) {
-      res.status(500).json({
-        message: "Erro ao buscar downloads do usuário",
-        error: error.message,
+      const data = rows
+        .map((row) => {
+          const plain = typeof row.toJSON === "function" ? row.toJSON() : row;
+          const item = mapLibraryGridItem(plain.user_main_grid);
+          if (!item) return null;
+          return {
+            id: plain.id,
+            user_main_grid_id: plain.user_main_grid_id,
+            total_downloads: Number(plain.total_downloads) || 0,
+            updatedAt: plain.updatedAt || plain.updated_at || null,
+            item,
+          };
+        })
+        .filter(Boolean);
+
+      return ok(res, {
+        message: "Downloads listados",
+        data,
+        meta: { count: data.length },
       });
+    } catch (error) {
+      console.error("[downloads/getUserDownloads]", error.message);
+      return serverError(res, "Erro ao buscar downloads do usuário");
     }
   }
 

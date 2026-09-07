@@ -4,11 +4,62 @@ jest.mock('../../src/models', () => ({
     findAll: jest.fn(),
     create: jest.fn(),
   },
+  UserMainGrid: {},
+}));
+
+jest.mock('../../src/utils/objectStorage', () => ({
+  mapBrowserAssetUrls: (row) => row,
 }));
 
 const { UserFavorites } = require('../../src/models');
 const UserFavoritesServices = require('../../src/services/favorites.services');
 const { createMockRequest, createMockResponse } = require('../helpers/mockResponse');
+
+describe('UserFavoritesServices.getAll', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('200 lista enriquecida só do usuário autenticado', async () => {
+    UserFavorites.findAll.mockResolvedValue([
+      {
+        toJSON: () => ({
+          id: 1,
+          user_id: 7,
+          user_main_grid_id: 16,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          user_main_grid: {
+            id: 16,
+            name: 'Pack',
+            format: 'PSD',
+            availability: 'paid',
+            url_thumb: 'https://cdn/t.jpg',
+            url_cover: null,
+            url: 'https://cdn/clean.psd',
+            count_download: 2,
+          },
+        }),
+      },
+    ]);
+    const req = createMockRequest({ params: { userId: 7 } });
+    const res = createMockResponse();
+    await UserFavoritesServices.getAll(req, res);
+    expect(UserFavorites.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { user_id: 7 } })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.body.meta.count).toBe(1);
+    expect(res.body.data[0].item.id).toBe(16);
+    expect(res.body.data[0].item.url).toBeNull();
+  });
+
+  it('400 sem userId', async () => {
+    const req = createMockRequest({ params: {} });
+    const res = createMockResponse();
+    await UserFavoritesServices.getAll(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+});
 
 describe('UserFavoritesServices.getById', () => {
   beforeEach(() => {

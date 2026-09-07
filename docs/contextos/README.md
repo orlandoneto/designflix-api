@@ -48,12 +48,23 @@ Alias legado de auth: `src/utils/authHttpResponse.js` (reexporta o mesmo helper)
 | **Usuários (admin)** | [admin-users.md](./admin-users.md) | `GET /admin/users`, `src/services/user/admin-user-list.js` |
 | **Calendário do Marketing** | [marketing-calendar.md](./marketing-calendar.md) | `GET /marketing-calendar`, CRUD `/admin/marketing-calendar` |
 | **Favoritos** | [favorites.md](./favorites.md) | `GET/POST/DELETE /user/favorites…` |
+| **Curtidas (like)** | [likes.md](./likes.md) | `GET/POST/DELETE /user/likes…` |
+| **Stats da conta (perfil)** | [account-stats.md](./account-stats.md) | `GET /user/account/stats` |
+| **Downloads (biblioteca perfil)** | [user-downloads-library.md](./user-downloads-library.md) | `GET /user/downloads/:user_id` enriquecido |
 | **Avaliações (estrelas)** | [ratings.md](./ratings.md) | `POST/GET /user/ratings…`, campos no `GET /catalog/:id` |
+| **Limite diário de downloads** | [download-daily-limit.md](./download-daily-limit.md) | `GET /signed/url`, `GET /user/plans/download-limits/me`, `plans_download_limits` |
+| **Metadados no upload** | [upload-image-meta.md](./upload-image-meta.md) | `width` / `height` / `file_size` via Sharp (sem OCR) |
+
+### Arquitetura e ADRs
+
+| Doc | Uso |
+|-----|-----|
+| [architecture/overview.md](../architecture/overview.md) | Visão da stack |
+| [architecture/decisions/](../architecture/decisions/) | Por quê (ADR) — ex.: signed URL, limite diário |
 
 ### Próximos contextos
 
 - Planos / checkout (legado de pagamento — última leva)
-- Downloads (cliente)
 - Upload / grid do painel (já usado; contrato fino depois)
 
 ---

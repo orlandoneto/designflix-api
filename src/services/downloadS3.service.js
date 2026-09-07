@@ -4,10 +4,25 @@ const {
   createObjectStorageClient,
   getBucketName,
 } = require("../utils/objectStorage");
+const { ok, badRequest, notFound, serverError } = require("../utils/httpResponse");
+const {
+  assertAndConsumeDailyDownload,
+} = require("./download/daily-download-limit");
 
 class DownloadS3 {
   async getSignedUrlS3(req, res) {
     const key = req.query.key;
+    if (!key || !String(key).trim()) {
+      return badRequest(res, "Parâmetro key é obrigatório");
+    }
+
+    const userId = req.params.userId;
+    const quota = await assertAndConsumeDailyDownload(userId);
+    if (!quota.ok) {
+      if (quota.status === 404) return notFound(res, quota.message);
+      return badRequest(res, quota.message);
+    }
+
     try {
       const s3Client = createObjectStorageClient();
       const command = new GetObjectCommand({
@@ -18,14 +33,13 @@ class DownloadS3 {
       const signedUrl = await getSignedUrl(s3Client, command, {
         expiresIn: 3600,
       });
-      res
-        .status(200)
-        .send({ data: { url: signedUrl }, message: "URL gerada com sucesso" });
+      return ok(res, {
+        message: "URL gerada com sucesso",
+        data: { url: signedUrl, quota: quota.data },
+      });
     } catch (error) {
       console.error("Erro ao gerar URL pré-assinada:", error);
-      res
-        .status(500)
-        .send({ message: "Erro ao gerar URL pré-assinada", error });
+      return serverError(res, "Erro ao gerar URL pré-assinada");
     }
   }
 }

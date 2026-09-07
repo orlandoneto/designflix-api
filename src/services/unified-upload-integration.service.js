@@ -4,6 +4,7 @@ const {
   resolveAvailabilityFromInput,
   resolveFileFormat,
 } = require("../utils/grid-item");
+const { resolvePersistedImageMeta } = require("./upload/upload-image-meta");
 
 /** @deprecated use resolveFileFormat — mantido para testes legados */
 function resolvePersistedFormat(data) {
@@ -82,6 +83,7 @@ class UnifiedUploadIntegrationService {
       });
 
       // Criar registro principal
+      const imageMeta = resolvePersistedImageMeta(data);
       const userMainGrid = await UserMainGrid.create({
         user_id: userId, // Sempre salva o user_id
         name: nameToPersist,
@@ -94,7 +96,10 @@ class UnifiedUploadIntegrationService {
         follow_design: 0,
         count_download: 0,
         terms: data.terms,
-        activite: false
+        activite: false,
+        width: imageMeta.width,
+        height: imageMeta.height,
+        file_size: imageMeta.file_size,
       });
 
       logMultpleUpload("UserMainGrid created with ID:", userMainGrid.id);
