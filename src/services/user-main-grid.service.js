@@ -996,38 +996,6 @@ module.exports = class UserMainGridController {
     }
   }
 
-  async getFormats(req, res) {
-    try {
-      const cacheKey = RedisCache.generateCacheKey('user_main_grid_formats');
-      const cached = await RedisCache.getFromCache(req.redis, cacheKey);
-      if (cached?.data?.length) {
-        return res.status(200).send(cached);
-      }
-
-      const rows = await sequelize.query(
-        `SELECT format
-         FROM (
-           SELECT DISTINCT UPPER(umg.format) AS format
-           FROM user_main_grid umg
-           WHERE umg.activite = 0
-             AND umg.format IS NOT NULL
-             AND TRIM(umg.format) <> ''
-             AND UPPER(umg.format) NOT IN ('GRATIS', 'FILE')
-         ) AS formats
-         ORDER BY CASE WHEN format = 'PSD' THEN 0 ELSE 1 END, format ASC`,
-        { type: Sequelize.QueryTypes.SELECT }
-      );
-
-      const data = rows.map((row) => row.format).filter(Boolean);
-      const responseData = { data };
-      RedisCache.saveToCache(req.redis, cacheKey, responseData);
-      return res.status(200).send(responseData);
-    } catch (err) {
-      console.error(err);
-      return res.status(500).send({ message: err.message });
-    }
-  }
-
   async getPublicDetail(req, res) {
     try {
       const { id } = req.params;
@@ -1302,16 +1270,4 @@ module.exports = class UserMainGridController {
     }
   }
 
-  async countByUserId(req, res) {
-    try {
-      const { user_id } = req.params;
-      if (!user_id) {
-        return res.status(400).json({ message: "user_id é obrigatório" });
-      }
-      const count = await UserMainGrid.count({ where: { user_id, activite: 0 } });
-      return res.status(200).json({ count });
-    } catch (err) {
-      res.status(500).json({ message: "Erro ao contar registros", error: err.message });
-    }
-  }
 };

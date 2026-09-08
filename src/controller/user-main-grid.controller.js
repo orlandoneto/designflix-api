@@ -24,9 +24,6 @@ module.exports = (app) => {
     AuthenticateRoute(["admin", "user"]),
     (req, res) => UserMainGridService.create(req, res)
   );
-  app.get("/user-main-grid/formats", (req, res) =>
-    UserMainGridService.getFormats(req, res)
-  );
   app.get("/user-main-grid/user/:id", AuthenticateRoute(["user"]), (req, res) =>
     UserMainGridService.getAllByUserId(req, res)
   );
@@ -34,9 +31,6 @@ module.exports = (app) => {
     "/user-main-grid/:id",
     AuthenticateRoute(["admin", "user"]),
     (req, res) => UserMainGridService.getOne(req, res)
-  );
-  app.get("/user-main-grid/:user_id/count", (req, res) =>
-    UserMainGridService.countByUserId(req, res)
   );
   app.put(
     "/user-main-grid/:id",

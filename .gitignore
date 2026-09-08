@@ -44,6 +44,9 @@ docker-compose.yml
 .env.development
 .env.production
 .env.test
+# Sem ponto: variante antiga que chegou a ser commitada com segredos.
+env
+!env.development.example
 
 # Logs directory with keep
 /logs/*

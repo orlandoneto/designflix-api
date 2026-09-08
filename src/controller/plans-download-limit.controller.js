@@ -1,6 +1,10 @@
 const PlansDownloadLimitsServices = require("../services/plans-download-limit.service");
 const AuthenticateRoute = require("../middleware/authentication");
 
+/**
+ * Quota diária de download (leitura). O CRUD manual saiu: o consumo real
+ * acontece no `GET /signed/url` — ver docs/contextos/download-daily-limit.md.
+ */
 module.exports = (app) => {
   const plansDownloadLimitsServices = new PlansDownloadLimitsServices();
 
@@ -8,35 +12,5 @@ module.exports = (app) => {
     "/user/plans/download-limits/me",
     AuthenticateRoute(["user"]),
     (req, res) => plansDownloadLimitsServices.getMyQuota(req, res)
-  );
-
-  app.post(
-    "/user/plans/download-limits",
-    AuthenticateRoute(["user"]),
-    (req, res) => plansDownloadLimitsServices.create(req, res)
-  );
-
-  app.get(
-    "/user/plans/download-limits/:user_id",
-    AuthenticateRoute(["user"]),
-    (req, res) => plansDownloadLimitsServices.findByUserId(req, res)
-  );
-
-  app.put(
-    "/user/plans/download-limits/:user_id",
-    AuthenticateRoute(["user"]),
-    (req, res) => plansDownloadLimitsServices.update(req, res)
-  );
-
-  app.delete(
-    "/user/plans/download-limits/:user_id",
-    AuthenticateRoute(["user"]),
-    (req, res) => plansDownloadLimitsServices.delete(req, res)
-  );
-
-  app.get(
-    "/user/plans/download-limits",
-    AuthenticateRoute(["user"]),
-    (req, res) => plansDownloadLimitsServices.getAll(req, res)
   );
 };

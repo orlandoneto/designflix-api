@@ -7,7 +7,7 @@ Regra de produto: usuário **free** (ou sem plano pago) tem **N downloads por di
 |------|---------|
 | Regra / quota | `src/services/download/daily-download-limit.js` |
 | Consumo no download | `src/services/downloadS3.service.js` (+ `.local`) |
-| CRUD legado + `me` | `src/services/plans-download-limit.service.js` |
+| Consulta `me` | `src/services/plans-download-limit.service.js` |
 | Controller | `src/controller/plans-download-limit.controller.js` |
 | Tabela | `plans_download_limits` |
 | Limite do plano | `plans.count_downloads` (planos free) |
@@ -122,15 +122,11 @@ Não incrementa. Mesmo shape de `quota` em `data`.
 | **404** | user não encontrado |
 | **500** | erro interno |
 
-### Legado (manter, com guard de dono)
+### CRUD legado — removido
 
-| Método | Rota | Nota |
-|--------|------|------|
-| GET/PUT/DELETE | `/user/plans/download-limits/:user_id` | só o próprio `user_id` (= JWT) |
-| POST | `/user/plans/download-limits` | create manual |
-| GET | `/user/plans/download-limits` | lista |
-
-O **PUT** legado ainda incrementa, mas o front **não** deve mais usá-lo para liberar download — o consumo oficial é o `/signed/url`.
+O CRUD manual (`POST`/`GET` da coleção e `GET`/`PUT`/`DELETE` por `:user_id`) foi
+removido: nenhum front chamava e o **PUT** ainda incrementava o contador, o que
+permitia queimar quota fora do fluxo oficial. O consumo é só `/signed/url`.
 
 ---
 

@@ -17,6 +17,7 @@ Registros do **porquê** de decisões estruturais.
 | [005](./005-plans-catalog-local-gateway-modular.md) | Catálogo de planos local e gateway como módulo isolado | Aceito |
 | [006](./006-plan-change-and-monthly-cap.md) | Troca de plano sem pró-rata e teto mensal no plano pago | Aceito |
 | [007](./007-payout-asaas-pix.md) | Saque do colaborador em Pix pelo Asaas, quitando o ledger | Aceito |
+| [008](./008-remocao-legado-gateway-unico.md) | Mercado Pago fora, Stripe contida, superfície morta removida | Aceito |
 
 ## Quando criar um ADR
 

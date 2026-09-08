@@ -61,7 +61,7 @@ DETALHE
   GET /catalog/:id/similar?limit=15   → Recursos semelhantes (multi-sinal)
 
 FORMATOS DO SELECT (header)
-  GET /user-main-grid/formats                       → lista de formatos (ainda neste path)
+  GET /catalog/facets                               → formats + categories (fonte única)
 ```
 
 Navegação front: **nunca** `/searchImage/*` — sempre `/explorar?...` (`lib/exploreRoute.ts`).

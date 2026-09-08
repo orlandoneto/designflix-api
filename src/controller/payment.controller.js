@@ -1,80 +1,35 @@
 const PaymentStripeService = require("../services/paymentStripe.service");
-const PaymentMercadopagoService = require("../services/paymentMercadopago.service");
 const AuthenticateRoute = require("../middleware/authentication");
 
+/**
+ * Assinatura nova é sempre Asaas (`/asaas/subscriptions`). Aqui sobraram só as
+ * rotas do fluxo antigo que ainda têm consumidor — `paymentStripe.service.js`
+ * segue completo como módulo isolado, ver docs/architecture/decisions/005.
+ *
+ * O fluxo Mercado Pago foi removido: nenhum front chamava e não havia
+ * assinante nem cobrança Pix registrada.
+ */
 module.exports = (app) => {
   /* START ENDPOITS STRIP */
   const paymentStripeService = new PaymentStripeService();
-  const paymentMercadopagoService = new PaymentMercadopagoService();
 
-  app.post("/create-subscription", AuthenticateRoute(["user"]), (req, res) =>
-    paymentStripeService.createSubscription(req, res)
-  );
-
-  app.put("/update-subscription", AuthenticateRoute(["user"]), (req, res) =>
-    paymentStripeService.updateSubscription(req, res)
-  );
-
-  app.get(
-    "/retrieve-plan-stripe/:planId",
-    AuthenticateRoute(["user"]),
-    (req, res) => paymentStripeService.retrievePlans(req, res)
-  );
-
+  // Estado do plano em `user_plans`. Apesar de morar no serviço da Stripe,
+  // é o que alimenta o `useUserData` e o checkout Asaas no site.
   app.get("/user-plan-grouped/:id", AuthenticateRoute(["user"]), (req, res) =>
     paymentStripeService.getUserPlans(req, res)
   );
 
-  app.get("/user-plan", AuthenticateRoute(["user"]), (req, res) =>
-    paymentStripeService.userPlan(req, res)
-  );
-
-  app.get("/user-plan-all", (req, res) =>
-    paymentStripeService.getAllPlans(req, res)
-  );
-
+  // Portal de cobrança: só existe para quem assinou no fluxo antigo da Stripe.
   app.get(
     "/create-customer-portal-session",
     AuthenticateRoute(["user"]),
     (req, res) => paymentStripeService.userPlansPortalSession(req, res)
   );
 
+  // Mantido enquanto houver assinante Stripe ativo.
   app.post("/stripe/webhook", (req, res) =>
     paymentStripeService.handleWebhook(req, res)
   );
 
-  app.get(
-    "/user-plan-download/:userId",
-    AuthenticateRoute(["user"]),
-    (req, res) => paymentStripeService.getUserPlanDownloads(req, res)
-  );
-
-  app.delete(
-    "/stripe/trial/:customerId/cancel",
-    AuthenticateRoute(["user"]),
-    (req, res) => paymentStripeService.refundSubscriptionWithin7Days(req, res)
-  );
-
   /* END ENDPOITS STRIP */
-
-  /* START ENDPOITS MERCADOPAGO */
-  app.post("/create-mercadopago-pix", AuthenticateRoute(["user"]), (req, res) =>
-    paymentMercadopagoService.createMercadopagoPix(req, res)
-  );
-
-  app.post("/mercadopago/pix/webhook", (req, res) =>
-    paymentMercadopagoService.mercadopagoPixPaymentWebhook(req, res)
-  );
-
-  app.put("/mercadopago/pix/:id", AuthenticateRoute(["user"]), (req, res) =>
-    paymentMercadopagoService.updateById(req, res)
-  );
-
-  app.delete(
-    "/mercadopago/trial/:userId/cancel",
-    AuthenticateRoute(["user"]),
-    (req, res) => paymentMercadopagoService.cancelTrialMercadopago(req, res)
-  );
-
-  /* END ENDPOITS MERCADOPAGO */
 };

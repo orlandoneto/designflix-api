@@ -102,7 +102,6 @@ app.use(botDetection.middleware());
 require("./controller/catalog.controller")(app);
 require("./controller/user-main-grid.controller")(app);
 require("./controller/category.controller")(app);
-require("./controller/tags.controller")(app);
 
 // ----- Domínio: auth / usuário -----
 require("./controller/auth-public.controller")(app);
@@ -144,7 +143,6 @@ require("./controller/user-follows.controller")(app);
 require("./controller/plans-download-limit.controller")(app);
 require("./controller/user-commissions.controller")(app);
 require("./controller/user-payouts.controller")(app);
-require("./controller/user-plans.controller")(app);
 require("./controller/landing-page.controller")(app);
 require("./controller/partners.controller")(app);
 require("./controller/ia/remove-background.controller")(app);

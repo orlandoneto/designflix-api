@@ -60,10 +60,6 @@ Rotas em `src/routes/bot-seo.routes.js` (legado SPA). SEO canônico = Next.js.
 - Desligar: `ENABLE_BOT_HTML=false` no `.env`
 - Em dev com Next na 3001, pode desligar sem impacto no JSON da API.
 
-## Mocks
-
-`src/mock/` — **não** importar no path de request de produção. Só testes manuais.
-
 ## Contextos (contratos por domínio)
 
 Documentação de APIs por contexto de negócio — rotas, status HTTP, payloads e arquivos de código:
