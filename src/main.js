@@ -162,5 +162,11 @@ server.listen(process.env.NODE_PORT, () => {
   } else {
     console.log(`Upload: ${getStorageDriver() === "r2" ? "Cloudflare R2" : "AWS S3"}`);
   }
-  console.log('========================\n');
+
+  // Assíncrono e tolerante: o endereço do webhook é a única coisa que muda a
+  // cada sessão de dev, mas não vale atrasar nem arriscar o boot por ele.
+  const { logAsaasWebhookUrl } = require("./utils/devWebhookNotice");
+  logAsaasWebhookUrl().finally(() => {
+    console.log('========================\n');
+  });
 });

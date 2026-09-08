@@ -388,6 +388,40 @@ Data sem hora (`2026-10-07`, formato do Asaas) é formatada por regex, nunca por
 | `ASAAS_WEBHOOK_TOKEN` | token do header, mínimo 16 caracteres |
 | `ASAAS_WEBHOOK_ALLOW_UNVERIFIED` | escape hatch de dev |
 | `PLAN_GRACE_PERIOD_DAYS` | tolerância de inadimplência (default 5) |
+| `ASAAS_TLS_INSECURE` | dev com antivírus/proxy fazendo inspeção HTTPS; ignorado em produção |
+| `ASAAS_WEBHOOK_DEV_DOMAIN` | domínio estático do ngrok, para a URL do webhook não mudar |
+| `ASAAS_WEBHOOK_DEV_URL` | URL do webhook em dev; escrita por `scripts/ngrok.js` |
+
+## Desenvolvimento local
+
+| Comando | O quê |
+|---|---|
+| `npm run dev` | Mailpit + túnel do webhook + API (nodemon) |
+| `npm run asaas:check` | valida a chave e mostra conta e saldo (só GET) |
+| `npm run ngrok:up` / `:down` / `:status` | túnel do webhook isolado |
+| `npm run asaas:webhook -- PAYMENT_CONFIRMED --user=5 --plan=10` | simula evento do gateway contra a API local |
+
+O boot da API imprime a URL do webhook do túnel ativo
+(`src/utils/devWebhookNotice.js`), que é o endereço a cadastrar no painel. Túnel
+ativo tem prioridade sobre `ASAAS_WEBHOOK_DEV_URL`: o valor do `.env` pode ser
+de uma sessão antiga, e anunciar URL morta é pior que não anunciar.
+
+Sem túnel (rede com inspeção HTTPS bloqueando o agente), `npm run asaas:webhook`
+exercita o nosso lado — roteamento de status, idempotência e e-mails. O payload
+é nosso, então isso **não** substitui o teste em sandbox: o que fica de fora é
+justamente o que o gateway envia.
+
+`DEV_SKIP_NGROK=true npm run dev` sobe sem túnel. Falha no túnel **não** derruba
+o dev: quase nada em desenvolvimento depende de webhook, e travar o boot por
+isso seria pior que avisar.
+
+O saque do colaborador sai do **saldo da conta Asaas**, não do cartão do
+assinante — em sandbox o saldo começa zerado, então testar saque exige gerar
+saldo antes.
+
+Antivírus com inspeção HTTPS (ex.: Avast Web Shield) reassina o TLS e quebra
+tanto o client (`ASAAS_TLS_INSECURE` resolve) quanto o próprio agente do ngrok
+(aí só liberando `*.ngrok-agent.com` no antivírus).
 
 ## Por que a Stripe continua viva
 

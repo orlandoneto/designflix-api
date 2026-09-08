@@ -15,6 +15,34 @@ const {
 
 const ASAAS_REQUEST_TIMEOUT_MS = 15000;
 
+let asaasInsecureAgent = null;
+
+/**
+ * Agente que ignora a cadeia de certificados — só para dev com antivírus ou
+ * proxy fazendo SSL inspection, que quebra a validação com
+ * "unable to verify the first certificate" (mesmo caso de
+ * `STORAGE_TLS_INSECURE` e `EMAIL_TLS_INSECURE`).
+ *
+ * Em produção é ignorado por princípio: aqui passa dinheiro, e sem validar o
+ * certificado não há como saber que o outro lado é o Asaas.
+ *
+ * @returns {import('https').Agent|undefined}
+ */
+function resolveHttpsAgentAsaas() {
+  const insecure =
+    String(process.env.ASAAS_TLS_INSECURE || '')
+      .trim()
+      .toLowerCase() === 'true';
+  if (!insecure || process.env.NODE_ENV === 'production') return undefined;
+
+  // Um agente só: criar por request vaza socket.
+  if (!asaasInsecureAgent) {
+    const https = require('https');
+    asaasInsecureAgent = new https.Agent({ rejectUnauthorized: false });
+  }
+  return asaasInsecureAgent;
+}
+
 class AsaasError extends Error {
   constructor(message, { status = null, errors = [] } = {}) {
     super(message);
@@ -58,6 +86,7 @@ async function requestAsaas({ method, path, body, query }) {
       params: query,
       data: body,
       timeout: ASAAS_REQUEST_TIMEOUT_MS,
+      httpsAgent: resolveHttpsAgentAsaas(),
       headers: {
         access_token: resolveApiKeyAsaas(),
         'Content-Type': 'application/json',
@@ -81,5 +110,6 @@ module.exports = {
   ASAAS_REQUEST_TIMEOUT_MS,
   AsaasError,
   extractErrorMessageAsaas,
+  resolveHttpsAgentAsaas,
   requestAsaas,
 };
