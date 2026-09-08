@@ -357,7 +357,16 @@ module.exports = class {
           {
             model: Plans,
             as: "plans",
-            attributes: ["id", "plan_name", "count_downloads"],
+            // `price_cents` e `tier` são o que deixa o front saber se o plano é
+            // pago sem olhar coluna de gateway (legado da Stripe/Mercado Pago).
+            attributes: [
+              "id",
+              "plan_name",
+              "display_name",
+              "tier",
+              "price_cents",
+              "count_downloads",
+            ],
           },
           {
             model: User,

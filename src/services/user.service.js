@@ -5,9 +5,9 @@ const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 const { User, UserMainGrid, UserPartners, Partners, ContributorApplication, sequelize, Sequelize } = require("../models");
 const { sendEmail } = require("../utils/emailService");
-const { PALN_COMMISSION } = require("../utils/constants/constants");
 const { ok, notFound, serverError, badRequest } = require("../utils/httpResponse");
 const { mapAccount } = require("./contributor/contributor-rules");
+const { commissionPerDownloadReais } = require("./contributor/contributor-earnings-rules");
 const {
   mapAdminUserListItem,
   matchesRoleFilter,
@@ -168,41 +168,39 @@ class UserServices {
   }
 
   // FIXME: Criar um service único que reunina todos os metodo da carteira.
+  /**
+   * Credita uma comissão no saldo do colaborador.
+   *
+   * Nunca cria usuário: id sem cadastro é erro do chamador, e inventar a
+   * linha faria dinheiro parar numa conta que ninguém opera.
+   */
   async _updateBalance(userId) {
-    try {
-      // Tenta encontrar o usuário
-      const user = await User.findOne({ where: { id: userId } });
+    const amount = commissionPerDownloadReais();
 
-      if (user) {
-        // Se o saldo for null, inicializa com 0.10
-        if (user.balance === null) {
-          await User.update({ balance: PALN_COMMISSION.comission_contributor / 100 }, { where: { id: userId } });
-          return {
-            success: true,
-            message: "Saldo inicializado com sucesso",
-          };
-        } else {
-          // Caso contrário, incrementa o saldo existente
-          await User.increment("balance", {
-            by: PALN_COMMISSION.comission_contributor / 100,
-            where: { id: userId },
-          });
-          return {
-            success: true,
-            message: "Saldo atualizado com sucesso",
-          };
-        }
-      } else {
-        // Se o usuário não existir, cria um novo com saldo inicial 0.10
-        await User.create({
-          id: userId,
-          balance: PALN_COMMISSION.comission_contributor / 100,
-        });
+    try {
+      const user = await User.findOne({
+        where: { id: userId },
+        attributes: ["id", "balance"],
+      });
+
+      if (!user) {
         return {
-          success: true,
-          message: "Usuário criado e saldo inicial inserido com sucesso",
+          success: false,
+          message: "Usuário não encontrado para creditar saldo",
         };
       }
+
+      // `increment` em coluna NULL continua NULL no MySQL — daí o set direto.
+      if (user.balance === null) {
+        await User.update({ balance: amount }, { where: { id: userId } });
+        return { success: true, message: "Saldo inicializado com sucesso" };
+      }
+
+      await User.increment("balance", {
+        by: amount,
+        where: { id: userId },
+      });
+      return { success: true, message: "Saldo atualizado com sucesso" };
     } catch (error) {
       return {
         success: false,

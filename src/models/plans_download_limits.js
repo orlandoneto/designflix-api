@@ -15,6 +15,17 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      monthly_count_downloads: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      // Janela do contador mensal (`YYYY-MM`): sem ela não se sabe se o número
+      // é do mês corrente ou sobrou de um mês antigo.
+      monthly_period: {
+        type: DataTypes.STRING(7),
+        allowNull: true,
+      },
       createdAt: {
         type: DataTypes.DATE,
         field: "created_at",

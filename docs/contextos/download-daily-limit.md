@@ -31,11 +31,21 @@ O contador é por `user_id` autenticado (JWT → `req.params.userId`), não por 
 | Caso | Comportamento |
 |------|----------------|
 | `user.partner_code` preenchido | **Ilimitado** (não consome) |
-| Plano pago (`plan_name` sem `free`/`gratuito`) | **Ilimitado** |
-| Plano free / sem `user_plans` | **Metered** — limite = `plans.count_downloads` se `> 0`, senão **3** |
-| Contador ≥ limite no mesmo dia | **400** — não emite URL |
+| Plano pago sem `plans.monthly_download_cap` | **Ilimitado** |
+| Plano pago com teto | **Metered no mês** — limite = `plans.monthly_download_cap` |
+| Plano free / sem `user_plans` | **Metered no dia** — limite = `plans.count_downloads` se `> 0`, senão **3** |
+| Contador ≥ limite da janela | **400** — não emite URL |
 
-Reset: ao virar o dia civil após o `updated_at` do contador (meia-noite seguinte no servidor), o registro é apagado e a contagem recomeça.
+Reset diário: ao virar o dia civil após o `updated_at` do contador (meia-noite
+seguinte no servidor), `current_count_downloads` é **zerado**. A linha não é mais
+apagada porque o contador mensal mora nela — apagar daria teto novo todo dia.
+
+Reset mensal: `monthly_period` guarda a janela (`YYYY-MM`). Contador de outra
+janela vale zero, então a virada do mês não precisa de job.
+
+O teto mensal existe porque plano pago é ilimitado por dia e a comissão de
+R$ 0,30 por download (`colaborador-ganhos.md`) inverte a margem por volta de 97
+downloads num plano de R$ 29. Detalhe da regra em `plans.md`.
 
 ---
 
@@ -68,6 +78,7 @@ Auth: Bearer **user**.
       "limit": 3,
       "remaining": 1,
       "unlimited": false,
+      "period": "day",
       "skipped_reason": null
     }
   }
@@ -82,7 +93,21 @@ Quota ilimitada (pago/partner):
   "limit": null,
   "remaining": null,
   "unlimited": true,
+  "period": null,
   "skipped_reason": "paid_plan"
+}
+```
+
+Plano pago com teto mensal (`period` muda a leitura do mesmo par de números):
+
+```json
+{
+  "used": 40,
+  "limit": 90,
+  "remaining": 50,
+  "unlimited": false,
+  "period": "month",
+  "plan_status": "active"
 }
 ```
 

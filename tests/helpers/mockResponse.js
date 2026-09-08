@@ -14,6 +14,12 @@ function createMockResponse() {
     return res;
   });
 
+  // Rotas legadas ainda respondem com `send` em vez do helper de envelope.
+  res.send = jest.fn((payload) => {
+    res.body = payload;
+    return res;
+  });
+
   return res;
 }
 

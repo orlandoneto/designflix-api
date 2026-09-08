@@ -39,6 +39,7 @@ app.use(morgan("combined", { stream: logger.stream }));
 // Importar o cron job
 require("./cron/upgradeStripePlansJob")();
 require("./cron/removeStripeExpiredPlansJob")();
+require("./cron/planSuspensionJob")();
 
 app.use(helmet());
 app.use(
@@ -113,6 +114,7 @@ require("./controller/user-address.controller")(app);
 
 // ----- Domínio: admin (separado do app público) -----
 require("./controller/admin.controller")(app);
+require("./controller/admin-plans.controller")(app);
 
 // ----- Domínio: upload -----
 // Env: STORAGE_TYPE=local|s3|r2 (ou STORAGE_DRIVER)
@@ -129,6 +131,7 @@ require("./controller/unified-upload.controller")(app);
 // ----- Domínio: billing / social / misc -----
 require("./controller/google-api.controller")(app);
 require("./controller/payment.controller")(app);
+require("./controller/asaas.controller")(app);
 require("./controller/user-bug.controller")(app);
 require("./controller/complaints.controller")(app);
 require("./controller/favorites.controller")(app);
@@ -140,6 +143,7 @@ require("./controller/user-downloads.controller")(app);
 require("./controller/user-follows.controller")(app);
 require("./controller/plans-download-limit.controller")(app);
 require("./controller/user-commissions.controller")(app);
+require("./controller/user-payouts.controller")(app);
 require("./controller/user-plans.controller")(app);
 require("./controller/landing-page.controller")(app);
 require("./controller/partners.controller")(app);

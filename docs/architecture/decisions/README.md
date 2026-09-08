@@ -14,6 +14,9 @@ Registros do **porquê** de decisões estruturais.
 | [002](./002-nextjs-frontends.md) | Dois fronts Next (site + admin) | Aceito |
 | [003](./003-storage-signed-url.md) | Storage + Signed URL | Aceito |
 | [004](./004-download-daily-limit-backend.md) | Limite diário de download no backend | Aceito |
+| [005](./005-plans-catalog-local-gateway-modular.md) | Catálogo de planos local e gateway como módulo isolado | Aceito |
+| [006](./006-plan-change-and-monthly-cap.md) | Troca de plano sem pró-rata e teto mensal no plano pago | Aceito |
+| [007](./007-payout-asaas-pix.md) | Saque do colaborador em Pix pelo Asaas, quitando o ledger | Aceito |
 
 ## Quando criar um ADR
 

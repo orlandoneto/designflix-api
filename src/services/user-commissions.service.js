@@ -1,146 +1,143 @@
+/**
+ * Comissões do colaborador — R$ 0,30 por download de arquivo dele.
+ *
+ * A matemática fica em `contributor/contributor-earnings-rules.js`; aqui só
+ * consulta e envelope.
+ *
+ * @see docs/contextos/colaborador-ganhos.md
+ */
+
 const { UserCommission, User, Sequelize } = require("../models");
 const { PALN_COMMISSION } = require("../utils/constants/constants");
+const { ok, badRequest, notFound, serverError } = require("../utils/httpResponse");
+const {
+  buildCommissionsSummary,
+  shouldCreditCommission,
+  commissionPerDownloadReais,
+} = require("./contributor/contributor-earnings-rules");
+
+/** Agregado `SUM(amount)` + `COUNT(*)` desde um marco no tempo. */
+const PERIOD_ATTRIBUTES = [
+  [Sequelize.fn("SUM", Sequelize.col("amount")), "total"],
+  [Sequelize.fn("COUNT", Sequelize.col("*")), "downloads"],
+];
+
+function sinceLiteral(expression) {
+  return Sequelize.literal(expression);
+}
 
 class UserCommissionsServices {
-  // FIXME: Criar um service único que reunina todos os metodo da carteira.
-
+  /** GET /user-commissions/:userId */
   async commissionsUserById(req, res) {
-    const { userId } = req.params;
+    const userId = Number(req.params && req.params.userId);
+    if (!Number.isInteger(userId) || userId < 1) {
+      return badRequest(res, "Usuário inválido");
+    }
 
     try {
-      // Obtém o saldo disponível do usuário
       const user = await User.findOne({
         where: { id: userId },
         attributes: ["balance"],
       });
 
       if (!user) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Usuário não encontrado." });
+        return notFound(res, "Usuário não encontrado");
       }
 
-      const availableBalance = user.balance >= 100 ? user.balance : 0; // Saldo disponível (mínimo de R$ 100,00)
-
-      // Obtém as comissões de hoje
-      const todayCommissions = await UserCommission.findOne({
-        where: {
-          user_id: userId,
-          created_at: {
-            [Sequelize.Op.gte]: Sequelize.literal("CURDATE()"),
+      const periodFor = (expression) =>
+        UserCommission.findOne({
+          where: {
+            user_id: userId,
+            created_at: { [Sequelize.Op.gte]: sinceLiteral(expression) },
           },
-        },
-        attributes: [
-          [Sequelize.fn("SUM", Sequelize.col("amount")), "total"],
-          [Sequelize.fn("COUNT", Sequelize.col("*")), "downloads"],
-        ],
-        raw: true,
-      });
+          attributes: PERIOD_ATTRIBUTES,
+          raw: true,
+        });
 
-      // Obtém as comissões dos últimos 7 dias
-      const last7DaysCommissions = await UserCommission.findOne({
-        where: {
-          user_id: userId,
-          created_at: {
-            [Sequelize.Op.gte]: Sequelize.literal("DATE_SUB(CURDATE(), INTERVAL 7 DAY)"),
+      const [
+        todayRow,
+        last7DaysRow,
+        last30DaysRow,
+        totalGeneralRow,
+        recentCommissions,
+      ] = await Promise.all([
+        periodFor("CURDATE()"),
+        periodFor("DATE_SUB(CURDATE(), INTERVAL 7 DAY)"),
+        periodFor("DATE_SUB(CURDATE(), INTERVAL 30 DAY)"),
+        UserCommission.findOne({
+          where: { user_id: userId },
+          attributes: [[Sequelize.fn("SUM", Sequelize.col("amount")), "total"]],
+          raw: true,
+        }),
+        UserCommission.findAll({
+          where: {
+            user_id: userId,
+            created_at: {
+              [Sequelize.Op.gte]: sinceLiteral(
+                "DATE_SUB(CURDATE(), INTERVAL 30 DAY)"
+              ),
+            },
           },
-        },
-        attributes: [
-          [Sequelize.fn("SUM", Sequelize.col("amount")), "total"],
-          [Sequelize.fn("COUNT", Sequelize.col("*")), "downloads"],
-        ],
-        raw: true,
+          attributes: ["amount", "created_at"],
+          order: [["created_at", "DESC"]],
+          raw: true,
+        }),
+      ]);
+
+      const data = buildCommissionsSummary({
+        balance: user.balance,
+        todayRow,
+        last7DaysRow,
+        last30DaysRow,
+        totalGeneralRow,
+        recentCommissions,
       });
 
-      // Obtém as comissões dos últimos 30 dias
-      const last30DaysCommissions = await UserCommission.findOne({
-        where: {
-          user_id: userId,
-          created_at: {
-            [Sequelize.Op.gte]: Sequelize.literal("DATE_SUB(CURDATE(), INTERVAL 30 DAY)"),
-          },
-        },
-        attributes: [
-          [Sequelize.fn("SUM", Sequelize.col("amount")), "total"],
-          [Sequelize.fn("COUNT", Sequelize.col("*")), "downloads"],
-        ],
-        raw: true,
-      });
-
-      // Obtém os registros dos últimos 30 dias com created_at
-      const commissionsLast30Days = await UserCommission.findAll({
-        where: {
-          user_id: userId,
-          created_at: {
-            [Sequelize.Op.gte]: Sequelize.literal("DATE_SUB(CURDATE(), INTERVAL 30 DAY)"),
-          },
-        },
-        attributes: ["amount", "created_at"],
-        order: [["created_at", "DESC"]],
-        raw: true,
-      });
-
-      // Obtém o total geral de comissões do usuário
-      const totalGeneral = await UserCommission.findOne({
-        where: { user_id: userId },
-        attributes: [
-          [Sequelize.fn("SUM", Sequelize.col("amount")), "total"]
-        ],
-        raw: true,
-      });
-
-      // Resposta formatada
-      const response = {
-        today: {
-          total: parseFloat(todayCommissions.total) || 0,
-          downloads: parseInt(todayCommissions.downloads) || 0,
-        },
-        last7Days: {
-          total: parseFloat(last7DaysCommissions.total) || 0,
-          downloads: parseInt(last7DaysCommissions.downloads) || 0,
-        },
-        last30Days: {
-          total: parseFloat(last30DaysCommissions.total) || 0,
-          downloads: parseInt(last30DaysCommissions.downloads) || 0,
-        },
-        availableBalance: parseFloat(totalGeneral.total) || 0, // Soma de tudo que foi vendido
-        totalGeneral: parseFloat(totalGeneral.total) || 0, // Total geral
-        commissionsLast30Days, // Array com amount e created_at
-        commissionsLast30DaysCount: commissionsLast30Days.length, // Quantidade de registros dos últimos 30 dias
-      };
-
-      res.status(200).json({ success: true, data: response });
+      return ok(res, { message: "Ganhos do colaborador", data });
     } catch (error) {
       console.error("Erro ao buscar comissões:", error);
-      res
-        .status(500)
-        .json({ success: false, message: "Erro ao buscar comissões." });
+      return serverError(res, "Erro ao buscar comissões");
     }
   }
 
+  /** POST /user-commissions/create/:userId */
   async createCommissionUser(req, res) {
-    const { userId } = req.params;
+    const userId = Number(req.params && req.params.userId);
+    if (!Number.isInteger(userId) || userId < 1) {
+      return badRequest(res, "Usuário inválido");
+    }
+
     try {
       const result = await this._createCommission(userId);
-      if (result.success) {
-        res.status(201).json(result);
-      } else {
-        res.status(500).json(result);
+      if (!result.success) {
+        return serverError(res, result.message);
       }
+      return ok(res, { message: result.message, data: result.data });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: "Erro ao criar a comissão",
-        error: error.message,
-      });
+      console.error("Erro ao criar a comissão:", error);
+      return serverError(res, "Erro ao criar a comissão");
     }
   }
 
-  async _createCommission(userId) {
+  /**
+   * Registra uma comissão para o dono do arquivo.
+   *
+   * `status: pending` = ainda não saiu em saque. Quem quita é o fluxo de
+   * payout, não este método.
+   */
+  async _createCommission(userId, options = {}) {
+    const guard = shouldCreditCommission({
+      downloaderUserId: options.downloaderUserId,
+      contributorUserId: userId,
+    });
+    if (!guard.credit) {
+      return { success: false, skipped: true, message: guard.reason };
+    }
+
     try {
       const commission = await UserCommission.create({
-        user_id: userId,
-        amount: PALN_COMMISSION.comission_contributor / 100, // Converte centavos para reais
+        user_id: Number(userId),
+        amount: commissionPerDownloadReais(),
         created_at: new Date(),
         status: "pending",
       });
@@ -161,3 +158,4 @@ class UserCommissionsServices {
 }
 
 module.exports = new UserCommissionsServices();
+module.exports.PAYOUT_MINIMUM_CENTS = PALN_COMMISSION.payout_contributor;

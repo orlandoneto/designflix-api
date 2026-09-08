@@ -15,6 +15,18 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      // Estado do direito de acesso, agnóstico de gateway.
+      // active | past_due | suspended | canceled | expired
+      status: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "active",
+      },
+      // Quem cobra esse plano: 'asaas' | 'stripe' | 'mercadopago'.
+      provider: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+      },
       stripe_customer_id: {
         type: DataTypes.STRING,
         allowNull: true,

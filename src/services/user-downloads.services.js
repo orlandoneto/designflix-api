@@ -145,22 +145,35 @@ class UserDownloadsServices {
         await download.save();
       }
 
-      const updateBalanceResult = await UserService._updateBalance(user_id);
-
-      if (!updateBalanceResult.success) {
-        return res.status(500).json({
-          message: "Erro ao atualizar o saldo do usuário",
-          error: updateBalanceResult.error,
-        });
-      }
-
+      // Quem recebe é o dono do arquivo (`contributor_image_user_id`), não
+      // quem baixou. `user_commissions` é o livro-caixa e `user.balance` é
+      // só o cache que o saque consulta — por isso a comissão é gravada
+      // primeiro: se o cache falhar, o ledger ainda permite reconciliar.
       const createCommissionResult =
-        await UserCommissionsServices._createCommission(contributor_image_user_id);
+        await UserCommissionsServices._createCommission(
+          contributor_image_user_id,
+          { downloaderUserId: user_id }
+        );
+
+      if (createCommissionResult.skipped) {
+        return res.status(201).json(download);
+      }
 
       if (!createCommissionResult.success) {
         return res.status(500).json({
           message: "Erro ao criar a comissão",
           error: createCommissionResult.error,
+        });
+      }
+
+      const updateBalanceResult = await UserService._updateBalance(
+        contributor_image_user_id
+      );
+
+      if (!updateBalanceResult.success) {
+        return res.status(500).json({
+          message: "Erro ao atualizar o saldo do colaborador",
+          error: updateBalanceResult.error,
         });
       }
 

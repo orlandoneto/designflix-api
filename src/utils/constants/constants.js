@@ -42,8 +42,8 @@ const FORGOT_REDIRECT_URL = {
 };
 
 const PALN_COMMISSION = {
-  comission_contributor: 35, // R$ 0,35 (35 centavos) em centavos
-  payout_contributor: 10000, // R$ 100,00 em centavos
+  comission_contributor: 30, // R$ 0,30 por download, em centavos
+  payout_contributor: 10000, // R$ 100,00 — mínimo para solicitar saque
 };
 
 // S3 FOLDERS

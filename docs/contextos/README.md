@@ -53,6 +53,8 @@ Alias legado de auth: `src/utils/authHttpResponse.js` (reexporta o mesmo helper)
 | **Downloads (biblioteca perfil)** | [user-downloads-library.md](./user-downloads-library.md) | `GET /user/downloads/:user_id` enriquecido |
 | **Avaliações (estrelas)** | [ratings.md](./ratings.md) | `POST/GET /user/ratings…`, campos no `GET /catalog/:id` |
 | **Limite diário de downloads** | [download-daily-limit.md](./download-daily-limit.md) | `GET /signed/url`, `GET /user/plans/download-limits/me`, `plans_download_limits` |
+| **Planos e assinaturas** | [plans.md](./plans.md) | `GET /plans`, CRUD `/admin/plans`, `src/services/payments/gateways/asaas/` |
+| **Ganhos do colaborador** (comissão por download, saldo, saque) | [colaborador-ganhos.md](./colaborador-ganhos.md) | `GET /user-commissions/:userId`, `src/services/contributor/contributor-earnings-rules.js` |
 | **Metadados no upload** | [upload-image-meta.md](./upload-image-meta.md) | `width` / `height` / `file_size` via Sharp (sem OCR) |
 
 ### Arquitetura e ADRs
@@ -64,7 +66,7 @@ Alias legado de auth: `src/utils/authHttpResponse.js` (reexporta o mesmo helper)
 
 ### Próximos contextos
 
-- Planos / checkout (legado de pagamento — última leva)
+- Checkout / tokenização de cartão (ver pendências em [plans.md](./plans.md))
 - Upload / grid do painel (já usado; contrato fino depois)
 
 ---
