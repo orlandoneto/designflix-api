@@ -36,6 +36,21 @@ async function createSubscriptionAsaas(asaasSubscriptionPayload) {
   });
 }
 
+/**
+ * Atualiza a assinatura (usado para trocar a forma de pagamento).
+ *
+ * O corpo precisa levar `updatePendingPayments: true` para a cobrança pendente
+ * ser convertida em vez de sobreviver ao lado da nova — quem monta isso é
+ * `buildBillingTypeUpdatePayloadAsaas`.
+ */
+async function updateSubscriptionAsaas(asaasSubscriptionId, asaasUpdatePayload) {
+  return requestAsaas({
+    method: 'PUT',
+    path: `/subscriptions/${asaasSubscriptionId}`,
+    body: asaasUpdatePayload,
+  });
+}
+
 async function getSubscriptionAsaas(asaasSubscriptionId) {
   return requestAsaas({
     method: 'GET',
@@ -84,6 +99,7 @@ module.exports = {
   findCustomerByCpfCnpjAsaas,
   createCustomerAsaas,
   createSubscriptionAsaas,
+  updateSubscriptionAsaas,
   getSubscriptionAsaas,
   cancelSubscriptionAsaas,
   listSubscriptionPaymentsAsaas,

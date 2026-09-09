@@ -17,6 +17,7 @@ jest.mock(
     findCustomerByCpfCnpjAsaas: jest.fn(),
     createCustomerAsaas: jest.fn(),
     createSubscriptionAsaas: jest.fn(),
+    updateSubscriptionAsaas: jest.fn(),
     cancelSubscriptionAsaas: jest.fn(),
     listSubscriptionPaymentsAsaas: jest.fn(),
     tokenizeCreditCardAsaas: jest.fn(),
@@ -35,7 +36,9 @@ const {
   findCustomerByCpfCnpjAsaas,
   createCustomerAsaas,
   createSubscriptionAsaas,
+  updateSubscriptionAsaas,
   cancelSubscriptionAsaas,
+  listSubscriptionPaymentsAsaas,
   tokenizeCreditCardAsaas,
 } = require('../../../src/services/payments/gateways/asaas/asaas-api');
 const {
@@ -233,6 +236,8 @@ describe('createSubscription', () => {
     Plans.findByPk.mockResolvedValue(planRow());
     User.findByPk.mockResolvedValue(userRow({ cpf: VALID_CPF }));
     findCustomerByCpfCnpjAsaas.mockResolvedValue({ id: 'cus_1' });
+    // Sem `invoiceUrl`: a resposta da assinatura no Asaas não traz esse campo —
+    // ele pertence à cobrança. Mockar aqui era o que escondia o checkout mudo.
     createSubscriptionAsaas.mockResolvedValue({
       id: 'sub_1',
       status: 'ACTIVE',
@@ -240,7 +245,16 @@ describe('createSubscription', () => {
       cycle: 'MONTHLY',
       value: 29.9,
       nextDueDate: '2026-10-07',
-      invoiceUrl: 'https://asaas.com/i/sub_1',
+    });
+    listSubscriptionPaymentsAsaas.mockResolvedValue({
+      data: [
+        {
+          id: 'pay_1',
+          status: 'PENDING',
+          invoiceUrl: 'https://asaas.com/i/pay_1',
+          bankSlipUrl: null,
+        },
+      ],
     });
     AsaasSubscription.create.mockImplementation(async (payload) => ({
       id: 1,
@@ -257,10 +271,64 @@ describe('createSubscription', () => {
     );
 
     expect(res.statusCode).toBe(200);
-    expect(res.body.meta.invoiceUrl).toBe('https://asaas.com/i/sub_1');
     expect(UserPlans.create).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'pending', provider: 'asaas' })
     );
+  });
+
+  it('devolve o link da cobrança, não o da assinatura', async () => {
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.createSubscription(
+      authedRequest({ planId: 7, billingType: 'PIX' }),
+      res
+    );
+
+    expect(listSubscriptionPaymentsAsaas).toHaveBeenCalledWith('sub_1');
+    expect(res.body.meta.invoiceUrl).toBe('https://asaas.com/i/pay_1');
+  });
+
+  it('ignora cobrança já paga e usa o boleto quando não há invoiceUrl', async () => {
+    listSubscriptionPaymentsAsaas.mockResolvedValue({
+      data: [
+        { id: 'pay_0', status: 'RECEIVED', invoiceUrl: 'https://asaas.com/i/paga' },
+        { id: 'pay_1', status: 'PENDING', bankSlipUrl: 'https://asaas.com/b/1' },
+      ],
+    });
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.createSubscription(
+      authedRequest({ planId: 7, billingType: 'BOLETO' }),
+      res
+    );
+
+    expect(res.body.meta.invoiceUrl).toBe('https://asaas.com/b/1');
+  });
+
+  it('cobrança ainda não gerada não derruba a assinatura', async () => {
+    listSubscriptionPaymentsAsaas.mockResolvedValue({ data: [] });
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.createSubscription(
+      authedRequest({ planId: 7, billingType: 'PIX' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.meta.invoiceUrl).toBeNull();
+  });
+
+  it('falha ao buscar a cobrança não vira erro 500 na assinatura', async () => {
+    listSubscriptionPaymentsAsaas.mockRejectedValue(new Error('timeout'));
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.createSubscription(
+      authedRequest({ planId: 7, billingType: 'PIX' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.meta.invoiceUrl).toBeNull();
   });
 
   it('aceita o CPF no mesmo request do checkout', async () => {
@@ -534,6 +602,151 @@ describe('tokenizeCreditCard', () => {
 
     await AsaasSubscriptionService.tokenizeCreditCard(
       authedRequest(cardBody()),
+      res
+    );
+
+    expect(res.statusCode).toBe(500);
+    expect(res.body.message).not.toMatch(/socket/);
+  });
+});
+
+describe('changeBillingType', () => {
+  const subscriptionRow = (overrides = {}) => ({
+    id: 5,
+    user_id: 42,
+    plan_id: 7,
+    asaas_subscription_id: 'sub_1',
+    asaas_billing_type: 'BOLETO',
+    asaas_status: 'ACTIVE',
+    update: jest.fn(async function update(payload) {
+      Object.assign(this, payload);
+      return this;
+    }),
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    AsaasSubscription.findOne.mockResolvedValue(subscriptionRow());
+    Plans.findByPk.mockResolvedValue(planRow());
+    updateSubscriptionAsaas.mockResolvedValue({
+      id: 'sub_1',
+      billingType: 'CREDIT_CARD',
+    });
+    listSubscriptionPaymentsAsaas.mockResolvedValue({
+      data: [
+        {
+          id: 'pay_1',
+          status: 'PENDING',
+          invoiceUrl: 'https://asaas.com/i/pay_1',
+        },
+      ],
+    });
+  });
+
+  it('converte a cobrança pendente em vez de criar outra', async () => {
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'CREDIT_CARD', creditCardToken: 'tok_1' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    // Sem `updatePendingPayments`, o boleto pendente sobreviveria ao lado da
+    // fatura do cartão — cobrança dupla no mesmo mês.
+    expect(updateSubscriptionAsaas).toHaveBeenCalledWith('sub_1', {
+      billingType: 'CREDIT_CARD',
+      updatePendingPayments: true,
+      creditCardToken: 'tok_1',
+    });
+  });
+
+  it('grava a forma de pagamento nova no nosso registro', async () => {
+    const row = subscriptionRow();
+    AsaasSubscription.findOne.mockResolvedValue(row);
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'CREDIT_CARD', creditCardToken: 'tok_1' }),
+      res
+    );
+
+    expect(row.update).toHaveBeenCalledWith({
+      asaas_billing_type: 'CREDIT_CARD',
+    });
+    expect(res.body.data.billingType).toBe('CREDIT_CARD');
+  });
+
+  it('cartão sem token é recusado antes de chamar o Asaas', async () => {
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'CREDIT_CARD' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toMatch(/cartão/i);
+    expect(updateSubscriptionAsaas).not.toHaveBeenCalled();
+  });
+
+  it('trocar para a forma que já está em uso é recusado', async () => {
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'BOLETO' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(updateSubscriptionAsaas).not.toHaveBeenCalled();
+  });
+
+  it('forma de pagamento inválida não vira UNDEFINED silencioso', async () => {
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'UNDEFINED' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(updateSubscriptionAsaas).not.toHaveBeenCalled();
+  });
+
+  it('sem assinatura ativa devolve 404', async () => {
+    AsaasSubscription.findOne.mockResolvedValue(null);
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'PIX' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('recusa do Asaas vira 400 com a mensagem dele', async () => {
+    updateSubscriptionAsaas.mockRejectedValue(
+      new AsaasError('Cartão recusado pela operadora', { status: 400 })
+    );
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'CREDIT_CARD', creditCardToken: 'tok_1' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toBe('Cartão recusado pela operadora');
+  });
+
+  it('erro inesperado devolve 500 genérico', async () => {
+    updateSubscriptionAsaas.mockRejectedValue(new Error('socket hang up'));
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'PIX' }),
       res
     );
 

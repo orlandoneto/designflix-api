@@ -23,6 +23,7 @@ const {
 const { PLAN_STATUS } = require('../../../download/daily-download-limit');
 const {
   ASAAS_SUBSCRIPTION_STATUS,
+  buildBillingTypeUpdatePayloadAsaas,
   buildCustomerPayloadAsaas,
   buildSubscriptionPayloadAsaas,
   buildTokenizePayloadAsaas,
@@ -39,6 +40,7 @@ const {
   findCustomerByCpfCnpjAsaas,
   createCustomerAsaas,
   createSubscriptionAsaas,
+  updateSubscriptionAsaas,
   cancelSubscriptionAsaas,
   listSubscriptionPaymentsAsaas,
   tokenizeCreditCardAsaas,
@@ -57,6 +59,43 @@ function resolveRemoteIp(req) {
     (req.headers && req.headers['x-forwarded-for']) || ''
   ).split(',')[0];
   return forwarded.trim() || req.ip || null;
+}
+
+/** Status do Asaas que significam dinheiro em caixa — não precisa mais pagar. */
+const SETTLED_PAYMENT_STATUSES = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'];
+
+/**
+ * Link de pagamento da assinatura recém-criada.
+ *
+ * `invoiceUrl` é campo da **cobrança**, não da assinatura: ler de
+ * `asaasSubscription.invoiceUrl` devolve `null` e o checkout fica sem nenhum
+ * caminho para pagar — o assinante só encontra o Pix pelo e-mail do Asaas.
+ *
+ * A primeira cobrança pode não existir no instante em que a recorrência é
+ * criada. Aqui isso não é erro: devolve `null` e o site busca de novo pela
+ * lista de cobranças. Assinatura criada vale 200 mesmo sem link.
+ */
+async function findOpenInvoiceUrlAsaas(asaasSubscriptionId) {
+  try {
+    const asaasPayments = await listSubscriptionPaymentsAsaas(
+      asaasSubscriptionId
+    );
+    const payments = (asaasPayments && asaasPayments.data) || [];
+    const open = payments.find(
+      (payment) =>
+        !SETTLED_PAYMENT_STATUSES.includes(
+          String(payment.status || '').toUpperCase()
+        ) && (payment.invoiceUrl || payment.bankSlipUrl)
+    );
+    return open ? open.invoiceUrl || open.bankSlipUrl : null;
+  } catch (error) {
+    // Falhar aqui não pode derrubar uma assinatura que já existe no Asaas.
+    console.error(
+      'Erro ao buscar cobrança da assinatura:',
+      error && error.message
+    );
+    return null;
+  }
 }
 
 function mapSubscriptionResponse(asaasSubscriptionRow, plan) {
@@ -163,7 +202,9 @@ class AsaasSubscriptionService {
       return ok(res, {
         message: 'Assinatura criada. Aguardando confirmação do pagamento.',
         data: mapSubscriptionResponse(created, plan),
-        meta: { invoiceUrl: asaasSubscription.invoiceUrl || null },
+        meta: {
+          invoiceUrl: await findOpenInvoiceUrlAsaas(asaasSubscription.id),
+        },
       });
     } catch (error) {
       if (error instanceof AsaasError) {
@@ -295,7 +336,7 @@ class AsaasSubscriptionService {
           'Troca de plano iniciada. O plano novo passa a valer quando o pagamento for confirmado.',
         data: mapSubscriptionResponse(created, targetPlan),
         meta: {
-          invoiceUrl: asaasSubscription.invoiceUrl || null,
+          invoiceUrl: await findOpenInvoiceUrlAsaas(asaasSubscription.id),
           planChange: {
             kind: change.kind,
             fromPlanId: current.plan_id,
@@ -311,6 +352,80 @@ class AsaasSubscriptionService {
       }
       console.error('Erro ao trocar de plano Asaas:', error);
       return serverError(res, 'Erro ao trocar de plano');
+    }
+  }
+
+  /**
+   * PUT /asaas/subscriptions/me/billing-type
+   * body: { billingType, creditCardToken? }
+   *
+   * Troca a forma de pagamento da assinatura que já existe — sem cancelar e
+   * sem criar outra. Serve principalmente a quem assinou no Pix/boleto, não
+   * pagou, e prefere cartão para liberar na hora.
+   *
+   * Não confundir com troca de plano: aqui o plano é o mesmo, muda só como se
+   * paga. Assinar de novo daria 400 ("já tem assinatura ativa") e cancelar para
+   * reassinar perderia o histórico da recorrência.
+   *
+   * O acesso continua sendo liberado só pelo webhook do pagamento confirmado.
+   */
+  async changeBillingType(req, res) {
+    const userId = Number(req.params.userId);
+
+    try {
+      const subscription = await AsaasSubscription.findOne({
+        where: {
+          user_id: userId,
+          asaas_status: ASAAS_SUBSCRIPTION_STATUS.ACTIVE,
+        },
+        order: [['id', 'DESC']],
+      });
+      if (!subscription) {
+        return notFound(res, 'Nenhuma assinatura ativa encontrada');
+      }
+
+      const updatePayload = buildBillingTypeUpdatePayloadAsaas({
+        billingType: req.body && req.body.billingType,
+        creditCardToken: req.body && req.body.creditCardToken,
+        currentBillingType: subscription.asaas_billing_type,
+      });
+      if (!updatePayload.ok) {
+        return badRequest(res, updatePayload.message);
+      }
+
+      const asaasSubscription = await updateSubscriptionAsaas(
+        subscription.asaas_subscription_id,
+        updatePayload.payload
+      );
+
+      await subscription.update({
+        asaas_billing_type:
+          resolveBillingTypeAsaas(
+            asaasSubscription && asaasSubscription.billingType
+          ) || updatePayload.payload.billingType,
+      });
+
+      const plan = await Plans.findByPk(subscription.plan_id);
+
+      return ok(res, {
+        message: 'Forma de pagamento atualizada.',
+        data: mapSubscriptionResponse(subscription, plan),
+        meta: {
+          invoiceUrl: await findOpenInvoiceUrlAsaas(
+            subscription.asaas_subscription_id
+          ),
+        },
+      });
+    } catch (error) {
+      if (error instanceof AsaasError) {
+        console.error(
+          'Erro do Asaas ao trocar forma de pagamento:',
+          error.message
+        );
+        return badRequest(res, error.message);
+      }
+      console.error('Erro ao trocar forma de pagamento:', error);
+      return serverError(res, 'Erro ao trocar forma de pagamento');
     }
   }
 

@@ -396,6 +396,52 @@ function buildTokenizePayloadAsaas({
 }
 
 /**
+ * Payload da troca de forma de pagamento de uma assinatura que já existe.
+ *
+ * `updatePendingPayments: true` é o ponto todo: sem ele o Asaas só muda as
+ * cobranças **futuras** e a pendente continua de pé — o assinante ficaria com
+ * um boleto em aberto e uma fatura no cartão para o mesmo mês. Com ele, a
+ * cobrança pendente é convertida. Cobrança já paga, vencida ou cancelada o
+ * Asaas não toca.
+ *
+ * @returns {{ ok: true, payload } | { ok: false, message }}
+ */
+function buildBillingTypeUpdatePayloadAsaas({
+  billingType,
+  creditCardToken,
+  currentBillingType,
+}) {
+  const asaasBillingType = resolveBillingTypeAsaas(billingType);
+  if (!asaasBillingType) {
+    return { ok: false, message: 'Forma de pagamento inválida' };
+  }
+  if (asaasBillingType === ASAAS_BILLING_TYPES.UNDEFINED) {
+    return { ok: false, message: 'Forma de pagamento inválida' };
+  }
+
+  if (
+    resolveBillingTypeAsaas(currentBillingType) === asaasBillingType
+  ) {
+    return { ok: false, message: 'A assinatura já usa esta forma de pagamento' };
+  }
+
+  const asaasPayload = {
+    billingType: asaasBillingType,
+    updatePendingPayments: true,
+  };
+
+  if (asaasBillingType === ASAAS_BILLING_TYPES.CREDIT_CARD) {
+    const token = String(creditCardToken || '').trim();
+    if (!token) {
+      return { ok: false, message: 'Informe os dados do cartão' };
+    }
+    asaasPayload.creditCardToken = token;
+  }
+
+  return { ok: true, payload: asaasPayload };
+}
+
+/**
  * Payload de transferência Pix (saque do colaborador).
  *
  * Campos copiados um a um, como nos outros builders: o que vai para o Asaas
@@ -456,6 +502,7 @@ module.exports = {
   parseExternalReferenceAsaas,
   buildCustomerPayloadAsaas,
   buildSubscriptionPayloadAsaas,
+  buildBillingTypeUpdatePayloadAsaas,
   buildTokenizePayloadAsaas,
   buildTransferPayloadAsaas,
 };

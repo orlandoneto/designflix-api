@@ -72,6 +72,23 @@ describe('objectStorage', () => {
     );
   });
 
+  it('rewriteBrowserAssetUrl reescreve uploads localhost quando base pública é externa', () => {
+    process.env.LOCAL_STORAGE_PUBLIC_URL =
+      'https://4249-example.ngrok-free.app';
+    const localThumb =
+      'http://localhost:3000/uploads/thumbs_test/x.webp';
+    expect(rewriteBrowserAssetUrl(localThumb)).toBe(
+      'https://4249-example.ngrok-free.app/uploads/thumbs_test/x.webp'
+    );
+  });
+
+  it('rewriteBrowserAssetUrl mantém localhost quando base pública também é local', () => {
+    process.env.LOCAL_STORAGE_PUBLIC_URL = 'http://localhost:3000';
+    const localThumb =
+      'http://localhost:3000/uploads/thumbs_test/x.webp';
+    expect(rewriteBrowserAssetUrl(localThumb)).toBe(localThumb);
+  });
+
   it('mapBrowserAssetUrls reescreve photo aninhada em user', () => {
     const { mapBrowserAssetUrls } = require('../../src/utils/objectStorage');
     process.env.STORAGE_TYPE = 'r2';

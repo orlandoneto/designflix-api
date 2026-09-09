@@ -3,6 +3,8 @@
  * Front canônico é o Next.js — estas rotas são legado do SPA antigo.
  * Desligar HTML de bots: ENABLE_BOT_HTML=false (404 JSON permanece).
  */
+const { notFoundHandler } = require("../middleware/errorHandler");
+
 module.exports = function registerBotSeoRoutes(app, botDetection) {
   const enabled = process.env.ENABLE_BOT_HTML !== "false";
 
@@ -60,6 +62,8 @@ module.exports = function registerBotSeoRoutes(app, botDetection) {
       })(req, res);
     }
 
-    res.status(404).json({ message: "Página não encontrada" });
+    // Este `app.get("*")` captura todo GET que sobrou, então o 404 de GET nasce
+    // aqui e não no fim da pilha. Delegar mantém um corpo só para toda a API.
+    return notFoundHandler(req, res);
   });
 };

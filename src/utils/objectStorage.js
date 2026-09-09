@@ -139,16 +139,44 @@ function extractObjectKeyFromUrl(photoUrl) {
   return key;
 }
 
+function isLoopbackHostname(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+}
+
 /**
  * Converte URL privada do R2 (endpoint S3) em URL que o browser abre.
+ * Também reescreve /uploads e /storage gravados como localhost quando
+ * LOCAL_STORAGE_PUBLIC_URL / API_URL aponta para um host público (ex.: ngrok).
  * Usado no catálogo / grid para registros já gravados sem R2_PUBLIC_URL.
  */
 function rewriteBrowserAssetUrl(assetUrl) {
   if (!assetUrl || typeof assetUrl !== 'string') return assetUrl;
-  if (!assetUrl.includes('.r2.cloudflarestorage.com/')) return assetUrl;
+  if (assetUrl.includes('.r2.cloudflarestorage.com/')) {
+    try {
+      const key = extractObjectKeyFromUrl(assetUrl);
+      return buildPublicObjectUrl(key);
+    } catch {
+      return assetUrl;
+    }
+  }
+
   try {
-    const key = extractObjectKeyFromUrl(assetUrl);
-    return buildPublicObjectUrl(key);
+    const url = new URL(assetUrl);
+    const path = url.pathname || '';
+    const isLocalAssetPath =
+      path.startsWith('/uploads/') || path.startsWith('/storage/');
+    if (!isLoopbackHostname(url.hostname) || !isLocalAssetPath) {
+      return assetUrl;
+    }
+
+    const publicBase = getApiPublicBaseUrl();
+    const pub = new URL(publicBase);
+    if (isLoopbackHostname(pub.hostname)) {
+      return assetUrl;
+    }
+
+    return `${publicBase}${path}${url.search || ''}`;
   } catch {
     return assetUrl;
   }

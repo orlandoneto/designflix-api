@@ -36,10 +36,13 @@ app.set('trust proxy', 1);
 const logger = require("./config/logger");
 app.use(morgan("combined", { stream: logger.stream }));
 
-// Importar o cron job
-require("./cron/upgradeStripePlansJob")();
-require("./cron/removeStripeExpiredPlansJob")();
-require("./cron/planSuspensionJob")();
+// Importar o cron job — só no worker líder (ver src/cron/cron-leader.js)
+const { isCronLeader } = require("./cron/cron-leader");
+if (isCronLeader()) {
+  require("./cron/upgradeStripePlansJob")();
+  require("./cron/removeStripeExpiredPlansJob")();
+  require("./cron/planSuspensionJob")();
+}
 
 app.use(helmet());
 app.use(
@@ -64,7 +67,6 @@ app.use(
   })
 );
 app.use(express.json({ limit: CONST.LIMIT_MAIN }));
-app.use(morgan("dev"));
 app.use("/", express.static(path.resolve(__dirname, "..", "public")));
 app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
 // Proxy R2/S3 para o browser quando não há CDN (R2_PUBLIC_URL)
@@ -106,6 +108,7 @@ require("./controller/category.controller")(app);
 // ----- Domínio: auth / usuário -----
 require("./controller/auth-public.controller")(app);
 require("./controller/system.controller")(app);
+require("./controller/health.controller")(app);
 require("./controller/user.controller")(app);
 require("./controller/contributor.controller")(app);
 require("./controller/marketing-calendar.controller")(app);
@@ -150,6 +153,12 @@ require("./controller/ia/remove-background.controller")(app);
 // ----- Legado SEO HTML (desligar com ENABLE_BOT_HTML=false) -----
 require("./routes/bot-seo.routes")(app, botDetection);
 
+// Fim da pilha: precisa vir depois de todas as rotas para só receber o que
+// ninguém atendeu (ver src/middleware/errorHandler.js).
+const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
+app.use(notFoundHandler);
+app.use(errorHandler(logger));
+
 server.listen(process.env.NODE_PORT, () => {
   console.log('\n=== Servidor Iniciado ===');
   console.log(`Servidor rodando na porta ${process.env.NODE_PORT}`);
@@ -170,3 +179,16 @@ server.listen(process.env.NODE_PORT, () => {
     console.log('========================\n');
   });
 });
+
+// Drenar no reload do PM2 em vez de cortar upload em andamento
+// (ver src/utils/processLifecycle.js).
+const { sequelize } = require("./models");
+const {
+  createShutdownHandler,
+  registerShutdownSignals,
+  registerProcessGuards,
+} = require("./utils/processLifecycle");
+
+const shutdown = createShutdownHandler({ server, sequelize, redis, logger });
+registerShutdownSignals(shutdown);
+registerProcessGuards({ logger, shutdown });

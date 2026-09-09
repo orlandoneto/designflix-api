@@ -110,6 +110,7 @@ Mesma régua de `/admin/users`: planos são dado de produto. O gate exclusivo de
 | POST | `/asaas/credit-card/token` | 200, 400, 404, 500 |
 | POST | `/asaas/subscriptions` | 200, 400, 404, 500 |
 | PUT | `/asaas/subscriptions/me/plan` | 200, 400, 404, 500 |
+| PUT | `/asaas/subscriptions/me/billing-type` | 200, 400, 404, 500 |
 | GET | `/asaas/subscriptions/me` | 200, 404, 500 |
 | GET | `/asaas/subscriptions/me/payments` | 200, 400, 404, 500 |
 | DELETE | `/asaas/subscriptions/me` | 200, 400, 404, 500 |
@@ -121,6 +122,22 @@ corpo** — senão qualquer um assina ou cancela em nome de outro.
 `POST /asaas/subscriptions` recebe `{ planId, billingType, creditCardToken? }`
 mais os campos de cobrança opcionais e devolve `meta.invoiceUrl` (link do
 Pix/boleto).
+
+### De onde sai o `meta.invoiceUrl`
+
+Da **cobrança**, via `GET /subscriptions/{id}/payments` — não da assinatura. O
+objeto de assinatura do Asaas não tem `invoiceUrl`, e lê-lo de lá devolvia
+sempre `null`: o checkout ficava sem nenhum caminho para pagar e o assinante só
+achava o Pix pelo e-mail do gateway.
+
+A primeira cobrança pode não existir no instante em que a recorrência é criada.
+Isso **não** é erro: a resposta é 200 com `invoiceUrl: null` e o site relê a
+lista de cobranças até o link aparecer. Falha ao consultar a cobrança também
+não derruba a resposta — a assinatura já existe no Asaas, e devolver erro faria
+o usuário tentar assinar de novo.
+
+Ao mockar esse fluxo em teste, não injete `invoiceUrl` no retorno de
+`createSubscriptionAsaas`: era esse mock que escondia o checkout mudo.
 
 Recusa assinar quem já tem assinatura ativa: trocar de plano é outro fluxo
 (abaixo), e criar duas assinaturas resulta em cobrança dupla.
@@ -155,6 +172,38 @@ mais cobra.
 
 Resposta: `meta.invoiceUrl` (cobrança nova) e `meta.planChange` com
 `{ kind, fromPlanId, toPlanId, effective: 'on_payment' }`.
+
+## Trocar a forma de pagamento
+
+`PUT /asaas/subscriptions/me/billing-type` com `{ billingType, creditCardToken? }`.
+
+Serve a quem assinou no Pix ou boleto, **não pagou** e prefere cartão — que
+confirma na hora em vez de esperar compensação. Não confundir com troca de
+plano: aqui o plano é o mesmo e muda só como se paga.
+
+Por que endpoint próprio: assinar de novo bate no guarda de assinatura ativa
+(400) e `validatePlanChange` recusa plano igual (400). Cancelar para reassinar
+perderia o histórico da recorrência.
+
+Mecanismo: `PUT /v3/subscriptions/{id}` com **`updatePendingPayments: true`**.
+Sem esse parâmetro o Asaas muda só as cobranças futuras e a pendente sobrevive
+— o assinante ficaria com um boleto em aberto e uma fatura de cartão no mesmo
+mês. Verificado no sandbox: a cobrança pendente **muda de tipo mantendo o mesmo
+id**, não é duplicada. Cobrança paga, vencida ou cancelada o Asaas não altera.
+
+| Situação | Resposta |
+|---|---|
+| Trocou | 200 + `meta.invoiceUrl` (a cobrança convertida, `null` no cartão) |
+| Cartão sem `creditCardToken` | 400 |
+| `billingType` inválido ou `UNDEFINED` | 400 |
+| Já usa essa forma de pagamento | 400 |
+| Sem assinatura ativa | 404 |
+
+Risco que o front precisa avisar: boleto pago no banco continua `PENDING` até
+compensar (até 3 dias úteis). Trocar nessa janela cobra de novo, agora no
+cartão. O checkout mostra o aviso antes de oferecer a troca.
+
+O acesso continua sendo liberado só pelo webhook do pagamento confirmado.
 
 ## Teto mensal de downloads no plano pago
 
@@ -352,6 +401,31 @@ Mora fora do módulo Asaas porque a regra é de produto, não de gateway.
 | `past_due` → `suspended` | passou `PLAN_GRACE_PERIOD_DAYS` (default 5) desde a marcação |
 | qualquer → `expired` | `plan_canceled` e `plan_finish_at` já passou |
 
+### Quem expira o quê
+
+Convivem dois crons diários que olham plano cancelado, e a divisão importa:
+
+| Cron | Horário | Age em | Faz |
+|---|---|---|---|
+| `planSuspensionJob.js` | 01h | qualquer provider | marca `status = 'expired'`, mantém a linha |
+| `removeStripeExpiredPlansJob.js` | 00h | só legado (`provider` ≠ `asaas`, inclui `null`) | manda o e-mail antigo e **apaga** a linha |
+
+O filtro por provider no job legado não é detalhe: ele roda uma hora antes e
+destrói a linha, então sem a guarda o assinante Asaas era apagado antes de a
+regra nova rodar — e recebia o e-mail de "Plano Removido" em vez do aviso de
+expiração. `provider` nulo conta como legado, porque é linha de antes da coluna
+existir.
+
+### Cron em cluster
+
+Produção roda PM2 com `exec_mode: "cluster"` e `instances: "max"`, e `main.js`
+é carregado uma vez por vCPU. Os crons só são agendados no worker líder
+(`src/cron/cron-leader.js`): `NODE_APP_INSTANCE` vazio ou `0`. Sem isso, cada
+worker agendaria os mesmos jobs e o assinante receberia um e-mail por worker.
+
+`CRON_ENABLED=false` desliga os crons do processo. Dois dos jobs também rodam
+uma vez no boot, então eles disparam a cada `pm2 reload`, não só no horário.
+
 ## Avisos por e-mail
 
 `src/services/plans/plan-notifications.js` + template
@@ -360,6 +434,11 @@ Mora fora do módulo Asaas porque a regra é de produto, não de gateway.
 O Asaas manda os avisos de **cobrança** dele. O que sai daqui são os avisos de
 **acesso** — o assinante precisa saber que vai perder (ou perdeu) o produto, e
 isso é regra nossa, não do gateway.
+
+O checkout do site avisa que a cobrança também chega por e-mail, e o texto
+atribui o envio ao Asaas de propósito: quem dispara é ele, por configuração no
+painel dele. Se essas notificações forem desligadas lá, o aviso da tela precisa
+sair junto — ou vira promessa que ninguém cumpre.
 
 | Aviso | Disparado por | Quando |
 |---|---|---|

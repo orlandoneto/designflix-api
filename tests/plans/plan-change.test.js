@@ -32,6 +32,7 @@ const {
   createSubscriptionAsaas,
   cancelSubscriptionAsaas,
   findCustomerByCpfCnpjAsaas,
+  listSubscriptionPaymentsAsaas,
 } = require('../../src/services/payments/gateways/asaas/asaas-api');
 const {
   AsaasError,
@@ -107,6 +108,7 @@ beforeEach(() => {
   UserAddress.findOne.mockResolvedValue(null);
   UserPlans.findOne.mockResolvedValue(userPlanRow());
   findCustomerByCpfCnpjAsaas.mockResolvedValue({ id: 'cus_1' });
+  // A assinatura no Asaas não devolve `invoiceUrl` — o link é da cobrança.
   createSubscriptionAsaas.mockResolvedValue({
     id: 'sub_nova',
     status: 'ACTIVE',
@@ -114,7 +116,11 @@ beforeEach(() => {
     cycle: 'MONTHLY',
     value: 99.9,
     nextDueDate: '2026-09-08',
-    invoiceUrl: 'https://asaas.com/i/nova',
+  });
+  listSubscriptionPaymentsAsaas.mockResolvedValue({
+    data: [
+      { id: 'pay_nova', status: 'PENDING', invoiceUrl: 'https://asaas.com/i/nova' },
+    ],
   });
   AsaasSubscription.create.mockImplementation(async (payload) => ({
     id: 12,

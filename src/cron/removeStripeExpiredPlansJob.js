@@ -10,6 +10,24 @@ const IS_TESTING = false; // Controla o schedule do cron job
 // Schedule baseado no ambiente
 const CRON_SCHEDULE = IS_TESTING ? '*/2 * * * *' : '0 0 * * *';
 
+/** Providers cuja expiração é tratada fora daqui. */
+const PROVIDERS_OUT_OF_SCOPE = new Set(['asaas']);
+
+/**
+ * A linha pertence ao legado que este job pode apagar?
+ *
+ * Este cron é da era Stripe: manda o e-mail de "Plano Removido" e destrói a
+ * linha. Assinante Asaas expira por `src/services/plans/plan-suspension.js`,
+ * que marca `status = 'expired'` e preserva o histórico. Como aquele roda à 01h
+ * e este à 00h, sem esta guarda a linha já estaria apagada quando a regra nova
+ * fosse rodar. Linha sem provider é do legado, de antes da coluna existir.
+ */
+function isLegacyProviderPlan(provider) {
+  const key = String(provider ?? '').trim().toLowerCase();
+  if (!key) return true;
+  return !PROVIDERS_OUT_OF_SCOPE.has(key);
+}
+
 async function processExpiredPlans() {
   const now = new Date();
   logger.info(`[Remove Stripe Expired Plans Job] Iniciando verificação em ${now.toISOString()}`);
@@ -42,6 +60,8 @@ async function processExpiredPlans() {
     if (SHOW_LOGS) console.log(`[Remove Stripe Expired Plans Job] ${expiredPlans.length} planos expirados encontrados`);
 
     for (const plan of expiredPlans) {
+      if (!isLegacyProviderPlan(plan.provider)) continue;
+
       try {
         // Enviar email de notificação antes de remover
         const emailParams = {
@@ -111,4 +131,6 @@ function removeStripeExpiredPlansJob() {
   })();
 }
 
-module.exports = removeStripeExpiredPlansJob; 
+module.exports = removeStripeExpiredPlansJob;
+module.exports.processExpiredPlans = processExpiredPlans;
+module.exports.isLegacyProviderPlan = isLegacyProviderPlan;

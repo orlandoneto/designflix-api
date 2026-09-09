@@ -114,7 +114,54 @@ function runSilent(cmd) {
   }
 }
 
+/**
+ * Prefere o binário oficial em C:/projetos/tools/ngrok.
+ * A versão Microsoft Store (WindowsApps, 0 bytes / MSIX) quebra com
+ * `x509: certificate signed by unknown authority` neste ambiente.
+ */
+function resolveNgrokBin() {
+  if (process.env.NGROK_BIN && fs.existsSync(process.env.NGROK_BIN)) {
+    return process.env.NGROK_BIN;
+  }
+
+  const candidates = [
+    path.resolve("C:/projetos/tools/ngrok/ngrok.exe"),
+    path.resolve(ROOT, "../tools/ngrok/ngrok.exe"),
+    path.resolve(ROOT, "tools/ngrok/ngrok.exe"),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).size > 1000) {
+        return candidate;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // PATH: evita o stub 0-byte da Store em WindowsApps.
+  const which = runSilent(
+    isWindows ? "where ngrok" : "command -v ngrok || true"
+  );
+  const lines = which
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  for (const line of lines) {
+    if (/WindowsApps/i.test(line)) continue;
+    try {
+      if (fs.existsSync(line) && fs.statSync(line).size > 1000) return line;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return isWindows ? "ngrok.exe" : "ngrok";
+}
+
 function installed() {
+  const bin = resolveNgrokBin();
+  if (path.isAbsolute(bin) && fs.existsSync(bin)) return true;
   return Boolean(runSilent("ngrok version"));
 }
 
@@ -161,9 +208,17 @@ async function up(options = {}) {
   const silent = Boolean(options.silent);
   const log = silent ? () => {} : console.log;
 
-  if (!installed()) {
+  const ngrokBin = resolveNgrokBin();
+  const usingStoreStub =
+    /WindowsApps/i.test(ngrokBin) ||
+    (path.isAbsolute(ngrokBin) === false &&
+      /WindowsApps/i.test(runSilent(isWindows ? "where ngrok" : "")));
+
+  if (!installed() || usingStoreStub) {
     throw new Error(
-      "ngrok não encontrado no PATH. Instale em https://ngrok.com/download e rode `ngrok config add-authtoken <token>`."
+      "ngrok oficial não encontrado. Baixe em https://ngrok.com/download (não use a Microsoft Store), " +
+        "coloque em C:\\projetos\\tools\\ngrok\\ngrok.exe e rode `ngrok config add-authtoken <token>`.\n" +
+        "A versão MSIX da Store falha aqui com: x509: certificate signed by unknown authority."
     );
   }
 
@@ -181,13 +236,15 @@ async function up(options = {}) {
   log(
     `\n🌐 ngrok — abrindo túnel para localhost:${port}${
       domain ? ` em ${domain} (domínio fixo)` : " (URL sorteada)"
-    }...\n`
+    }\n   bin: ${ngrokBin}\n`
   );
 
-  const child = spawn(isWindows ? "ngrok.exe" : "ngrok", args, {
+  const child = spawn(ngrokBin, args, {
     cwd: ROOT,
     stdio: ["ignore", "pipe", "pipe"],
-    shell: isWindows,
+    // shell:false com path absoluto evita cair no stub da Store.
+    shell: false,
+    windowsHide: true,
   });
 
   // O log do agente só é mostrado quando algo dá errado: em condição normal

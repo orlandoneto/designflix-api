@@ -33,6 +33,12 @@ module.exports = (app) => {
     (req, res) => AsaasSubscriptionService.changePlan(req, res)
   );
 
+  app.put(
+    '/asaas/subscriptions/me/billing-type',
+    AuthenticateRoute(['user']),
+    (req, res) => AsaasSubscriptionService.changeBillingType(req, res)
+  );
+
   app.get(
     '/asaas/subscriptions/me',
     AuthenticateRoute(['user']),
