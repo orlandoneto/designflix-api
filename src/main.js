@@ -117,6 +117,7 @@ require("./controller/user-address.controller")(app);
 // ----- Domínio: admin (separado do app público) -----
 require("./controller/admin.controller")(app);
 require("./controller/admin-plans.controller")(app);
+require("./controller/admin-catalog.controller")(app);
 
 // ----- Domínio: upload -----
 // Env: STORAGE_TYPE=local|s3|r2 (ou STORAGE_DRIVER)

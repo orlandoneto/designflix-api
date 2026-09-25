@@ -48,6 +48,7 @@ Alias legado de auth: `src/utils/authHttpResponse.js` (reexporta o mesmo helper)
 | **Produção (URLs)** | [../producao-urls.md](../producao-urls.md) | Site / admin / API em ongraph.com.br |
 | **Auth admin** (login painel) | [admin-auth.md](./admin-auth.md) | `POST /admin/authenticate`, seed `seed:admins` |
 | **Usuários (admin)** | [admin-users.md](./admin-users.md) | `GET /admin/users`, `src/services/user/admin-user-list.js` |
+| **Catálogo (admin)** | [admin-catalog.md](./admin-catalog.md) | `GET/PATCH/DELETE /admin/catalog` — desabilitar / remover (+ R2) |
 | **Calendário do Marketing** | [marketing-calendar.md](./marketing-calendar.md) | `GET /marketing-calendar`, CRUD `/admin/marketing-calendar` |
 | **Favoritos** | [favorites.md](./favorites.md) | `GET/POST/DELETE /user/favorites…` |
 | **Curtidas (like)** | [likes.md](./likes.md) | `GET/POST/DELETE /user/likes…` |
@@ -69,7 +70,6 @@ Alias legado de auth: `src/utils/authHttpResponse.js` (reexporta o mesmo helper)
 ### Próximos contextos
 
 - Checkout / tokenização de cartão (ver pendências em [plans.md](./plans.md))
-- Upload / grid do painel (já usado; contrato fino depois)
 
 ---
 
@@ -85,6 +85,7 @@ Não existe endpoint de logout. Sessão **JWT**; cliente descarta token. Ver [au
 - Colaborador (admin — aprovar/rejeitar): `designflix-admin` (`/collaborators`, auth `POST /admin/authenticate`)
 - Avatar: `designflix-next-new/features/profile/avatarApi.ts`
 - Usuários (admin): `designflix-admin` (`/users`, `GET /admin/users`)
+- Catálogo (admin): `designflix-admin` (`/catalog`, `GET/PATCH/DELETE /admin/catalog`)
 - Calendário: `designflix-next-new` (home) + `designflix-admin` (`/calendar`)
 - Docs integração: `designflix-next-new/docs/integrado/`
 - Favoritos: `designflix-next-new/services/UserFavoritesService.ts`
