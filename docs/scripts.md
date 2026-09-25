@@ -129,6 +129,8 @@ node scripts/setEnv.js test
 | `npm run test:watch` | Jest em watch. |
 | `npm run test:server` | Sobe a API com env `test` (manual; **não** substitui `npm test`). |
 
+CI no GitHub: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — `npm ci` + `npm test` em push/PR na `main`. Não faz deploy (VM continua manual / PM2).
+
 ---
 
 ## Build / deploy

@@ -37,6 +37,7 @@ Backend Express — catálogo, auth, downloads, planos, colaborador, admin APIs.
 | ADRs (por quê) | [docs/architecture/decisions/](./docs/architecture/decisions/) |
 | Envelope HTTP | Rule `architecture-docs-and-tests` + `src/utils/httpResponse.js` |
 | VM Always Free + R2 prod | Rule `vps-always-free-monitor-r2` (`.cursor/rules/`) — `STORAGE_TYPE=r2` na VM |
+| CI (GitHub Actions) | [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — `npm test` em push/PR `main` |
 
 ## Princípio
 
