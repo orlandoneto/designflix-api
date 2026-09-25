@@ -22,11 +22,15 @@ const {
 } = require('../../../../utils/httpResponse');
 const { PLAN_STATUS } = require('../../../download/daily-download-limit');
 const {
+  ASAAS_BILLING_TYPES,
   ASAAS_SUBSCRIPTION_STATUS,
   buildBillingTypeUpdatePayloadAsaas,
   buildCustomerPayloadAsaas,
+  buildPayWithCreditCardPayloadAsaas,
   buildSubscriptionPayloadAsaas,
   buildTokenizePayloadAsaas,
+  coerceCheckoutBillingTypeAsaas,
+  isSettledPaymentStatusAsaas,
   resolveBillingTypeAsaas,
   sanitizeCpfCnpjAsaas,
   valueToCentsAsaas,
@@ -43,7 +47,9 @@ const {
   updateSubscriptionAsaas,
   cancelSubscriptionAsaas,
   listSubscriptionPaymentsAsaas,
+  getPaymentPixQrCodeAsaas,
   tokenizeCreditCardAsaas,
+  payPaymentWithCreditCardAsaas,
 } = require('./asaas-api');
 const { AsaasError } = require('./asaas-client');
 
@@ -65,33 +71,123 @@ function resolveRemoteIp(req) {
 const SETTLED_PAYMENT_STATUSES = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'];
 
 /**
- * Link de pagamento da assinatura recém-criada.
- *
- * `invoiceUrl` é campo da **cobrança**, não da assinatura: ler de
- * `asaasSubscription.invoiceUrl` devolve `null` e o checkout fica sem nenhum
- * caminho para pagar — o assinante só encontra o Pix pelo e-mail do Asaas.
- *
- * A primeira cobrança pode não existir no instante em que a recorrência é
- * criada. Aqui isso não é erro: devolve `null` e o site busca de novo pela
- * lista de cobranças. Assinatura criada vale 200 mesmo sem link.
+ * Cobrança em aberto (ainda não paga) da assinatura.
+ * @returns {Promise<object|null>}
  */
-async function findOpenInvoiceUrlAsaas(asaasSubscriptionId) {
+async function findOpenPaymentAsaas(asaasSubscriptionId) {
+  const asaasPayments = await listSubscriptionPaymentsAsaas(asaasSubscriptionId);
+  const payments = (asaasPayments && asaasPayments.data) || [];
+  return (
+    payments.find(
+      (payment) =>
+        !SETTLED_PAYMENT_STATUSES.includes(
+          String(payment.status || '').toUpperCase()
+        ) && (payment.invoiceUrl || payment.bankSlipUrl || payment.id)
+    ) || null
+  );
+}
+
+/**
+ * Cobrança em aberto da assinatura + QR Pix quando aplicável.
+ *
+ * `invoiceUrl` é da **cobrança**, não da assinatura. A primeira cobrança pode
+ * não existir no instante em que a recorrência é criada — aí `invoiceUrl` vem
+ * `null` e o site busca de novo. Falha no QR não derruba a assinatura: o link
+ * da fatura continua como saída.
+ *
+ * @returns {Promise<{ invoiceUrl: string|null, pix: { encodedImage: string, payload: string, expirationDate: string|null }|null }>}
+ */
+async function findOpenCheckoutMetaAsaas(asaasSubscriptionId) {
+  const empty = { invoiceUrl: null, pix: null };
+
+  try {
+    const open = await findOpenPaymentAsaas(asaasSubscriptionId);
+    if (!open) return empty;
+
+    const invoiceUrl = open.invoiceUrl || open.bankSlipUrl || null;
+    const billingType = String(open.billingType || '').toUpperCase();
+    let pix = null;
+
+    if (billingType === 'PIX' && open.id) {
+      try {
+        const qr = await getPaymentPixQrCodeAsaas(open.id);
+        const encodedImage = String((qr && qr.encodedImage) || '').trim();
+        const payload = String((qr && qr.payload) || '').trim();
+        if (encodedImage && payload) {
+          pix = {
+            encodedImage,
+            payload,
+            expirationDate: (qr && qr.expirationDate) || null,
+          };
+        }
+      } catch (error) {
+        console.error(
+          'Erro ao buscar QR Code Pix da cobrança:',
+          error && error.message
+        );
+      }
+    }
+
+    return { invoiceUrl, pix };
+  } catch (error) {
+    console.error(
+      'Erro ao buscar cobrança da assinatura:',
+      error && error.message
+    );
+    return empty;
+  }
+}
+
+/**
+ * Autoriza a cobrança pendente no cartão.
+ *
+ * Sem este passo, `updatePendingPayments` só muda o `billingType` e a fatura
+ * permanece `PENDING` — o webhook de confirmação nunca dispara.
+ *
+ * @returns {Promise<{ ok: true, payment: object } | { ok: false, message: string }>}
+ */
+async function chargeOpenPaymentWithCardAsaas({
+  asaasSubscriptionId,
+  creditCardToken,
+}) {
+  const payPayload = buildPayWithCreditCardPayloadAsaas({ creditCardToken });
+  if (!payPayload.ok) {
+    return { ok: false, message: payPayload.message };
+  }
+
+  const open = await findOpenPaymentAsaas(asaasSubscriptionId);
+  if (!open || !open.id) {
+    return {
+      ok: false,
+      message: 'Nenhuma cobrança em aberto para pagar com cartão',
+    };
+  }
+
+  const payment = await payPaymentWithCreditCardAsaas(
+    open.id,
+    payPayload.payload
+  );
+  return { ok: true, payment };
+}
+
+/**
+ * Cobrança já liquidada da assinatura (cartão costuma confirmar no create).
+ * @returns {Promise<object|null>}
+ */
+async function findSettledPaymentAsaas(asaasSubscriptionId) {
   try {
     const asaasPayments = await listSubscriptionPaymentsAsaas(
       asaasSubscriptionId
     );
     const payments = (asaasPayments && asaasPayments.data) || [];
-    const open = payments.find(
-      (payment) =>
-        !SETTLED_PAYMENT_STATUSES.includes(
-          String(payment.status || '').toUpperCase()
-        ) && (payment.invoiceUrl || payment.bankSlipUrl)
+    return (
+      payments.find((payment) =>
+        isSettledPaymentStatusAsaas(payment && payment.status)
+      ) || null
     );
-    return open ? open.invoiceUrl || open.bankSlipUrl : null;
   } catch (error) {
-    // Falhar aqui não pode derrubar uma assinatura que já existe no Asaas.
     console.error(
-      'Erro ao buscar cobrança da assinatura:',
+      'Erro ao buscar cobrança liquidada da assinatura:',
       error && error.message
     );
     return null;
@@ -196,14 +292,39 @@ class AsaasSubscriptionService {
           subscriptionPayload.payload.nextDueDate,
       });
 
-      // Assinatura criada não é pagamento confirmado — quem ativa é o webhook.
-      await this.upsertUserPlan(userId, plan.id, PLAN_STATUS.PENDING);
+      // Pix / boleto: nasce pending e o webhook libera. Cartão: o Asaas costuma
+      // confirmar na criação — sem sync local o site fica preso se o webhook
+      // (ngrok) não chegar.
+      let accessGranted = false;
+      let paymentStatus = null;
+      const createdBillingType =
+        resolveBillingTypeAsaas(created.asaas_billing_type) ||
+        subscriptionPayload.payload.billingType;
+
+      if (createdBillingType === ASAAS_BILLING_TYPES.CREDIT_CARD) {
+        const settled = await findSettledPaymentAsaas(asaasSubscription.id);
+        if (settled) {
+          paymentStatus = String(settled.status || '').toUpperCase();
+          await this.upsertUserPlan(userId, plan.id, PLAN_STATUS.ACTIVE);
+          accessGranted = true;
+        } else {
+          await this.upsertUserPlan(userId, plan.id, PLAN_STATUS.PENDING);
+        }
+      } else {
+        await this.upsertUserPlan(userId, plan.id, PLAN_STATUS.PENDING);
+      }
+
+      const checkoutMeta = await findOpenCheckoutMetaAsaas(asaasSubscription.id);
 
       return ok(res, {
-        message: 'Assinatura criada. Aguardando confirmação do pagamento.',
+        message: accessGranted
+          ? 'Pagamento confirmado. Seu plano está liberado.'
+          : 'Assinatura criada. Aguardando confirmação do pagamento.',
         data: mapSubscriptionResponse(created, plan),
         meta: {
-          invoiceUrl: await findOpenInvoiceUrlAsaas(asaasSubscription.id),
+          ...checkoutMeta,
+          paymentStatus,
+          accessGranted,
         },
       });
     } catch (error) {
@@ -271,11 +392,27 @@ class AsaasSubscriptionService {
 
       const asaasCustomer = await this.ensureCustomerAsaas(identity);
 
-      // Sem `billingType` no corpo, repete o meio de pagamento atual: quem
-      // troca de plano raramente quer trocar de forma de pagamento também.
-      const billingType =
-        resolveBillingTypeAsaas(req.body && req.body.billingType) ||
-        current.asaas_billing_type;
+      // Sem `billingType` no corpo, repete o meio atual. Boleto legado vira Pix
+      // (`coerceCheckoutBillingTypeAsaas`) — boleto saiu do produto e não pode
+      // ser recriado na troca de plano.
+      const requestedBillingType = resolveBillingTypeAsaas(
+        req.body && req.body.billingType
+      );
+      if (requestedBillingType === ASAAS_BILLING_TYPES.BOLETO) {
+        return badRequest(
+          res,
+          'Forma de pagamento inválida. Use Pix ou cartão'
+        );
+      }
+      const billingType = coerceCheckoutBillingTypeAsaas(
+        requestedBillingType || current.asaas_billing_type
+      );
+      if (!billingType) {
+        return badRequest(
+          res,
+          'Forma de pagamento inválida. Use Pix ou cartão'
+        );
+      }
 
       const subscriptionPayload = buildSubscriptionPayloadAsaas({
         asaasCustomerId: asaasCustomer && asaasCustomer.id,
@@ -331,17 +468,35 @@ class AsaasSubscriptionService {
           subscriptionPayload.payload.nextDueDate,
       });
 
+      let accessGranted = false;
+      let paymentStatus = null;
+      if (billingType === ASAAS_BILLING_TYPES.CREDIT_CARD) {
+        const settled = await findSettledPaymentAsaas(asaasSubscription.id);
+        if (settled) {
+          paymentStatus = String(settled.status || '').toUpperCase();
+          await this.upsertUserPlan(userId, targetPlan.id, PLAN_STATUS.ACTIVE);
+          accessGranted = true;
+        }
+      }
+
+      const checkoutMeta = await findOpenCheckoutMetaAsaas(
+        asaasSubscription.id
+      );
+
       return ok(res, {
-        message:
-          'Troca de plano iniciada. O plano novo passa a valer quando o pagamento for confirmado.',
+        message: accessGranted
+          ? 'Pagamento confirmado. Seu plano novo está liberado.'
+          : 'Troca de plano iniciada. O plano novo passa a valer quando o pagamento for confirmado.',
         data: mapSubscriptionResponse(created, targetPlan),
         meta: {
-          invoiceUrl: await findOpenInvoiceUrlAsaas(asaasSubscription.id),
+          ...checkoutMeta,
+          paymentStatus,
+          accessGranted,
           planChange: {
             kind: change.kind,
             fromPlanId: current.plan_id,
             toPlanId: targetPlan.id,
-            effective: 'on_payment',
+            effective: accessGranted ? 'immediate' : 'on_payment',
           },
         },
       });
@@ -360,14 +515,20 @@ class AsaasSubscriptionService {
    * body: { billingType, creditCardToken? }
    *
    * Troca a forma de pagamento da assinatura que já existe — sem cancelar e
-   * sem criar outra. Serve principalmente a quem assinou no Pix/boleto, não
+   * sem criar outra. Serve principalmente a quem assinou no Pix, não
    * pagou, e prefere cartão para liberar na hora.
    *
    * Não confundir com troca de plano: aqui o plano é o mesmo, muda só como se
    * paga. Assinar de novo daria 400 ("já tem assinatura ativa") e cancelar para
    * reassinar perderia o histórico da recorrência.
    *
-   * O acesso continua sendo liberado só pelo webhook do pagamento confirmado.
+   * Cartão: `updatePendingPayments` só converte o tipo da fatura. A autorização
+   * real é `POST /payments/{id}/payWithCreditCard`. Sem isso a cobrança fica
+   * `PENDING` e o webhook nunca confirma. Se o Asaas confirmar na hora,
+   * ativamos `user_plans` aqui também — o webhook continua idempotente.
+   *
+   * Já em cartão + token novo: não é 400 — é nova tentativa de cobrança na
+   * fatura pendente (retry após recusa ou tela presa).
    */
   async changeBillingType(req, res) {
     const userId = Number(req.params.userId);
@@ -384,36 +545,95 @@ class AsaasSubscriptionService {
         return notFound(res, 'Nenhuma assinatura ativa encontrada');
       }
 
-      const updatePayload = buildBillingTypeUpdatePayloadAsaas({
-        billingType: req.body && req.body.billingType,
-        creditCardToken: req.body && req.body.creditCardToken,
-        currentBillingType: subscription.asaas_billing_type,
-      });
-      if (!updatePayload.ok) {
-        return badRequest(res, updatePayload.message);
+      const requestedType = resolveBillingTypeAsaas(
+        req.body && req.body.billingType
+      );
+      const currentType = resolveBillingTypeAsaas(
+        subscription.asaas_billing_type
+      );
+      const creditCardToken =
+        req.body && req.body.creditCardToken
+          ? String(req.body.creditCardToken).trim()
+          : '';
+
+      const sameType = currentType === requestedType;
+      const retryCardCharge =
+        sameType &&
+        requestedType === ASAAS_BILLING_TYPES.CREDIT_CARD &&
+        Boolean(creditCardToken);
+
+      if (sameType && !retryCardCharge) {
+        return badRequest(
+          res,
+          'A assinatura já usa esta forma de pagamento'
+        );
       }
 
-      const asaasSubscription = await updateSubscriptionAsaas(
-        subscription.asaas_subscription_id,
-        updatePayload.payload
-      );
+      if (!sameType) {
+        const updatePayload = buildBillingTypeUpdatePayloadAsaas({
+          billingType: req.body && req.body.billingType,
+          creditCardToken: req.body && req.body.creditCardToken,
+          currentBillingType: subscription.asaas_billing_type,
+        });
+        if (!updatePayload.ok) {
+          return badRequest(res, updatePayload.message);
+        }
 
-      await subscription.update({
-        asaas_billing_type:
-          resolveBillingTypeAsaas(
-            asaasSubscription && asaasSubscription.billingType
-          ) || updatePayload.payload.billingType,
-      });
+        const asaasSubscription = await updateSubscriptionAsaas(
+          subscription.asaas_subscription_id,
+          updatePayload.payload
+        );
+
+        await subscription.update({
+          asaas_billing_type:
+            resolveBillingTypeAsaas(
+              asaasSubscription && asaasSubscription.billingType
+            ) || updatePayload.payload.billingType,
+        });
+      }
+
+      let paymentStatus = null;
+      let accessGranted = false;
+
+      if (requestedType === ASAAS_BILLING_TYPES.CREDIT_CARD) {
+        const charged = await chargeOpenPaymentWithCardAsaas({
+          asaasSubscriptionId: subscription.asaas_subscription_id,
+          creditCardToken,
+        });
+        if (!charged.ok) {
+          return badRequest(res, charged.message);
+        }
+
+        paymentStatus = String(
+          (charged.payment && charged.payment.status) || ''
+        ).toUpperCase();
+
+        if (isSettledPaymentStatusAsaas(paymentStatus)) {
+          await this.upsertUserPlan(
+            userId,
+            subscription.plan_id,
+            PLAN_STATUS.ACTIVE
+          );
+          accessGranted = true;
+        }
+      }
 
       const plan = await Plans.findByPk(subscription.plan_id);
+      const checkoutMeta = await findOpenCheckoutMetaAsaas(
+        subscription.asaas_subscription_id
+      );
 
       return ok(res, {
-        message: 'Forma de pagamento atualizada.',
+        message: accessGranted
+          ? 'Pagamento confirmado. Seu plano está liberado.'
+          : requestedType === ASAAS_BILLING_TYPES.CREDIT_CARD
+            ? 'Pagamento no cartão enviado. Aguardando confirmação.'
+            : 'Forma de pagamento atualizada.',
         data: mapSubscriptionResponse(subscription, plan),
         meta: {
-          invoiceUrl: await findOpenInvoiceUrlAsaas(
-            subscription.asaas_subscription_id
-          ),
+          ...checkoutMeta,
+          paymentStatus,
+          accessGranted,
         },
       });
     } catch (error) {
@@ -494,6 +714,48 @@ class AsaasSubscriptionService {
       }
       console.error('Erro ao listar cobranças Asaas:', error);
       return serverError(res, 'Erro ao listar cobranças');
+    }
+  }
+
+  /**
+   * GET /asaas/subscriptions/me/pix-qrcode
+   *
+   * QR + copia-e-cola da cobrança Pix em aberto. Usado no F5 do checkout,
+   * quando a assinatura já existe e o meta da criação se perdeu.
+   */
+  async getMyPixQrCode(req, res) {
+    const userId = Number(req.params.userId);
+
+    try {
+      const subscription = await AsaasSubscription.findOne({
+        where: {
+          user_id: userId,
+          asaas_status: ASAAS_SUBSCRIPTION_STATUS.ACTIVE,
+        },
+        order: [['id', 'DESC']],
+      });
+      if (!subscription) {
+        return notFound(res, 'Nenhuma assinatura encontrada');
+      }
+
+      const checkoutMeta = await findOpenCheckoutMetaAsaas(
+        subscription.asaas_subscription_id
+      );
+
+      return ok(res, {
+        message: checkoutMeta.pix
+          ? 'QR Code Pix da cobrança em aberto'
+          : 'Nenhum QR Code Pix disponível no momento',
+        data: checkoutMeta.pix,
+        meta: { invoiceUrl: checkoutMeta.invoiceUrl },
+      });
+    } catch (error) {
+      if (error instanceof AsaasError) {
+        console.error('Erro do Asaas ao buscar QR Pix:', error.message);
+        return badRequest(res, error.message);
+      }
+      console.error('Erro ao buscar QR Pix:', error);
+      return serverError(res, 'Erro ao buscar QR Code Pix');
     }
   }
 

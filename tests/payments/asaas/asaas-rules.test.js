@@ -4,6 +4,8 @@ const {
   ASAAS_EVENTS,
   resolveCycleAsaas,
   resolveBillingTypeAsaas,
+  isOfferedBillingTypeAsaas,
+  coerceCheckoutBillingTypeAsaas,
   resolvePlanStatusForEventAsaas,
   centsToValueAsaas,
   valueToCentsAsaas,
@@ -15,6 +17,9 @@ const {
   parseExternalReferenceAsaas,
   buildCustomerPayloadAsaas,
   buildSubscriptionPayloadAsaas,
+  buildBillingTypeUpdatePayloadAsaas,
+  buildPayWithCreditCardPayloadAsaas,
+  isSettledPaymentStatusAsaas,
   buildTokenizePayloadAsaas,
 } = require('../../../src/services/payments/gateways/asaas/asaas-rules');
 
@@ -40,7 +45,20 @@ describe('asaas-rules: ciclo e tipo de cobrança', () => {
     expect(resolveBillingTypeAsaas('credit_card')).toBe(
       ASAAS_BILLING_TYPES.CREDIT_CARD
     );
+    expect(resolveBillingTypeAsaas('boleto')).toBe(ASAAS_BILLING_TYPES.BOLETO);
     expect(resolveBillingTypeAsaas('cheque')).toBeNull();
+  });
+
+  it('só Pix e cartão são oferecidos no checkout', () => {
+    expect(isOfferedBillingTypeAsaas('PIX')).toBe(true);
+    expect(isOfferedBillingTypeAsaas('CREDIT_CARD')).toBe(true);
+    expect(isOfferedBillingTypeAsaas('BOLETO')).toBe(false);
+    expect(isOfferedBillingTypeAsaas('UNDEFINED')).toBe(false);
+    expect(coerceCheckoutBillingTypeAsaas('BOLETO')).toBe(
+      ASAAS_BILLING_TYPES.PIX
+    );
+    expect(coerceCheckoutBillingTypeAsaas('PIX')).toBe(ASAAS_BILLING_TYPES.PIX);
+    expect(coerceCheckoutBillingTypeAsaas('UNDEFINED')).toBeNull();
   });
 });
 
@@ -340,14 +358,36 @@ describe('buildSubscriptionPayloadAsaas', () => {
     });
   });
 
-  it('sem billingType cai em UNDEFINED (pagador escolhe)', () => {
+  it('sem billingType é recusado — só Pix ou cartão', () => {
     const result = buildSubscriptionPayloadAsaas({
       asaasCustomerId: 'cus_1',
       plan: paidPlan(),
       userId: 1,
       nextDueDate: new Date(2027, 0, 15),
     });
-    expect(result.payload.billingType).toBe(ASAAS_BILLING_TYPES.UNDEFINED);
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/Pix ou cartão/i);
+  });
+
+  it('boleto não é mais aceito na assinatura', () => {
+    const result = buildSubscriptionPayloadAsaas({
+      asaasCustomerId: 'cus_1',
+      plan: paidPlan(),
+      userId: 1,
+      billingType: 'BOLETO',
+      nextDueDate: new Date(2027, 0, 15),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/Pix ou cartão/i);
+  });
+
+  it('troca de forma também recusa boleto', () => {
+    const result = buildBillingTypeUpdatePayloadAsaas({
+      billingType: 'BOLETO',
+      currentBillingType: 'PIX',
+    });
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/Pix ou cartão/i);
   });
 
   it('recusa plano sem preço', () => {
@@ -377,5 +417,26 @@ describe('buildSubscriptionPayloadAsaas', () => {
       userId: 1,
     });
     expect(result.ok).toBe(false);
+  });
+
+  it('monta payload de cobrança no cartão só com o token', () => {
+    const result = buildPayWithCreditCardPayloadAsaas({
+      creditCardToken: 'tok_abc',
+    });
+    expect(result).toEqual({
+      ok: true,
+      payload: { creditCardToken: 'tok_abc' },
+    });
+  });
+
+  it('recusa cobrar cartão sem token', () => {
+    const result = buildPayWithCreditCardPayloadAsaas({ creditCardToken: '' });
+    expect(result.ok).toBe(false);
+  });
+
+  it('reconhece status de pagamento liquidado', () => {
+    expect(isSettledPaymentStatusAsaas('CONFIRMED')).toBe(true);
+    expect(isSettledPaymentStatusAsaas('RECEIVED')).toBe(true);
+    expect(isSettledPaymentStatusAsaas('PENDING')).toBe(false);
   });
 });

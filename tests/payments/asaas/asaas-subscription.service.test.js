@@ -20,7 +20,9 @@ jest.mock(
     updateSubscriptionAsaas: jest.fn(),
     cancelSubscriptionAsaas: jest.fn(),
     listSubscriptionPaymentsAsaas: jest.fn(),
+    getPaymentPixQrCodeAsaas: jest.fn(),
     tokenizeCreditCardAsaas: jest.fn(),
+    payPaymentWithCreditCardAsaas: jest.fn(),
   })
 );
 
@@ -39,7 +41,9 @@ const {
   updateSubscriptionAsaas,
   cancelSubscriptionAsaas,
   listSubscriptionPaymentsAsaas,
+  getPaymentPixQrCodeAsaas,
   tokenizeCreditCardAsaas,
+  payPaymentWithCreditCardAsaas,
 } = require('../../../src/services/payments/gateways/asaas/asaas-api');
 const {
   sendPlanNotice,
@@ -251,10 +255,16 @@ describe('createSubscription', () => {
         {
           id: 'pay_1',
           status: 'PENDING',
+          billingType: 'PIX',
           invoiceUrl: 'https://asaas.com/i/pay_1',
           bankSlipUrl: null,
         },
       ],
+    });
+    getPaymentPixQrCodeAsaas.mockResolvedValue({
+      encodedImage: 'iVBORw0KGgo=',
+      payload: '00020126PIXCOPIACOLA',
+      expirationDate: '2026-09-17 23:59:59',
     });
     AsaasSubscription.create.mockImplementation(async (payload) => ({
       id: 1,
@@ -274,6 +284,114 @@ describe('createSubscription', () => {
     expect(UserPlans.create).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'pending', provider: 'asaas' })
     );
+    expect(res.body.meta.accessGranted).toBe(false);
+  });
+
+  it('cartão confirmado no Asaas libera o plano na hora (sem esperar webhook)', async () => {
+    createSubscriptionAsaas.mockResolvedValue({
+      id: 'sub_cc',
+      status: 'ACTIVE',
+      billingType: 'CREDIT_CARD',
+      cycle: 'MONTHLY',
+      value: 29.9,
+      nextDueDate: '2026-10-07',
+    });
+    listSubscriptionPaymentsAsaas.mockResolvedValue({
+      data: [
+        {
+          id: 'pay_cc',
+          status: 'CONFIRMED',
+          billingType: 'CREDIT_CARD',
+          invoiceUrl: 'https://asaas.com/i/pay_cc',
+        },
+      ],
+    });
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.createSubscription(
+      authedRequest({
+        planId: 7,
+        billingType: 'CREDIT_CARD',
+        creditCardToken: 'tok_1',
+      }),
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(UserPlans.create).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'active', provider: 'asaas' })
+    );
+    expect(res.body.meta.accessGranted).toBe(true);
+    expect(res.body.meta.paymentStatus).toBe('CONFIRMED');
+    expect(res.body.message).toMatch(/liberado/i);
+  });
+
+  it('cartão ainda pendente no Asaas não libera na criação', async () => {
+    createSubscriptionAsaas.mockResolvedValue({
+      id: 'sub_cc',
+      status: 'ACTIVE',
+      billingType: 'CREDIT_CARD',
+      cycle: 'MONTHLY',
+      value: 29.9,
+      nextDueDate: '2026-10-07',
+    });
+    listSubscriptionPaymentsAsaas.mockResolvedValue({
+      data: [
+        {
+          id: 'pay_cc',
+          status: 'PENDING',
+          billingType: 'CREDIT_CARD',
+          invoiceUrl: 'https://asaas.com/i/pay_cc',
+        },
+      ],
+    });
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.createSubscription(
+      authedRequest({
+        planId: 7,
+        billingType: 'CREDIT_CARD',
+        creditCardToken: 'tok_1',
+      }),
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(UserPlans.create).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'pending' })
+    );
+    expect(res.body.meta.accessGranted).toBe(false);
+  });
+
+  it('devolve QR Code Pix no meta para o checkout embutido', async () => {
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.createSubscription(
+      authedRequest({ planId: 7, billingType: 'PIX' }),
+      res
+    );
+
+    expect(getPaymentPixQrCodeAsaas).toHaveBeenCalledWith('pay_1');
+    expect(res.body.meta.invoiceUrl).toBe('https://asaas.com/i/pay_1');
+    expect(res.body.meta.pix).toEqual({
+      encodedImage: 'iVBORw0KGgo=',
+      payload: '00020126PIXCOPIACOLA',
+      expirationDate: '2026-09-17 23:59:59',
+    });
+  });
+
+  it('falha no QR não derruba a assinatura — invoiceUrl continua', async () => {
+    getPaymentPixQrCodeAsaas.mockRejectedValue(new Error('timeout'));
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.createSubscription(
+      authedRequest({ planId: 7, billingType: 'PIX' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.meta.invoiceUrl).toBe('https://asaas.com/i/pay_1');
+    expect(res.body.meta.pix).toBeNull();
   });
 
   it('devolve o link da cobrança, não o da assinatura', async () => {
@@ -288,7 +406,7 @@ describe('createSubscription', () => {
     expect(res.body.meta.invoiceUrl).toBe('https://asaas.com/i/pay_1');
   });
 
-  it('ignora cobrança já paga e usa o boleto quando não há invoiceUrl', async () => {
+  it('ignora cobrança já paga e usa bankSlipUrl quando não há invoiceUrl', async () => {
     listSubscriptionPaymentsAsaas.mockResolvedValue({
       data: [
         { id: 'pay_0', status: 'RECEIVED', invoiceUrl: 'https://asaas.com/i/paga' },
@@ -298,11 +416,24 @@ describe('createSubscription', () => {
     const res = createMockResponse();
 
     await AsaasSubscriptionService.createSubscription(
-      authedRequest({ planId: 7, billingType: 'BOLETO' }),
+      authedRequest({ planId: 7, billingType: 'PIX' }),
       res
     );
 
     expect(res.body.meta.invoiceUrl).toBe('https://asaas.com/b/1');
+  });
+
+  it('boleto na criação é recusado sem chamar o Asaas', async () => {
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.createSubscription(
+      authedRequest({ planId: 7, billingType: 'BOLETO' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toMatch(/Pix ou cartão/i);
+    expect(createSubscriptionAsaas).not.toHaveBeenCalled();
   });
 
   it('cobrança ainda não gerada não derruba a assinatura', async () => {
@@ -628,6 +759,8 @@ describe('changeBillingType', () => {
   beforeEach(() => {
     AsaasSubscription.findOne.mockResolvedValue(subscriptionRow());
     Plans.findByPk.mockResolvedValue(planRow());
+    UserPlans.findOne.mockResolvedValue(null);
+    UserPlans.create.mockResolvedValue({});
     updateSubscriptionAsaas.mockResolvedValue({
       id: 'sub_1',
       billingType: 'CREDIT_CARD',
@@ -637,13 +770,18 @@ describe('changeBillingType', () => {
         {
           id: 'pay_1',
           status: 'PENDING',
+          billingType: 'CREDIT_CARD',
           invoiceUrl: 'https://asaas.com/i/pay_1',
         },
       ],
     });
+    payPaymentWithCreditCardAsaas.mockResolvedValue({
+      id: 'pay_1',
+      status: 'CONFIRMED',
+    });
   });
 
-  it('converte a cobrança pendente em vez de criar outra', async () => {
+  it('converte a cobrança pendente e autoriza o cartão', async () => {
     const res = createMockResponse();
 
     await AsaasSubscriptionService.changeBillingType(
@@ -652,13 +790,19 @@ describe('changeBillingType', () => {
     );
 
     expect(res.statusCode).toBe(200);
-    // Sem `updatePendingPayments`, o boleto pendente sobreviveria ao lado da
-    // fatura do cartão — cobrança dupla no mesmo mês.
+    // Sem `updatePendingPayments`, a cobrança pendente (ex.: Pix antigo)
+    // sobreviveria ao lado da fatura do cartão — cobrança dupla no mesmo mês.
     expect(updateSubscriptionAsaas).toHaveBeenCalledWith('sub_1', {
       billingType: 'CREDIT_CARD',
       updatePendingPayments: true,
       creditCardToken: 'tok_1',
     });
+    // Só mudar o tipo não cobra: precisa do payWithCreditCard.
+    expect(payPaymentWithCreditCardAsaas).toHaveBeenCalledWith('pay_1', {
+      creditCardToken: 'tok_1',
+    });
+    expect(res.body.meta.accessGranted).toBe(true);
+    expect(res.body.message).toMatch(/liberado/i);
   });
 
   it('grava a forma de pagamento nova no nosso registro', async () => {
@@ -688,9 +832,13 @@ describe('changeBillingType', () => {
     expect(res.statusCode).toBe(400);
     expect(res.body.message).toMatch(/cartão/i);
     expect(updateSubscriptionAsaas).not.toHaveBeenCalled();
+    expect(payPaymentWithCreditCardAsaas).not.toHaveBeenCalled();
   });
 
-  it('trocar para a forma que já está em uso é recusado', async () => {
+  it('trocar para boleto é recusado (saiu do produto)', async () => {
+    AsaasSubscription.findOne.mockResolvedValue(
+      subscriptionRow({ asaas_billing_type: 'PIX' })
+    );
     const res = createMockResponse();
 
     await AsaasSubscriptionService.changeBillingType(
@@ -699,7 +847,60 @@ describe('changeBillingType', () => {
     );
 
     expect(res.statusCode).toBe(400);
+    expect(res.body.message).toMatch(/Pix ou cartão/i);
     expect(updateSubscriptionAsaas).not.toHaveBeenCalled();
+  });
+
+  it('trocar para a forma que já está em uso é recusado', async () => {
+    AsaasSubscription.findOne.mockResolvedValue(
+      subscriptionRow({ asaas_billing_type: 'PIX' })
+    );
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'PIX' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(updateSubscriptionAsaas).not.toHaveBeenCalled();
+  });
+
+  it('já no cartão com token novo tenta cobrar de novo (retry)', async () => {
+    AsaasSubscription.findOne.mockResolvedValue(
+      subscriptionRow({ asaas_billing_type: 'CREDIT_CARD' })
+    );
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'CREDIT_CARD', creditCardToken: 'tok_retry' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(updateSubscriptionAsaas).not.toHaveBeenCalled();
+    expect(payPaymentWithCreditCardAsaas).toHaveBeenCalledWith('pay_1', {
+      creditCardToken: 'tok_retry',
+    });
+  });
+
+  it('cartão ainda pendente no Asaas não libera acesso na hora', async () => {
+    payPaymentWithCreditCardAsaas.mockResolvedValue({
+      id: 'pay_1',
+      status: 'PENDING',
+    });
+    const res = createMockResponse();
+
+    await AsaasSubscriptionService.changeBillingType(
+      authedRequest({ billingType: 'CREDIT_CARD', creditCardToken: 'tok_1' }),
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.meta.accessGranted).toBe(false);
+    expect(res.body.meta.paymentStatus).toBe('PENDING');
+    expect(res.body.message).toMatch(/aguardando/i);
+    expect(UserPlans.create).not.toHaveBeenCalled();
   });
 
   it('forma de pagamento inválida não vira UNDEFINED silencioso', async () => {
@@ -727,7 +928,7 @@ describe('changeBillingType', () => {
   });
 
   it('recusa do Asaas vira 400 com a mensagem dele', async () => {
-    updateSubscriptionAsaas.mockRejectedValue(
+    payPaymentWithCreditCardAsaas.mockRejectedValue(
       new AsaasError('Cartão recusado pela operadora', { status: 400 })
     );
     const res = createMockResponse();

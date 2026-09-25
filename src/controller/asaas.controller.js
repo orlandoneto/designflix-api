@@ -51,6 +51,12 @@ module.exports = (app) => {
     (req, res) => AsaasSubscriptionService.listMyPayments(req, res)
   );
 
+  app.get(
+    '/asaas/subscriptions/me/pix-qrcode',
+    AuthenticateRoute(['user']),
+    (req, res) => AsaasSubscriptionService.getMyPixQrCode(req, res)
+  );
+
   app.delete(
     '/asaas/subscriptions/me',
     AuthenticateRoute(['user']),

@@ -30,7 +30,7 @@ const PLAN_STATUS = {
  * `past_due` → `suspended`, não este módulo.
  *
  * `pending` fica de fora: criar assinatura não confirma pagamento, e no Pix o
- * boleto/QR pode nunca ser pago. Acesso só depois do webhook de confirmação.
+ * Pix pode nunca ser pago. Acesso só depois do webhook de confirmação.
  */
 const ENTITLED_PLAN_STATUSES = new Set([
   PLAN_STATUS.ACTIVE,

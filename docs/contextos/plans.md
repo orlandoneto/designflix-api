@@ -113,6 +113,7 @@ Mesma régua de `/admin/users`: planos são dado de produto. O gate exclusivo de
 | PUT | `/asaas/subscriptions/me/billing-type` | 200, 400, 404, 500 |
 | GET | `/asaas/subscriptions/me` | 200, 404, 500 |
 | GET | `/asaas/subscriptions/me/payments` | 200, 400, 404, 500 |
+| GET | `/asaas/subscriptions/me/pix-qrcode` | 200, 404, 500 |
 | DELETE | `/asaas/subscriptions/me` | 200, 400, 404, 500 |
 | POST | `/asaas/webhook` | 200, 400, 500 |
 
@@ -120,8 +121,17 @@ O usuário vem sempre de `req.params.userId` (injetado pelo JWT), **nunca do
 corpo** — senão qualquer um assina ou cancela em nome de outro.
 
 `POST /asaas/subscriptions` recebe `{ planId, billingType, creditCardToken? }`
-mais os campos de cobrança opcionais e devolve `meta.invoiceUrl` (link do
-Pix/boleto).
+mais os campos de cobrança opcionais e devolve `meta.invoiceUrl` (link do Pix)
+e, quando a cobrança é Pix, `meta.pix` com `{ encodedImage, payload,
+expirationDate }` — imagem Base64 do QR e o código copia-e-cola. O site mostra
+o QR embutido; só redireciona para a fatura hospedada se o QR não vier.
+
+`billingType` aceito: **`PIX`** ou **`CREDIT_CARD`**. Boleto foi removido do
+produto (assinaturas antigas ainda podem ter `BOLETO` no banco; na troca de
+plano sem meio novo, o backend promove para Pix).
+
+`GET /asaas/subscriptions/me/pix-qrcode` devolve o QR da cobrança Pix em aberto
+(`data` = `pix` ou `null`, `meta.invoiceUrl`). Usado no F5 do checkout.
 
 ### De onde sai o `meta.invoiceUrl`
 
@@ -142,6 +152,12 @@ Ao mockar esse fluxo em teste, não injete `invoiceUrl` no retorno de
 Recusa assinar quem já tem assinatura ativa: trocar de plano é outro fluxo
 (abaixo), e criar duas assinaturas resulta em cobrança dupla.
 
+**Cartão na criação:** o Asaas costuma devolver a cobrança já `CONFIRMED` /
+`RECEIVED`. Nesse caso a API ativa `user_plans` **no mesmo request**
+(`meta.accessGranted: true`) — não depende do webhook chegar (importante em
+dev sem ngrok). Pix continua `pending` até o webhook. O webhook segue
+idempotente se o evento real chegar depois.
+
 ## Troca de plano
 
 `PUT /asaas/subscriptions/me/plan` com `{ planId, billingType?, creditCardToken? }`.
@@ -159,11 +175,14 @@ A sequência é:
 3. a assinatura do plano novo é criada com vencimento hoje
 4. **`user_plans` não é tocado**: `plan_id` e `status` continuam no plano antigo
 
-O passo 4 é o ponto todo. Quem clica em trocar já pagou o plano atual; mover o
-`plan_id` na hora tiraria o acesso pago e, se o Pix novo nunca fosse pago, o
-assinante ficaria sem nada. Quem efetiva a troca é o webhook: em evento que
-libera acesso (`PAYMENT_CONFIRMED`/`PAYMENT_RECEIVED`), o `plan_id` passa a ser
-o do `externalReference`.
+O passo 4 é o ponto todo **no Pix**. Quem clica em trocar já pagou o plano
+atual; mover o `plan_id` na hora tiraria o acesso pago e, se o Pix novo nunca
+fosse pago, o assinante ficaria sem nada. No **cartão**, se a cobrança nova já
+vier liquidada, a API ativa o plano novo na hora (`meta.accessGranted: true`,
+`planChange.effective: immediate`). No Pix (e cartão ainda pendente), quem
+efetiva é o webhook: em evento que libera acesso
+(`PAYMENT_CONFIRMED`/`PAYMENT_RECEIVED`), o `plan_id` passa a ser o do
+`externalReference`.
 
 Cancelar antes de criar é proposital — o risco inverso é cobrança dupla. Se a
 criação falhar, o service grava `plan_canceled` + `plan_finish_at` para o acesso
@@ -177,9 +196,9 @@ Resposta: `meta.invoiceUrl` (cobrança nova) e `meta.planChange` com
 
 `PUT /asaas/subscriptions/me/billing-type` com `{ billingType, creditCardToken? }`.
 
-Serve a quem assinou no Pix ou boleto, **não pagou** e prefere cartão — que
-confirma na hora em vez de esperar compensação. Não confundir com troca de
-plano: aqui o plano é o mesmo e muda só como se paga.
+Serve a quem assinou no Pix, **não pagou** e prefere cartão — que confirma
+na hora. Não confundir com troca de plano: aqui o plano é o mesmo e muda só
+como se paga.
 
 Por que endpoint próprio: assinar de novo bate no guarda de assinatura ativa
 (400) e `validatePlanChange` recusa plano igual (400). Cancelar para reassinar
@@ -187,23 +206,32 @@ perderia o histórico da recorrência.
 
 Mecanismo: `PUT /v3/subscriptions/{id}` com **`updatePendingPayments: true`**.
 Sem esse parâmetro o Asaas muda só as cobranças futuras e a pendente sobrevive
-— o assinante ficaria com um boleto em aberto e uma fatura de cartão no mesmo
+— o assinante ficaria com um Pix em aberto e uma fatura de cartão no mesmo
 mês. Verificado no sandbox: a cobrança pendente **muda de tipo mantendo o mesmo
 id**, não é duplicada. Cobrança paga, vencida ou cancelada o Asaas não altera.
 
+**Cartão:** só converter o tipo **não autoriza** o cartão. Depois do update (ou
+no retry com a assinatura já em `CREDIT_CARD`), a API chama
+`POST /v3/payments/{id}/payWithCreditCard` com o `creditCardToken`. Sem esse
+passo a fatura fica `PENDING` e o webhook de confirmação nunca chega — o site
+ficava preso na mesma tela com 400 genérico ao tentar de novo.
+
+Se o Asaas devolver `CONFIRMED` / `RECEIVED` na hora, ativamos `user_plans`
+neste request (`meta.accessGranted: true`). O webhook continua idempotente.
+
 | Situação | Resposta |
 |---|---|
-| Trocou | 200 + `meta.invoiceUrl` (a cobrança convertida, `null` no cartão) |
+| Trocou (Pix) | 200 + `meta.invoiceUrl` (a cobrança convertida) |
+| Trocou / retry (cartão) confirmado | 200 + `meta.accessGranted: true` |
+| Trocou / retry (cartão) ainda pendente | 200 + `meta.accessGranted: false`, `paymentStatus` |
 | Cartão sem `creditCardToken` | 400 |
-| `billingType` inválido ou `UNDEFINED` | 400 |
-| Já usa essa forma de pagamento | 400 |
+| `billingType` inválido, `UNDEFINED` ou `BOLETO` | 400 |
+| Já usa essa forma (exceto retry de cartão com token) | 400 |
 | Sem assinatura ativa | 404 |
 
-Risco que o front precisa avisar: boleto pago no banco continua `PENDING` até
-compensar (até 3 dias úteis). Trocar nessa janela cobra de novo, agora no
-cartão. O checkout mostra o aviso antes de oferecer a troca.
-
-O acesso continua sendo liberado só pelo webhook do pagamento confirmado.
+Risco que o front precisa avisar: se o Pix já foi pago e a cobrança ainda
+aparece pendente, trocar nessa janela pode cobrar de novo no cartão. O
+checkout mostra o aviso antes de oferecer a troca.
 
 ## Teto mensal de downloads no plano pago
 
@@ -479,6 +507,26 @@ Data sem hora (`2026-10-07`, formato do Asaas) é formatada por regex, nunca por
 | `npm run asaas:check` | valida a chave e mostra conta e saldo (só GET) |
 | `npm run ngrok:up` / `:down` / `:status` | túnel do webhook isolado |
 | `npm run asaas:webhook -- PAYMENT_CONFIRMED --user=5 --plan=10` | simula evento do gateway contra a API local |
+| `npm run plans:clear-payment -- user@email.com` | dry-run: lista plano/assinatura Asaas/limites do usuário |
+| `npm run plans:clear-payment -- user@email.com --apply` | apaga esses registros locais; **não** apaga a conta nem cancela no gateway |
+
+Guia completo de todos os scripts npm: [docs/scripts.md](../scripts.md).
+
+### Reset de pagamento de um usuário (dev/sandbox)
+
+Quando um teste deixa o assinante com `user_plans` / `asaas_subscriptions`
+sujos e o checkout precisa começar do zero, use
+`scripts/clear-user-payment.js`. Sem `--apply` só mostra o que existe. Com
+`--apply` remove, nesta ordem:
+
+1. `asaas_webhook_events` das assinaturas Asaas do usuário
+2. `asaas_subscriptions`
+3. `user_plans`
+4. `plans_download_limits` (se a tabela existir)
+
+A conta em `user` permanece. O script **não** chama a API do Asaas nem da
+Stripe — se a assinatura continuar ativa no painel do gateway, cancele lá à
+mão. Pensado para desenvolvimento e sandbox, não para operação de produção.
 
 O boot da API imprime a URL do webhook do túnel ativo
 (`src/utils/devWebhookNotice.js`), que é o endereço a cadastrar no painel. Túnel
@@ -513,5 +561,3 @@ cancelar. Por isso o legado foi cercado, não removido, e planos com
 
 - Testar Pix e cartão ponta a ponta em sandbox (depende de `ASAAS_API_KEY`
   preenchida no ambiente local)
-- Boleto que confirma dias depois: a tela de espera desiste em 5 minutos e joga
-  o acompanhamento para o perfil — funciona, mas não avisa quando confirma

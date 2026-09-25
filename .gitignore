@@ -48,6 +48,10 @@ docker-compose.yml
 env
 !env.development.example
 
+# SSH / OCI private keys (local only — never commit)
+/keys/*
+!/keys/.gitkeep
+
 # Logs directory with keep
 /logs/*
 !/logs/.gitkeep

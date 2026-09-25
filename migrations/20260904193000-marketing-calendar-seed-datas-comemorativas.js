@@ -2,6 +2,7 @@
 
 /**
  * Substitui a carga curta do calendário pela lista completa de Datas Comemorativas 2026.
+ * Filtra colunas inexistentes (ex.: end_date só entra em migration posterior).
  */
 const {
   buildMarketingCalendarSeedRows,
@@ -20,8 +21,22 @@ module.exports = {
 
     await queryInterface.bulkDelete('marketing_calendar_event', null, {});
 
-    const rows = buildMarketingCalendarSeedRows(new Date());
-    await queryInterface.bulkInsert('marketing_calendar_event', rows);
+    const columns = await queryInterface.describeTable('marketing_calendar_event');
+    const rows = buildMarketingCalendarSeedRows(new Date())
+      .map((row) => {
+        const filtered = {};
+        for (const [key, value] of Object.entries(row)) {
+          if (columns[key] !== undefined) {
+            filtered[key] = value;
+          }
+        }
+        return filtered;
+      })
+      .filter((row) => Object.keys(row).length > 0);
+
+    if (rows.length) {
+      await queryInterface.bulkInsert('marketing_calendar_event', rows);
+    }
   },
 
   async down(queryInterface) {

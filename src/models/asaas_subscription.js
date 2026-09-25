@@ -32,7 +32,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(60),
         allowNull: false,
       },
-      /** CREDIT_CARD | PIX | BOLETO | UNDEFINED */
+      /** CREDIT_CARD | PIX | BOLETO (legado) | UNDEFINED */
       asaas_billing_type: {
         type: DataTypes.STRING(20),
         allowNull: false,

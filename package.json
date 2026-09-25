@@ -1,7 +1,7 @@
 {
   "name": "flixdesign-api",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.12",
   "description": "API Design Flix made on Node.js",
   "main": "src/main.js",
   "scripts": {
@@ -20,6 +20,7 @@
     "ngrok:status": "node scripts/ngrok.js status",
     "asaas:check": "node scripts/asaas-smoke.js",
     "asaas:webhook": "node scripts/asaas-webhook-sim.js",
+    "plans:clear-payment": "node scripts/clear-user-payment.js",
     "meili:up": "node scripts/meilisearch.js up",
     "meili:down": "node scripts/meilisearch.js down",
     "meili:status": "node scripts/meilisearch.js status",
@@ -35,6 +36,8 @@
     "migrate": "node scripts/setEnv.js development && npx sequelize-cli db:migrate",
     "migrate:development": "node scripts/setEnv.js development && npx sequelize-cli db:migrate",
     "migrate:production": "node scripts/setEnv.js production && npx sequelize-cli db:migrate",
+    "seed:admins": "node scripts/setEnv.js development && npx sequelize-cli db:seed --seed 20260925180000-seed-default-admins.js",
+    "seed:admins:production": "node scripts/setEnv.js production && npx sequelize-cli db:seed --seed 20260925180000-seed-default-admins.js",
     "db:setup": "node scripts/setEnv.js development && node scripts/setupLocalDb.js && node scripts/syncModels.js && node scripts/markMigrations.js"
   },
   "author": "FlixDesign",
@@ -69,6 +72,7 @@
     "uuid": "^10.0.0",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
+    "dotenv": "^16.4.5",
     "ws": "^8.18.1"
   },
   "devDependencies": {
@@ -77,7 +81,6 @@
     "@babel/preset-env": "^7.26.0",
     "babel-cli": "^6.26.0",
     "cross-env": "^7.0.3",
-    "dotenv": "^16.4.5",
     "jest": "^29.7.0",
     "nodemon": "^2.0.22",
     "pm2-deploy": "^1.0.2",

@@ -15,10 +15,17 @@ const ASAAS_CYCLES = {
 const ASAAS_BILLING_TYPES = {
   CREDIT_CARD: 'CREDIT_CARD',
   PIX: 'PIX',
+  /** Legado: ainda pode existir em assinaturas antigas; não é oferecido no checkout. */
   BOLETO: 'BOLETO',
   /** Deixa o pagador escolher na fatura hospedada. */
   UNDEFINED: 'UNDEFINED',
 };
+
+/** Meios aceitos para assinar / trocar forma de pagamento no Designflix. */
+const ASAAS_OFFERED_BILLING_TYPES = new Set([
+  ASAAS_BILLING_TYPES.PIX,
+  ASAAS_BILLING_TYPES.CREDIT_CARD,
+]);
 
 /** `POST /transfers` aceita vários tipos; o saque do colaborador é sempre Pix. */
 const ASAAS_TRANSFER_OPERATION_PIX = 'PIX';
@@ -76,6 +83,31 @@ function resolveBillingTypeAsaas(billingType) {
     .trim()
     .toUpperCase();
   return ASAAS_BILLING_TYPES[key] || null;
+}
+
+/** Pix ou cartão — o que o produto vende. Boleto legado continua reconhecível. */
+function isOfferedBillingTypeAsaas(billingType) {
+  return ASAAS_OFFERED_BILLING_TYPES.has(
+    resolveBillingTypeAsaas(billingType)
+  );
+}
+
+/**
+ * Meio de pagamento para nova assinatura / troca.
+ *
+ * Boleto antigo no banco vira Pix na troca de plano sem `billingType` no corpo,
+ * para não quebrar quem ainda tem recorrência legado. Pedido explícito de
+ * boleto é recusado.
+ */
+function coerceCheckoutBillingTypeAsaas(billingType) {
+  const resolved = resolveBillingTypeAsaas(billingType);
+  if (resolved === ASAAS_BILLING_TYPES.BOLETO) {
+    return ASAAS_BILLING_TYPES.PIX;
+  }
+  if (resolved && ASAAS_OFFERED_BILLING_TYPES.has(resolved)) {
+    return resolved;
+  }
+  return null;
 }
 
 function resolvePlanStatusForEventAsaas(eventName) {
@@ -258,8 +290,13 @@ function buildSubscriptionPayloadAsaas({
     return { ok: false, message: 'Periodicidade do plano inválida' };
   }
 
-  const asaasBillingType =
-    resolveBillingTypeAsaas(billingType) || ASAAS_BILLING_TYPES.UNDEFINED;
+  const asaasBillingType = resolveBillingTypeAsaas(billingType);
+  if (!isOfferedBillingTypeAsaas(asaasBillingType)) {
+    return {
+      ok: false,
+      message: 'Forma de pagamento inválida. Use Pix ou cartão',
+    };
+  }
 
   const asaasDueDate = formatDueDateAsaas(nextDueDate || new Date());
   if (!asaasDueDate) {
@@ -400,7 +437,7 @@ function buildTokenizePayloadAsaas({
  *
  * `updatePendingPayments: true` é o ponto todo: sem ele o Asaas só muda as
  * cobranças **futuras** e a pendente continua de pé — o assinante ficaria com
- * um boleto em aberto e uma fatura no cartão para o mesmo mês. Com ele, a
+ * um Pix em aberto e uma fatura no cartão para o mesmo mês. Com ele, a
  * cobrança pendente é convertida. Cobrança já paga, vencida ou cancelada o
  * Asaas não toca.
  *
@@ -412,11 +449,11 @@ function buildBillingTypeUpdatePayloadAsaas({
   currentBillingType,
 }) {
   const asaasBillingType = resolveBillingTypeAsaas(billingType);
-  if (!asaasBillingType) {
-    return { ok: false, message: 'Forma de pagamento inválida' };
-  }
-  if (asaasBillingType === ASAAS_BILLING_TYPES.UNDEFINED) {
-    return { ok: false, message: 'Forma de pagamento inválida' };
+  if (!isOfferedBillingTypeAsaas(asaasBillingType)) {
+    return {
+      ok: false,
+      message: 'Forma de pagamento inválida. Use Pix ou cartão',
+    };
   }
 
   if (
@@ -439,6 +476,32 @@ function buildBillingTypeUpdatePayloadAsaas({
   }
 
   return { ok: true, payload: asaasPayload };
+}
+
+/**
+ * Payload de `POST /v3/payments/{id}/payWithCreditCard`.
+ *
+ * Com token só o token viaja — o Asaas dispensa `creditCard` /
+ * `creditCardHolderInfo` nesse caso.
+ *
+ * @returns {{ ok: true, payload } | { ok: false, message }}
+ */
+function buildPayWithCreditCardPayloadAsaas({ creditCardToken }) {
+  const token = String(creditCardToken || '').trim();
+  if (!token) {
+    return { ok: false, message: 'Informe os dados do cartão' };
+  }
+  return { ok: true, payload: { creditCardToken: token } };
+}
+
+/** Status Asaas em que o dinheiro já entrou (ou foi confirmado). */
+function isSettledPaymentStatusAsaas(status) {
+  const key = String(status || '')
+    .trim()
+    .toUpperCase();
+  return (
+    key === 'CONFIRMED' || key === 'RECEIVED' || key === 'RECEIVED_IN_CASH'
+  );
 }
 
 /**
@@ -484,6 +547,7 @@ function buildTransferPayloadAsaas({
 module.exports = {
   ASAAS_CYCLES,
   ASAAS_BILLING_TYPES,
+  ASAAS_OFFERED_BILLING_TYPES,
   ASAAS_TRANSFER_OPERATION_PIX,
   ASAAS_SUBSCRIPTION_STATUS,
   ASAAS_EVENTS,
@@ -491,6 +555,8 @@ module.exports = {
   ASAAS_PLAN_STATUS_BY_EVENT,
   resolveCycleAsaas,
   resolveBillingTypeAsaas,
+  isOfferedBillingTypeAsaas,
+  coerceCheckoutBillingTypeAsaas,
   resolvePlanStatusForEventAsaas,
   centsToValueAsaas,
   valueToCentsAsaas,
@@ -503,6 +569,8 @@ module.exports = {
   buildCustomerPayloadAsaas,
   buildSubscriptionPayloadAsaas,
   buildBillingTypeUpdatePayloadAsaas,
+  buildPayWithCreditCardPayloadAsaas,
+  isSettledPaymentStatusAsaas,
   buildTokenizePayloadAsaas,
   buildTransferPayloadAsaas,
 };

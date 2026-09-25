@@ -74,6 +74,17 @@ async function listSubscriptionPaymentsAsaas(asaasSubscriptionId) {
 }
 
 /**
+ * QR Code + copia-e-cola do Pix de uma cobrança.
+ * @see https://docs.asaas.com/reference/get-qr-code-for-pix-payments
+ */
+async function getPaymentPixQrCodeAsaas(asaasPaymentId) {
+  return requestAsaas({
+    method: 'GET',
+    path: `/payments/${asaasPaymentId}/pixQrCode`,
+  });
+}
+
+/**
  * Tokeniza o cartão. A chave de API não pode ir para o browser, então o número
  * passa por esta API — é o escopo PCI assumido conscientemente.
  * O PAN nunca é persistido: guarda-se só o `creditCardToken` devolvido.
@@ -83,6 +94,23 @@ async function tokenizeCreditCardAsaas(asaasTokenizePayload) {
     method: 'POST',
     path: '/creditCard/tokenize',
     body: asaasTokenizePayload,
+  });
+}
+
+/**
+ * Cobra uma fatura pendente no cartão.
+ *
+ * Trocar a assinatura para `CREDIT_CARD` com `updatePendingPayments` só
+ * **converte o tipo** da cobrança — não autoriza o cartão. Sem este POST a
+ * fatura fica `PENDING` para sempre e o webhook de confirmação nunca chega.
+ *
+ * @see https://docs.asaas.com/reference/pay-a-charge-with-credit-card
+ */
+async function payPaymentWithCreditCardAsaas(asaasPaymentId, asaasPayPayload) {
+  return requestAsaas({
+    method: 'POST',
+    path: `/payments/${asaasPaymentId}/payWithCreditCard`,
+    body: asaasPayPayload,
   });
 }
 
@@ -103,6 +131,8 @@ module.exports = {
   getSubscriptionAsaas,
   cancelSubscriptionAsaas,
   listSubscriptionPaymentsAsaas,
+  getPaymentPixQrCodeAsaas,
   tokenizeCreditCardAsaas,
+  payPaymentWithCreditCardAsaas,
   createTransferAsaas,
 };
