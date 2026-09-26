@@ -1,6 +1,9 @@
 // Carrega as variáveis de ambiente primeiro
 require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') });
 
+// Chave JWT (RS256) via env — em produção falha já no boot se faltar
+require("./utils/jwtKeys").assertJwtKeyConfigured();
+
 // Inicializa o Redis
 const { redis } = require("./config/redis");
 const { logRedisConnection } = require("./config/testingLogs");

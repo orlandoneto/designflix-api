@@ -1,10 +1,7 @@
 const { Admin, User, Installer } = require("../models");
 const { ROLES } = require("../utils/constants/constants");
 const jwt = require("jsonwebtoken");
-const path = require("path");
-const fs = require("fs");
-const DIR_key = path.join(__dirname, "../middleware/private.key");
-const privateKey = fs.readFileSync(DIR_key);
+const { getJwtPublicKey, JWT_ALGORITHM } = require("../utils/jwtKeys");
 
 const authenticateResource = (resources) => {
   return async (req, res, next) => {
@@ -20,8 +17,8 @@ const authenticateResource = (resources) => {
       const token = authorization.replace("Bearer ", "");
       jwt.verify(
         token,
-        privateKey,
-        { algorithms: "RS256" },
+        getJwtPublicKey(),
+        { algorithms: [JWT_ALGORITHM] },
         async function (err, decoded) {
           if (err) {
             return res

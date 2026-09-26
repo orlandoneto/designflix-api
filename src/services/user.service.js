@@ -16,8 +16,6 @@ const {
 
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
-const DIR_key = path.join(__dirname, "../middleware/private.key");
-const privateKey = fs.readFileSync(DIR_key);
 
 class UserServices {
   async getAll(req, res) {

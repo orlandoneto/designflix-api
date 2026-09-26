@@ -1,7 +1,7 @@
 {
   "name": "flixdesign-api",
   "private": true,
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "API Design Flix made on Node.js",
   "main": "src/main.js",
   "scripts": {
@@ -32,8 +32,7 @@
     "deploy-stg": "pm2 deploy ecosystem.development.config.js staging",
     "deploy-prd": "pm2 deploy ecosystem.production.config.js production",
     "deploy": "yarn run deploy-stg && yarn run deploy-prd",
-    "copy-keys": "cp ./src/middleware/private.key ./dist/middleware/",
-    "build": "babel src --out-dir dist && npm run copy-keys",
+    "build": "babel src --out-dir dist",
     "migrate": "node scripts/setEnv.js development && npx sequelize-cli db:migrate",
     "migrate:development": "node scripts/setEnv.js development && npx sequelize-cli db:migrate",
     "migrate:production": "node scripts/setEnv.js production && npx sequelize-cli db:migrate",

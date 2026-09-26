@@ -14,9 +14,7 @@ const { getForgotRedirectUrl } = require("../utils/mailTransport");
 const { ok, badRequest, serverError } = require("../utils/authHttpResponse");
 const userService = require("./user.service");
 
-const privateKey = fs.readFileSync(
-  path.join(__dirname, "../middleware/private.key")
-);
+const { getJwtPrivateKey, getJwtPublicKey, JWT_ALGORITHM } = require("../utils/jwtKeys");
 
 const RESET_TOKEN_EXPIRES_IN = "15m";
 const RESET_TOKEN_EXPIRES_LABEL = "15 minutos";
@@ -32,15 +30,15 @@ function simplifyUserData(user) {
 }
 
 function signUserToken(userData) {
-  return jwt.sign(userData, privateKey, {
-    algorithm: "RS256",
+  return jwt.sign(userData, getJwtPrivateKey(), {
+    algorithm: JWT_ALGORITHM,
     expiresIn: 60 * 60 * 24 * 7 * 2,
   });
 }
 
 function signResetToken(user) {
-  return jwt.sign({ id: user.id, email: user.email }, privateKey, {
-    algorithm: "RS256",
+  return jwt.sign({ id: user.id, email: user.email }, getJwtPrivateKey(), {
+    algorithm: JWT_ALGORITHM,
     expiresIn: RESET_TOKEN_EXPIRES_IN,
   });
 }
@@ -364,7 +362,7 @@ module.exports = class AuthPublicService {
         return badRequest(res, "Token é obrigatório");
       }
 
-      const decoded = jwt.verify(token, privateKey);
+      const decoded = jwt.verify(token, getJwtPublicKey(), { algorithms: [JWT_ALGORITHM] });
       const user = await User.findOne({
         where: { id: decoded.id },
         attributes: ["id", "email", "name"],
@@ -404,7 +402,7 @@ module.exports = class AuthPublicService {
         return badRequest(res, "Senha deve ter pelo menos 6 caracteres");
       }
 
-      const decoded = jwt.verify(token, privateKey);
+      const decoded = jwt.verify(token, getJwtPublicKey(), { algorithms: [JWT_ALGORITHM] });
       const user = await User.findOne({ where: { id: decoded.id } });
       if (!user) {
         return badRequest(res, "Token inválido ou expirado");

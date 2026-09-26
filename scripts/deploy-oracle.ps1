@@ -13,9 +13,12 @@
        existem no .env.production local, ABORTA (evita perder segredos). -Force ignora.
     4. Empacota o codigo com `git archive <Ref>` (so arquivos versionados: nunca
        leva .env*, keys/, node_modules, uploads).
-    5. Envia via scp, extrai em /home/opc/designflix-api, instala o .env (backup
-       .env.bak.<timestamp>, chmod 600), `npm ci --omit=dev` so se o package-lock
-       mudou, migrations opcionais (-Migrate), `pm2 reload` + `pm2 save`, health check.
+    5. Na VM: backup do codigo atual + .env em /home/opc/deploy-backups (guarda 5),
+       extrai o pacote, remove arquivos que sairam do repo (manifesto) e arquivos
+       sensiveis legados, instala o .env (backup .env.bak.<timestamp>, chmod 600),
+       `npm ci --omit=dev` so se o package-lock mudou, migrations opcionais (-Migrate),
+       `pm2 reload` + `pm2 save`, health check.
+    -Rollback restaura o ultimo backup (codigo + .env) e recarrega o PM2.
 
   Nao toca em firewall / SSH / Security List (rule vps-ssh-firewall-safety).
 
@@ -24,6 +27,7 @@
   npm run deploy:oracle                 # deploy do HEAD + .env.production
   npm run deploy:oracle -- -Migrate     # idem + sequelize db:migrate
   npm run deploy:oracle -- -SkipEnv     # deploy do codigo mantendo o .env atual da VM
+  npm run deploy:oracle -- -Rollback    # volta para o backup anterior (codigo + .env)
 #>
 [CmdletBinding()]
 param(
@@ -37,7 +41,9 @@ param(
   [switch]$SkipEnv,
   [switch]$SkipInstall,
   [switch]$Migrate,
-  [switch]$Force
+  [switch]$Force,
+  [switch]$Rollback,
+  [string]$BackupTs = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,6 +52,7 @@ if (-not $KeyPath) { $KeyPath = Join-Path $RepoRoot "keys\designflix-oci.key" }
 if (-not $EnvFile) { $EnvFile = Join-Path $RepoRoot ".env.production" }
 $AppDir = "/home/opc/designflix-api"
 $RemoteEnvIncoming = "/home/opc/.designflix-env.incoming"   # /home/opc e 700
+$BackupDir = "/home/opc/deploy-backups"
 $Target = "$User@$HostIp"
 $SshOpts = @("-i", $KeyPath, "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new")
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -95,7 +102,7 @@ function Get-Unquoted([string]$v) {
 # ---------------------------------------------------------------- pre-requisitos
 Write-Step "Pre-requisitos"
 if (-not (Test-Path $KeyPath)) { Fail "chave SSH nao encontrada: $KeyPath (ver docs/oci-ssh-access.md)" }
-if (-not $SkipEnv -and -not (Test-Path $EnvFile)) {
+if (-not $Rollback -and -not $SkipEnv -and -not (Test-Path $EnvFile)) {
   Fail "arquivo $EnvFile nao existe. Crie a partir de env.production.example (ou copie o .env da VM) - ver docs/deploy-oracle.md"
 }
 $commit = (& git -C $RepoRoot rev-parse --short $Ref)
@@ -139,6 +146,45 @@ if ($red.Count) {
   else { Fail ("zona VERMELHA: " + ($red -join ", ") + " - resolva ou rode com -Force apos OK explicito") }
 }
 
+# ---------------------------------------------------------------- rollback
+if ($Rollback) {
+  Write-Step "Rollback: restaurando backup $(if ($BackupTs) { $BackupTs } else { '(mais recente)' })"
+  if ($DryRun) {
+    Invoke-Remote "ls -1t $BackupDir/code-*.tar.gz 2>/dev/null | head -5"
+    Write-Step "DryRun: nada foi alterado na VM."
+    exit 0
+  }
+  $rbHeader = "APP_DIR='$AppDir'`nBK_DIR='$BackupDir'`nWANT_TS='$BackupTs'"
+  $rbBody = @'
+set -euo pipefail
+cd "$APP_DIR"
+if [ -n "$WANT_TS" ]; then CODE="$BK_DIR/code-$WANT_TS.tar.gz"; else CODE=$(ls -1t "$BK_DIR"/code-*.tar.gz 2>/dev/null | head -1 || true); fi
+if [ -z "$CODE" ] || [ ! -f "$CODE" ]; then echo "ERRO: backup nao encontrado em $BK_DIR"; exit 1; fi
+TS=$(basename "$CODE" .tar.gz); TS=${TS#code-}
+NOW=$(date +%Y%m%d%H%M%S)
+echo "-- restaurando codigo de $CODE"
+OLD_LOCK=$(sha256sum package-lock.json 2>/dev/null | cut -d' ' -f1 || true)
+tar -xzf "$CODE" -C "$APP_DIR"
+rm -f .deploy-manifest
+if [ -f "$BK_DIR/env-$TS" ]; then
+  cp -p .env ".env.pre-rollback.$NOW"; chmod 600 ".env.pre-rollback.$NOW"
+  install -m 600 "$BK_DIR/env-$TS" .env
+  echo "-- .env restaurado de $BK_DIR/env-$TS (anterior em .env.pre-rollback.$NOW)"
+fi
+NEW_LOCK=$(sha256sum package-lock.json | cut -d' ' -f1)
+if [ "$OLD_LOCK" != "$NEW_LOCK" ]; then echo "-- package-lock diferente: npm ci --omit=dev"; npm ci --omit=dev; fi
+pm2 reload ecosystem.oracle.config.js --update-env
+pm2 save
+sleep 4
+echo "-- health local: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4000/health || true)"
+grep -E '^(NODE_ENV|STORAGE_TYPE|VERSION_API)=' .env
+df -h / | tail -1; free -h | sed -n '2p'
+'@
+  Invoke-Remote ($rbHeader + "`n" + $rbBody)
+  Write-Host "Rollback concluido." -ForegroundColor Green
+  exit 0
+}
+
 # ---------------------------------------------------------------- .env.production
 $envChanges = @()
 if (-not $SkipEnv) {
@@ -149,10 +195,14 @@ if (-not $SkipEnv) {
   if ((Get-Unquoted $localMap["NODE_ENV"]) -ne "production") { $errs += "NODE_ENV precisa ser production" }
   if ((Get-Unquoted $localMap["STORAGE_TYPE"]) -ne "r2") { $errs += "STORAGE_TYPE precisa ser r2 (rule vps-always-free-monitor-r2)" }
   if ((Get-Unquoted $localMap["EMAIL_USE_MAILPIT"]) -eq "true") { $errs += "EMAIL_USE_MAILPIT=true em producao (Mailpit e so dev)" }
-  foreach ($k in @("EMAIL_HOST_SMTP", "EMAIL_PORT_SMTP", "EMAIL_USER_SMTP", "EMAIL_PASS_SMTP", "EMAIL_FROM", "DB_PASSWORD", "JWT_SECRET")) {
+  foreach ($k in @("EMAIL_HOST_SMTP", "EMAIL_PORT_SMTP", "EMAIL_USER_SMTP", "EMAIL_PASS_SMTP", "EMAIL_FROM", "DB_PASSWORD", "JWT_PRIVATE_KEY")) {
     $v = Get-Unquoted $localMap[$k]
     if (-not $v) { $errs += "$k vazio/ausente" }
     elseif ($v -match '^<.*>$') { $errs += "$k ainda com placeholder" }
+  }
+  $jwtKey = Get-Unquoted $localMap["JWT_PRIVATE_KEY"]
+  if ($jwtKey -and $jwtKey -notmatch '^<.*>$' -and ($jwtKey -notmatch 'BEGIN (RSA )?PRIVATE KEY' -or $jwtKey -notmatch 'END (RSA )?PRIVATE KEY')) {
+    $errs += "JWT_PRIVATE_KEY precisa ser PEM RSA em uma linha com \n escapado (ver docs/deploy-oracle.md)"
   }
   if ($errs.Count) { Fail ("env invalido:`n  - " + ($errs -join "`n  - ")) }
 
@@ -233,16 +283,35 @@ $header = @(
   "ENV_INCOMING='$RemoteEnvIncoming'",
   "INSTALL_ENV='$(if ($SkipEnv) { '0' } else { '1' })'",
   "SKIP_INSTALL='$(if ($SkipInstall) { '1' } else { '0' })'",
-  "RUN_MIGRATE='$(if ($Migrate) { '1' } else { '0' })'"
+  "RUN_MIGRATE='$(if ($Migrate) { '1' } else { '0' })'",
+  "BK_DIR='$BackupDir'"
 ) -join "`n"
 $apply = @'
 set -euo pipefail
 cd "$APP_DIR"
 TS=$(date +%Y%m%d%H%M%S)
+mkdir -p "$BK_DIR"; chmod 700 "$BK_DIR"
+tar -czf "$BK_DIR/code-$TS.tar.gz" --exclude=./node_modules --exclude=./logs --exclude=./uploads --exclude='./.env*' .
+if [ -f .env ]; then install -m 600 .env "$BK_DIR/env-$TS"; fi
+ls -1t "$BK_DIR"/code-*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+ls -1t "$BK_DIR"/env-* 2>/dev/null | tail -n +6 | xargs -r rm -f
+echo "-- backup do codigo atual: $BK_DIR/code-$TS.tar.gz (+ env-$TS)"
 OLD_LOCK=$(sha256sum package-lock.json 2>/dev/null | cut -d' ' -f1 || true)
+tar -tzf "$TARBALL" | grep -v '/$' | LC_ALL=C sort > .deploy-manifest.new
+if [ -f .deploy-manifest ]; then
+  LC_ALL=C comm -23 .deploy-manifest .deploy-manifest.new | while IFS= read -r f; do
+    case "$f" in ''|/*|*..*|.env*) continue;; esac
+    if [ -f "$f" ]; then rm -f -- "$f"; echo "-- removido (saiu do repo): $f"; fi
+  done
+fi
 echo "-- extraindo codigo"
 tar -xzf "$TARBALL" -C "$APP_DIR"
 rm -f "$TARBALL"
+mv -f .deploy-manifest.new .deploy-manifest
+# Arquivos sensiveis legados (removidos do repo; nunca devem existir na VM)
+for f in src/middleware/private.key src/middleware/private.key.pub config/config.json; do
+  if [ -f "$f" ]; then rm -f -- "$f"; echo "-- removido (legado sensivel): $f"; fi
+done
 NEW_LOCK=$(sha256sum package-lock.json | cut -d' ' -f1)
 if [ "$INSTALL_ENV" = "1" ]; then
   chmod 600 "$ENV_INCOMING"
@@ -291,6 +360,6 @@ for ($i = 1; $i -le 5; $i++) {
   Start-Sleep -Seconds 3
 }
 Remove-Temp
-if (-not $okHealth) { Fail "health nao respondeu 200 - ver: pm2 logs designflix-api --lines 100" }
+if (-not $okHealth) { Fail "health nao respondeu 200 - ver: pm2 logs designflix-api --lines 100 | voltar: npm run deploy:oracle -- -Rollback" }
 Write-Host ""
 Write-Host "Deploy OK: $commit (v$version) em $Target" -ForegroundColor Green

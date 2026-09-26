@@ -49,6 +49,11 @@ env
 !env.development.example
 !env.production.example
 
+# Chaves JWT/TLS: nunca commitar (usar JWT_PRIVATE_KEY no .env*)
+src/middleware/*.key
+src/middleware/*.key.pub
+*.pem
+
 # SSH / OCI private keys (local only — never commit)
 /keys/*
 !/keys/.gitkeep

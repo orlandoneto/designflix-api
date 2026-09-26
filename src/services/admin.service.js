@@ -6,9 +6,7 @@ const path = require("path");
 const { Admin } = require("../models");
 
 const jwt = require("jsonwebtoken");
-const fs = require("fs");
-const DIR_key = path.join(__dirname, "../middleware/private.key");
-const privateKey = fs.readFileSync(DIR_key);
+const { getJwtPrivateKey, JWT_ALGORITHM } = require("../utils/jwtKeys");
 
 module.exports = class {
   async get(req, res) {
@@ -87,8 +85,8 @@ module.exports = class {
 
       delete adminData.password;
 
-      var token = jwt.sign(adminData, privateKey, {
-        algorithm: "RS256",
+      var token = jwt.sign(adminData, getJwtPrivateKey(), {
+        algorithm: JWT_ALGORITHM,
         expiresIn: 60 * 60 * 24 * 7 * 2,
       });
 

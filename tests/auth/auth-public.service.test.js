@@ -45,9 +45,8 @@ const { sendEmail } = require('../../src/utils/emailService');
 const AuthPublicService = require('../../src/services/auth-public.service');
 const { createMockRequest, createMockResponse } = require('../helpers/mockResponse');
 
-const privateKey = fs.readFileSync(
-  path.join(__dirname, '../../src/middleware/private.key')
-);
+const { getJwtPrivateKey } = require('../../src/utils/jwtKeys');
+const privateKey = getJwtPrivateKey();
 
 describe('AuthPublicService', () => {
   const auth = new AuthPublicService();
