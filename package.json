@@ -29,9 +29,6 @@
     "build-stg": "node scripts/setEnv.js development && babel src --out-dir dist && npm run minify",
     "build-prd": "node scripts/setEnv.js production && babel src --out-dir dist && npm run minify",
     "deploy:oracle": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-oracle.ps1",
-    "deploy-stg": "pm2 deploy ecosystem.development.config.js staging",
-    "deploy-prd": "pm2 deploy ecosystem.production.config.js production",
-    "deploy": "yarn run deploy-stg && yarn run deploy-prd",
     "build": "babel src --out-dir dist",
     "migrate": "node scripts/setEnv.js development && npx sequelize-cli db:migrate",
     "migrate:development": "node scripts/setEnv.js development && npx sequelize-cli db:migrate",
@@ -51,6 +48,7 @@
     "bcrypt": "^5.0.1",
     "chalk": "4.1.2",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.17.1",
     "handlebars": "^4.7.9",
     "haversine": "^1.1.1",
@@ -72,7 +70,6 @@
     "uuid": "^10.0.0",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "dotenv": "^16.4.5",
     "ws": "^8.18.1"
   },
   "devDependencies": {
@@ -83,7 +80,6 @@
     "cross-env": "^7.0.3",
     "jest": "^29.7.0",
     "nodemon": "^2.0.22",
-    "pm2-deploy": "^1.0.2",
     "sequelize-cli": "^6.6.2",
     "supertest": "^7.0.0",
     "uglify-js": "^3.19.3"

@@ -2,7 +2,7 @@
  * Encerramento do processo: drenar antes de morrer.
  *
  * `pm2 reload` manda SIGINT/SIGTERM e espera `kill_timeout` (5s no
- * `ecosystem.production.config.js`) antes de matar à força. Como os timeouts de
+ * `ecosystem.oracle.config.js`) antes de matar à força. Como os timeouts de
  * request são altos de propósito por causa de upload
  * (`CONST.SERVER_REQUEST_TIMEOUT_MS`), sem drenar aqui todo deploy corta
  * upload em andamento.

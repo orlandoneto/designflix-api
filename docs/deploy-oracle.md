@@ -22,7 +22,7 @@ Relacionados: [oci-ssh-access.md](./oci-ssh-access.md) · [producao-urls.md](./p
 A VM **não** é um clone git: o código chega por pacote (`tar.gz`) via `scp`.
 O CI do GitHub ([`ci.yml`](../.github/workflows/ci.yml)) só roda `npm test` — **não** faz deploy e **não** usa secrets.
 
-> `npm run deploy-prd` / `deploy-stg` são **legado** do VPS antigo (`46.202.146.92`, Hostinger). Não usar.
+> Histórico: até set/2026 a API rodava num VPS da Hostinger (`46.202.146.92`, deploy via `pm2 deploy`). O servidor foi **desativado** e os scripts `deploy-prd`/`deploy-stg` e os `ecosystem.production/development.config.js` foram removidos (API 1.1.0). O único deploy é `npm run deploy:oracle`.
 
 ---
 
