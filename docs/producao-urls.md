@@ -19,11 +19,20 @@ Status de fumaça dos frontends e da API em produção (Cloudflare + Vercel + OC
 | Admin | Vercel — projeto `designflix-admin` |
 | API | OCI VM `designflix-api` — Nginx → PM2 `:4000` |
 | DNS / SSL edge | Cloudflare (Full strict; API com Origin Cert) |
+| E-mail transacional | Brevo SMTP `smtp-relay.brevo.com:587` (plano Free, 300/dia) |
 
 ## Acesso SSH (VM)
 
 Ver [oci-ssh-access.md](./oci-ssh-access.md).  
 **Nunca** fechar firewall/SSH — rule `vps-ssh-firewall-safety`.
+
+## Deploy
+
+`npm run deploy:oracle` — ver [deploy-oracle.md](./deploy-oracle.md). O `.env` da VM vem do `.env.production` local (gitignored; modelo em `env.production.example`).
+
+## E-mail (SMTP)
+
+Brevo — ver [email-smtp-brevo.md](./email-smtp-brevo.md). O IP da VM (`168.75.82.5`) precisa estar em **Authorized IPs** no Brevo.
 
 ## Auth admin
 

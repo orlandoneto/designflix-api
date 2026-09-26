@@ -30,6 +30,8 @@ Backend Express — catálogo, auth, downloads, planos, colaborador, admin APIs.
 | Scripts npm (como usar) | [docs/scripts.md](./docs/scripts.md) |
 | OCI — criar VCN / subnet / VM | [docs/oci-vm-setup.md](./docs/oci-vm-setup.md) |
 | Produção — URLs e status | [docs/producao-urls.md](./docs/producao-urls.md) |
+| Deploy produção (VM Oracle) + `.env.production` | [docs/deploy-oracle.md](./docs/deploy-oracle.md) — `npm run deploy:oracle` |
+| E-mail produção (SMTP Brevo) | [docs/email-smtp-brevo.md](./docs/email-smtp-brevo.md) |
 | OCI — SSH e chaves locais (`keys/`) | [docs/oci-ssh-access.md](./docs/oci-ssh-access.md) |
 | PM2 na Oracle A1 (2 OCPU) | [ecosystem.oracle.config.js](./ecosystem.oracle.config.js) |
 | Bootstrap VM (Node/MySQL/Nginx) | [scripts/oci-bootstrap.sh](./scripts/oci-bootstrap.sh) |

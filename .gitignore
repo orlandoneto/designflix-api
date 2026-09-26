@@ -47,6 +47,7 @@ docker-compose.yml
 # Sem ponto: variante antiga que chegou a ser commitada com segredos.
 env
 !env.development.example
+!env.production.example
 
 # SSH / OCI private keys (local only — never commit)
 /keys/*

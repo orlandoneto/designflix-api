@@ -129,7 +129,7 @@ node scripts/setEnv.js test
 | `npm run test:watch` | Jest em watch. |
 | `npm run test:server` | Sobe a API com env `test` (manual; **não** substitui `npm test`). |
 
-CI no GitHub: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — `npm ci` + `npm test` em push/PR na `main`. Não faz deploy (VM continua manual / PM2).
+CI no GitHub: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — `npm ci` + `npm test` em push/PR na `main`. Não faz deploy nem usa secrets (VM: `npm run deploy:oracle`).
 
 ---
 
@@ -143,9 +143,10 @@ CI no GitHub: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — `npm
 | `npm run build-prd` | setEnv production + Babel + minify. |
 | `npm run minify` | Uglify dos `.js` em `dist/` (precisa do build antes). |
 | `npm run copy-keys` | Copia `private.key` para `dist/middleware/`. |
-| `npm run deploy-stg` | PM2 deploy staging. |
-| `npm run deploy-prd` | PM2 deploy production. |
-| `npm run deploy` | Staging + production. |
+| `npm run deploy:oracle` | **Deploy de produção** (VM Oracle): código commitado (`git archive`) + `.env.production` local → VM, `pm2 reload`. `npm run deploy:oracle -- -DryRun` só confere. Ver [deploy-oracle.md](./deploy-oracle.md). |
+| `npm run deploy-stg` | **Legado** (VPS antigo `46.202.146.92`) — PM2 deploy staging. Não usar. |
+| `npm run deploy-prd` | **Legado** (VPS antigo `46.202.146.92`) — PM2 deploy production. Não usar. |
+| `npm run deploy` | **Legado** — staging + production do VPS antigo. |
 
 ---
 
@@ -200,8 +201,9 @@ npm run dev
 | Arquivo | Uso |
 |---|---|
 | `scripts/oci-bootstrap.sh` | Na VM (opc): Node/MySQL/Nginx/PM2 após a instância existir. |
+| `scripts/deploy-oracle.ps1` | No PC (PowerShell): deploy para a VM — `npm run deploy:oracle`. |
 
-Docs: [oci-vm-setup.md](./oci-vm-setup.md), [oci-ssh-access.md](./oci-ssh-access.md).
+Docs: [oci-vm-setup.md](./oci-vm-setup.md), [oci-ssh-access.md](./oci-ssh-access.md), [deploy-oracle.md](./deploy-oracle.md), [email-smtp-brevo.md](./email-smtp-brevo.md).
 
 ---
 

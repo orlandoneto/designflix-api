@@ -98,4 +98,4 @@ Todos aparecem no Mailpit em http://localhost:8025.
 
 ## 5. Produção
 
-Remova `EMAIL_USE_MAILPIT` e configure Hostinger (ou outro SMTP) com `EMAIL_HOST_SMTP`, `EMAIL_PORT_SMTP=465`, usuário e senha.
+Produção usa **Brevo** (`smtp-relay.brevo.com:587`, STARTTLS) — ver [email-smtp-brevo.md](./email-smtp-brevo.md). O `.env` da VM vem do `.env.production` local ([deploy-oracle.md](./deploy-oracle.md)).

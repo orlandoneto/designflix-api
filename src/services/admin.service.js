@@ -1,5 +1,5 @@
 const bcrypt = require("bcrypt");
-const nodemailer = require("nodemailer");
+const { createMailTransport, getEmailFrom } = require("../utils/mailTransport");
 const hbs = require("nodemailer-handlebars");
 const path = require("path");
 
@@ -137,15 +137,8 @@ module.exports = class {
       }
     );
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST_SMTP,
-      port: process.env.EMAIL_PORT_SMTP,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER_SMTP,
-        pass: process.env.EMAIL_PASS_SMTP,
-      },
-    });
+    // Mesmo transporte da app (587 STARTTLS / 465 TLS / Mailpit) — ver docs/email-smtp-brevo.md
+    const transporter = createMailTransport();
 
     transporter.use(
       "compile",
@@ -162,7 +155,7 @@ module.exports = class {
 
     try {
       const mailOptions = {
-        from: process.env.EMAIL_USER_SMTP,
+        from: getEmailFrom(),
         to: admin.email,
         subject: "Reset de Senha - Design Flix",
         text: "",
