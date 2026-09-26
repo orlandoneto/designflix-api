@@ -2,7 +2,7 @@
 
 Status de fumaça dos frontends e da API em produção (Cloudflare + Vercel + OCI).
 
-**Última verificação:** 2026-09-26 (API 1.0.14 — chave JWT nova via `JWT_PRIVATE_KEY`; e-mail de `contato@ongraph.com.br`)
+**Última verificação:** 2026-09-26 (API 1.1.0 — rotas de admin protegidas e reset de senha do admin por link; Admin 0.2.0)
 
 | URL | Status |
 |-----|--------|
@@ -34,7 +34,7 @@ Ver [oci-ssh-access.md](./oci-ssh-access.md).
 ## E-mail (SMTP)
 
 Brevo — ver [email-smtp-brevo.md](./email-smtp-brevo.md). O IP da VM (`168.75.82.5`) precisa estar em **Authorized IPs** no Brevo.
-DNS do domínio, Email Routing e autenticação Brevo (DKIM/SPF/DMARC): [email-cloudflare.md](./email-cloudflare.md).
+Visão geral: [email-arquitetura.md](./email-arquitetura.md). DNS do domínio, Email Routing e autenticação Brevo (DKIM/SPF/DMARC): [email-cloudflare.md](./email-cloudflare.md).
 
 ## Segurança
 

@@ -2,7 +2,7 @@
 
 Como a API de produção envia e-mail (código de verificação do cadastro, reset de senha, avisos de plano) e onde está cada configuração.
 
-Relacionados: [email-cloudflare.md](./email-cloudflare.md) (DNS, Email Routing, autenticação do domínio) · [deploy-oracle.md](./deploy-oracle.md) · [oci-ssh-access.md](./oci-ssh-access.md) · [producao-urls.md](./producao-urls.md) · dev local: [LOCAL-MAILPIT.md](./LOCAL-MAILPIT.md)
+Relacionados: **[email-arquitetura.md](./email-arquitetura.md) (visão geral, diagrama, lista de e-mails)** · [email-cloudflare.md](./email-cloudflare.md) (DNS, Email Routing, autenticação do domínio) · [deploy-oracle.md](./deploy-oracle.md) · [oci-ssh-access.md](./oci-ssh-access.md) · [producao-urls.md](./producao-urls.md) · dev local: [LOCAL-MAILPIT.md](./LOCAL-MAILPIT.md)
 
 **Configurado em:** 2026-09-26 · **Remetente de produção:** `Designflix <contato@ongraph.com.br>` (domínio autenticado)
 
@@ -70,6 +70,7 @@ Se a chave vazar (ex.: commit acidental): **revogar no Brevo imediatamente** e g
 - IP liberado: **`168.75.82.5`** (VM Oracle `designflix-api`).
 - **Qualquer servidor novo** (VM recriada, IP público novo, outro host) precisa ser adicionado lá, senão o envio falha com erro de autenticação / IP não autorizado.
 - Envios a partir do PC local **não** funcionam com essa chave (IP não autorizado) — em dev use Mailpit.
+- Única chave SMTP em uso: `designflix-vm` (API). Uma chave extra para o Gmail "Enviar como" foi testada e **removida** em 2026-09-26, e o bloqueio por IP foi religado (ver [email-cloudflare.md §4](./email-cloudflare.md#4-responder-como-contato-pelo-gmail--não-usado)).
 
 ---
 
@@ -77,7 +78,7 @@ Se a chave vazar (ex.: commit acidental): **revogar no Brevo imediatamente** e g
 
 **Estado atual (2026-09-26):** domínio `ongraph.com.br` **Authenticated** no Brevo (TXT `brevo-code`, DKIM `brevo1`/`brevo2._domainkey` como CNAME DNS only, SPF com `include:spf.brevo.com`, DMARC `p=reject` existente). Remetente **`Designflix <contato@ongraph.com.br>`** verificado e em uso em produção (`EMAIL_FROM`).
 
-Registros, Email Routing (receber `contato@`), "Enviar como" no Gmail e como reverter: **[email-cloudflare.md](./email-cloudflare.md)**.
+Registros, Email Routing (receber `contato@`) e como reverter: **[email-cloudflare.md](./email-cloudflare.md)**.
 
 Também verificado (legado/teste): `orlandoneto23@gmail.com`.
 

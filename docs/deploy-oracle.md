@@ -128,20 +128,56 @@ Chave RSA (4096, PKCS#8) que assina e verifica os tokens (RS256). **Não** fica 
 
 ## 5. Rollback
 
-```powershell
-npm run deploy:oracle -- -Rollback -DryRun               # lista backups (mais novo primeiro)
-npm run deploy:oracle -- -Rollback                       # volta para o mais recente
-npm run deploy:oracle -- -Rollback -BackupTs <TS>        # volta para um específico
+Todo deploy real (sem `-DryRun`) guarda, **antes** de mexer em qualquer coisa, o código e o `.env` que estavam na VM:
+
+```
+/home/opc/deploy-backups/code-<TS>.tar.gz   ← código (sem node_modules, logs, uploads, .env*)
+/home/opc/deploy-backups/env-<TS>           ← .env (chmod 600)
 ```
 
-O que faz: extrai `code-<TS>.tar.gz` por cima do app, restaura `env-<TS>` como `.env` (o atual fica em `.env.pre-rollback.<agora>`), roda `npm ci --omit=dev` se o lock mudou, `pm2 reload` + `pm2 save` e mostra o health local.
+`<TS>` = data/hora **UTC** da VM no formato `AAAAMMDDhhmmss` (Fortaleza = UTC−3). São mantidos os **5** mais recentes. O deploy imprime o nome: `-- backup do codigo atual: /home/opc/deploy-backups/code-<TS>.tar.gz`.
 
-Observações:
-- O backup `<TS>` guarda o estado **anterior** ao deploy que o criou. Para desfazer o último deploy, use o backup mais recente.
-- Arquivos novos criados pelo deploy não são apagados no rollback (o manifesto é zerado e o próximo deploy normal os reconcilia).
-- Depois de um rollback, o `.env.production` local continua com os valores novos — ajuste antes do próximo deploy se foi o env que quebrou.
-- Voltar para uma versão **anterior à 1.0.14** traz de volta o uso de `src/middleware/private.key`, que não existe mais na VM → a API não sobe. Prefira corrigir para frente.
+### 5.1 Listar os backups
 
+```powershell
+npm run deploy:oracle -- -Rollback -DryRun      # 5 mais recentes, o primeiro é o mais novo; não altera nada
+```
+
+Ou direto na VM (mostra também a versão de cada backup; saída tipo `code-20260926131821.tar.gz "version": "1.0.14",`):
+
+```powershell
+ssh -i "C:\projetos\designflix-api\keys\designflix-oci.key" -o IdentitiesOnly=yes opc@168.75.82.5 "cd /home/opc/deploy-backups && for f in `$(ls -1t code-*.tar.gz); do echo `$f `$(tar -xOzf `$f ./package.json | grep -m1 version); done"
+```
+
+### 5.2 Qual backup escolher
+
+O backup `<TS>` é o estado **anterior** ao deploy que o criou:
+
+| Quero voltar para… | Use |
+|--------------------|-----|
+| A versão de antes do último deploy | o backup **mais recente** (`-Rollback` sem `-BackupTs`) |
+| Uma versão mais antiga | o `-BackupTs` cujo `package.json` mostra essa versão (5.1) |
+| Depois de dois deploys seguidos da mesma mudança (ex.: o primeiro falhou no meio) | o backup do **primeiro** deploy — o segundo backup já contém a mudança pela metade |
+
+Exemplo real (2026-09-26, API 1.1.0): o 1º deploy falhou no `npm ci` depois de extrair o código; o estado limpo anterior (1.0.14) é `20260926131821`, não `20260926131922`.
+
+### 5.3 Executar
+
+```powershell
+npm run deploy:oracle -- -Rollback                          # volta para o backup mais recente
+npm run deploy:oracle -- -Rollback -BackupTs 20260926131821 # volta para um backup específico
+```
+
+O que faz, na VM: extrai `code-<TS>.tar.gz` por cima do app → guarda o `.env` atual em `.env.pre-rollback.<agora>` e restaura `env-<TS>` → `npm ci --omit=dev` se o `package-lock.json` mudou → `pm2 reload` + `pm2 save` → mostra health local, `NODE_ENV`/`STORAGE_TYPE`/`VERSION_API` e disco/RAM. Depois conferir `curl https://api.ongraph.com.br/` (versão) e `pm2 logs designflix-api --lines 50 --nostream`.
+
+### 5.4 Cuidados
+
+- **Migrations não são desfeitas.** O rollback só troca código e `.env`; o banco fica como está. Migrations aditivas (colunas/tabelas novas, ex.: `20260926130000-admin-password-reset-token`) não atrapalham o código antigo. Se uma migration renomear/apagar algo, reverter no banco antes: `NODE_ENV=production npx sequelize-cli db:migrate:undo` na VM (só com backup do banco).
+- Arquivos **novos** criados pelo deploy desfeito não são apagados (o manifesto é zerado; o próximo deploy normal reconcilia).
+- O `.env.production` local continua com os valores novos — se foi o env que quebrou, corrija-o antes do próximo deploy.
+- Voltar para versão **anterior à 1.0.14** não sobe: o código antigo lê `src/middleware/private.key`, que não existe mais na VM. Prefira corrigir para frente.
+- Rollback de um deploy que trocou a chave JWT desloga todo mundo de novo.
+- Rollback só restaura o que o script guardou: `uploads/`, `logs/` e o banco ficam fora.
 ## 6. Pós-deploy (checklist)
 
 1. Script mostra `NODE_ENV=production`, `STORAGE_TYPE=r2`, `EMAIL_HOST_SMTP=smtp-relay.brevo.com`, segredos como `****(definido)`.

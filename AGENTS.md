@@ -31,6 +31,7 @@ Backend Express — catálogo, auth, downloads, planos, colaborador, admin APIs.
 | OCI — criar VCN / subnet / VM | [docs/oci-vm-setup.md](./docs/oci-vm-setup.md) |
 | Produção — URLs e status | [docs/producao-urls.md](./docs/producao-urls.md) |
 | Deploy produção (VM Oracle) + `.env.production` | [docs/deploy-oracle.md](./docs/deploy-oracle.md) — `npm run deploy:oracle` |
+| **E-mail — arquitetura (visão geral, diagrama, e-mails enviados)** | [docs/email-arquitetura.md](./docs/email-arquitetura.md) |
 | E-mail produção (SMTP Brevo) | [docs/email-smtp-brevo.md](./docs/email-smtp-brevo.md) |
 | E-mail do domínio (Cloudflare Email Routing, DNS, autenticação Brevo) | [docs/email-cloudflare.md](./docs/email-cloudflare.md) |
 | Segurança / pentest (achados, rotação da chave JWT) | [docs/pentest/README.md](./docs/pentest/README.md) |

@@ -2,7 +2,7 @@
 
 O que foi configurado no Cloudflare em **2026-09-26** para o domínio receber e-mail (`contato@`) e para o Brevo enviar como `@ongraph.com.br`.
 
-Relacionados: [email-smtp-brevo.md](./email-smtp-brevo.md) (envio SMTP da API) · [producao-urls.md](./producao-urls.md)
+Relacionados: **[email-arquitetura.md](./email-arquitetura.md) (visão geral)** · [email-smtp-brevo.md](./email-smtp-brevo.md) (envio SMTP da API) · [producao-urls.md](./producao-urls.md)
 
 | Campo | Valor |
 |-------|-------|
@@ -59,32 +59,16 @@ Com isso, `contato@ongraph.com.br` não recebia nada e qualquer envio em nome do
 1. Cloudflare → `ongraph.com.br` → **Email → Email Routing → Routing rules → Create address**.
 2. Custom address (ex.: `suporte`) → Action **Send to an email** → destino já verificado (ou verificar um novo em **Destination addresses** — o dono do destino recebe um link de confirmação).
 3. Salvar. Funciona em segundos (os MX já existem).
-4. Para **enviar** como o novo alias: adicionar o remetente em Brevo → **Senders** (o domínio já está autenticado) e, se for responder pelo Gmail, repetir a seção 4.
+4. Para a **plataforma enviar** como o novo alias: adicionar o remetente em Brevo → **Senders** (o domínio já está autenticado) e trocar `EMAIL_FROM` ([email-arquitetura.md §9](./email-arquitetura.md#9-como-trocar-o-remetente)).
 
 Catch-all (qualquer endereço → Gmail) existe em **Routing rules → Catch-all address**, mas atrai spam; hoje está desligado.
 
-## 4. Responder como `contato@` pelo Gmail ("Enviar como")
+## 4. Responder como `contato@` pelo Gmail — não usado
 
-Recebe-se no Gmail; para **responder com o remetente `contato@ongraph.com.br`**:
+O "Enviar como `contato@ongraph.com.br`" no Gmail (via SMTP do Brevo) foi **testado e removido** em 2026-09-26: exigia uma chave SMTP extra e desligar o bloqueio por IP do Brevo. Hoje:
 
-1. Gmail → ⚙️ **Ver todas as configurações → Contas e importação → Enviar e-mail como → Adicionar outro endereço de e-mail**.
-2. Nome: `Designflix` · E-mail: `contato@ongraph.com.br` · **desmarcar** "Tratar como alias" (opcional) → Próxima.
-3. Servidor SMTP:
-
-   | Campo | Valor |
-   |-------|-------|
-   | Servidor SMTP | `smtp-relay.brevo.com` |
-   | Porta | `587` (TLS) |
-   | Usuário | `bb3c54001@smtp-brevo.com` |
-   | Senha | a **chave SMTP** do Brevo (a mesma de `EMAIL_PASS_SMTP`) — está em `C:\projetos\designflix-api\.env.production` (gitignored) e na VM em `/home/opc/designflix-api/.env`; se preferir, gere uma chave **só para o Gmail** no Brevo (SMTP & API → SMTP → Generate) |
-
-4. O Gmail envia um código de confirmação para `contato@` → chega no próprio Gmail pelo Email Routing → confirmar.
-5. Opcional: "Ao responder, usar o mesmo endereço para o qual a mensagem foi enviada".
-
-> ⚠️ O Brevo está com **bloqueio por IP ativo** (Security → Authorized IPs, só `168.75.82.5`). Os servidores do Gmail **não** estão nessa lista, então o "Enviar como" via Brevo falha com erro de autenticação enquanto o bloqueio estiver ativo. Opções: (a) usar uma chave SMTP separada e desativar o bloqueio por IP (menos seguro), ou (b) responder pelo Gmail normal. Decida antes de configurar.
-
-Envios pelo Gmail contam no limite do Brevo (300/dia no plano Free).
-
+- o Gmail só **recebe** o que chega em `contato@` (seção 3); respostas saem do próprio `orlandoneto23@gmail.com`;
+- a única chave SMTP é a da API (`designflix-vm`) e o bloqueio por IP do Brevo está **ligado**: só o IP da VM (`168.75.82.5`) está autorizado. Servidor novo = adicionar o IP em Brevo → **Security → Authorized IPs**.
 ## 5. Autenticação do domínio no Brevo
 
 **Status: ✅ concluída (2026-09-26)** — domínio `ongraph.com.br` **Authenticated**; remetente `Designflix <contato@ongraph.com.br>` **Verified**.
