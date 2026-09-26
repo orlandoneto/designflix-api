@@ -121,6 +121,7 @@ A chave SMTP **nunca** vai para o Git (o repositório é público).
 | Sintoma | Causa provável | O que fazer |
 |---------|----------------|-------------|
 | "Erro ao enviar código de verificação" no site | `EMAIL_*` ausente/errado no `.env` da VM | `grep -E '^EMAIL_' .env` (mascarando a senha) e `pm2 logs designflix-api` |
+| Idem, e `logs/error.log` mostra `sendOtp: Table 'designflix.otps' doesn't exist` | Tabela OTP com nome errado (`otp`); aconteceu em 2026-09-26 | Migration `20260926140000-rename-otp-to-otps` (`npm run deploy:oracle -- -Migrate`) |
 | `535 Authentication failed` / aviso do Brevo de IP bloqueado | Servidor com IP fora de **Authorized IPs** (ex.: VM recriada) | Brevo → Security → Authorized IPs → adicionar o IP público novo |
 | `535` com IP liberado | Chave revogada/errada | Gerar nova chave `designflix-vm`, atualizar `.env.production`, deploy |
 | Timeout em `:25` ou `:587` | Porta 25 é bloqueada pela Oracle; 587 depende da rede de saída | Usar só 587; testar `timeout 5 bash -c '</dev/tcp/smtp-relay.brevo.com/587'` |
