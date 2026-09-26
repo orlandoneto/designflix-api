@@ -80,4 +80,17 @@ describe('getUserPlans (/user-plan-grouped/:id)', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ data: [] });
   });
+  it('erro no banco responde 500 em vez de deixar a requisição pendurada', async () => {
+    UserPlans.findAll.mockRejectedValue(new Error("Unknown column 'UserPlans.stripe_subscription_id'"));
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const res = createMockResponse();
+    await expect(
+      service.getUserPlans(createMockRequest({ params: { id: '7' } }), res)
+    ).resolves.not.toThrow();
+
+    expect(res.statusCode).toBe(500);
+    expect(res.body).toEqual({ message: 'Erro ao buscar planos do usuário' });
+    console.error.mockRestore();
+  });
 });

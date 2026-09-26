@@ -379,7 +379,8 @@ module.exports = class {
       res.status(200).send({ data: userPlans });
     } catch (error) {
       console.error("Erro ao buscar planos do usuário:", error);
-      throw error;
+      // Sem responder aqui a requisição ficava pendurada (504 no Nginx) e virava unhandledRejection.
+      return res.status(500).json({ message: "Erro ao buscar planos do usuário" });
     }
   }
 
