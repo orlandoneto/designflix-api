@@ -70,6 +70,15 @@ const authenticateResource = (resources) => {
           }
 
           if (!valid) {
+            // Token válido, mas o perfil não está entre os permitidos na rota -> 403.
+            // Perfil permitido porém conta não encontrada no banco -> 401.
+            const roleAllowed = resources.includes(decoded.userType);
+            if (!roleAllowed) {
+              return res.status(403).json({
+                auth: false,
+                message: "Sem permissão para acessar este recurso.",
+              });
+            }
             return res.status(401).json({
               auth: false,
               message: "Não foi possível encontrar o usuário!",

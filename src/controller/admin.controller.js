@@ -1,20 +1,52 @@
 const Admin = require("../services/admin.service");
 const AuthenticateRoute = require("../middleware/authentication");
-const verifyRecaptcha = require("../middleware/recaptcha");
+const { ROLES } = require("../utils/constants/constants");
 
 module.exports = (app) => {
   const AdminService = new Admin();
 
-  app.get("/admin", AuthenticateRoute(["super_admin"]), (req, res) =>
+  app.get("/admin", AuthenticateRoute([ROLES.SUPER_ADMIN]), (req, res) =>
     AdminService.get(req, res)
   );
-  app.post("/admin", (req, res) => AdminService.create(req, res));
+
+  /**
+   * @openapi
+   * /admin:
+   *  post:
+   *    description: Cria um administrador (sempre admin comum). Só super_admin.
+   *    tags: ["Admin"]
+   *    requestBody:
+   *      required: true
+   *      content:
+   *        application/json:
+   *          schema:
+   *            type: object
+   *            properties:
+   *              name:
+   *                type: string
+   *              email:
+   *                type: string
+   *              password:
+   *                type: string
+   *    responses:
+   *      '200':
+   *        description: Administrador criado.
+   *      '400':
+   *        description: Dados inválidos ou e-mail já cadastrado.
+   *      '401':
+   *        description: Sem token / token inválido.
+   *      '403':
+   *        description: Token válido, mas não é super_admin.
+   */
+  app.post("/admin", AuthenticateRoute([ROLES.SUPER_ADMIN]), (req, res) =>
+    AdminService.create(req, res)
+  );
 
   /**
    * @openapi
    * /admin/authenticate:
    *  post:
-   *    description: Endpoint de autenticação do admin! Retorna o Token para ser usado em outras requests.
+   *    description: Login do admin. Retorna o token para as outras requests.
    *    security: []
    *    tags: ["Auth"]
    *    requestBody:
@@ -28,16 +60,11 @@ module.exports = (app) => {
    *                type: string
    *              password:
    *                type: string
-   *              recaptchaToken:
-   *                type: string
-   *                description: Token do reCAPTCHA v2
    *    responses:
    *      '200':
    *        description: Login efetuado com sucesso.
-   *      '400':
-   *        description: Dados inválidos ou falha na verificação do reCAPTCHA.
    *      '401':
-   *        description: Não autorizado.
+   *        description: E-mail ou senha incorretos.
    *      '500':
    *        description: Erro interno do servidor.
    */
@@ -49,7 +76,7 @@ module.exports = (app) => {
    * @openapi
    * /admin/reset-password:
    *  post:
-   *    description: Endpoint de recuperação de senha do admin! Envia e-mail com nova senha
+   *    description: Pede o link de redefinição de senha do admin. Resposta sempre igual (não revela se o e-mail existe).
    *    security: []
    *    tags: ["Admin"]
    *    requestBody:
@@ -63,17 +90,62 @@ module.exports = (app) => {
    *                type: string
    *    responses:
    *      '200':
-   *        description: E-mail enviado com sucesso.
+   *        description: Mensagem genérica (e-mail enviado se a conta existir).
    *      '400':
-   *        description: Parâmetro E-mail não enviado ou usuário não encontrado.
-   *      '500':
-   *        description: Erro. E-mail não enviado.
+   *        description: E-mail não informado.
    */
   app.post("/admin/reset-password", (req, res) =>
-    AdminService.resetPassword(req, res)
+    AdminService.requestPasswordReset(req, res)
   );
 
-  app.put("/admin", AuthenticateRoute(["super_admin"]), (req, res) =>
+  /**
+   * @openapi
+   * /admin/reset-password/validate:
+   *  post:
+   *    description: Confere se o token do link ainda é válido.
+   *    security: []
+   *    tags: ["Admin"]
+   *    responses:
+   *      '200':
+   *        description: Token válido.
+   *      '400':
+   *        description: Link inválido ou expirado.
+   */
+  app.post("/admin/reset-password/validate", (req, res) =>
+    AdminService.validateResetToken(req, res)
+  );
+
+  /**
+   * @openapi
+   * /admin/reset-password/confirm:
+   *  post:
+   *    description: Define a nova senha com o token do link (uso único).
+   *    security: []
+   *    tags: ["Admin"]
+   *    requestBody:
+   *      required: true
+   *      content:
+   *        application/json:
+   *          schema:
+   *            type: object
+   *            properties:
+   *              token:
+   *                type: string
+   *              password:
+   *                type: string
+   *              confirmPassword:
+   *                type: string
+   *    responses:
+   *      '200':
+   *        description: Senha redefinida.
+   *      '400':
+   *        description: Senha inválida ou link inválido/expirado.
+   */
+  app.post("/admin/reset-password/confirm", (req, res) =>
+    AdminService.confirmPasswordReset(req, res)
+  );
+
+  app.put("/admin", AuthenticateRoute([ROLES.SUPER_ADMIN]), (req, res) =>
     AdminService.update(req, res)
   );
 };

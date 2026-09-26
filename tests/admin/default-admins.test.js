@@ -1,5 +1,4 @@
 const {
-  DEFAULT_ADMIN_PASSWORD,
   listDefaultAdmins,
   resolveSeedPassword,
 } = require('../../src/services/admin/default-admins');
@@ -13,12 +12,18 @@ describe('default-admins seed helpers', () => {
       'publicidadeaf2022@gmail.com',
     ]);
     expect(admins.every((a) => a.super_admin === true)).toBe(true);
+    expect(admins.some((a) => 'password' in a)).toBe(false);
   });
 
-  it('senha padrão e override por ADMIN_SEED_PASSWORD', () => {
-    expect(resolveSeedPassword({})).toBe(DEFAULT_ADMIN_PASSWORD);
-    expect(resolveSeedPassword({ ADMIN_SEED_PASSWORD: '  outra  ' })).toBe(
-      'outra'
+  it('não existe senha padrão: sem ADMIN_SEED_PASSWORD o seed falha', () => {
+    expect(() => resolveSeedPassword({})).toThrow(/ADMIN_SEED_PASSWORD/);
+    expect(() => resolveSeedPassword({ ADMIN_SEED_PASSWORD: '   ' })).toThrow(/ADMIN_SEED_PASSWORD/);
+  });
+
+  it('exige senha forte e aceita override por ADMIN_SEED_PASSWORD', () => {
+    expect(() => resolveSeedPassword({ ADMIN_SEED_PASSWORD: 'curta' })).toThrow(/12/);
+    expect(resolveSeedPassword({ ADMIN_SEED_PASSWORD: '  uma-senha-bem-longa  ' })).toBe(
+      'uma-senha-bem-longa'
     );
   });
 });

@@ -46,7 +46,7 @@ Alias legado de auth: `src/utils/authHttpResponse.js` (reexporta o mesmo helper)
 | **Colaborador / conta** (candidatura, `/me`, aprovação) | [colaborador.md](./colaborador.md) | `src/controller/contributor.controller.js`, `src/services/contributor.service.js` |
 | **Avatar / foto de perfil** | [avatar.md](./avatar.md) | `src/controller/upload.controller.js`, `src/services/upload.service.js`, `DELETE /user/:userId/photo` |
 | **Produção (URLs)** | [../producao-urls.md](../producao-urls.md) | Site / admin / API em ongraph.com.br |
-| **Auth admin** (login painel) | [admin-auth.md](./admin-auth.md) | `POST /admin/authenticate`, seed `seed:admins` |
+| **Auth admin** (login painel) | [admin-auth.md](./admin-auth.md) | `POST /admin/authenticate`, `POST /admin` (só super_admin), recuperação `POST /admin/reset-password[/validate\|/confirm]`, seed `seed:admins` |
 | **Usuários (admin)** | [admin-users.md](./admin-users.md) | `GET /admin/users`, `src/services/user/admin-user-list.js` |
 | **Catálogo (admin)** | [admin-catalog.md](./admin-catalog.md) | `GET/PATCH/DELETE /admin/catalog` — desabilitar / remover (+ R2) |
 | **Calendário do Marketing** | [marketing-calendar.md](./marketing-calendar.md) | `GET /marketing-calendar`, CRUD `/admin/marketing-calendar` |

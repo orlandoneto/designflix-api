@@ -29,6 +29,21 @@ module.exports = (sequelize, DataTypes) => {
         field: "is_reset_password",
         allowNull: false,
       },
+      resetTokenHash: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: "reset_token_hash",
+      },
+      resetTokenExpiresAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "reset_token_expires_at",
+      },
+      resetRequestedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "reset_requested_at",
+      },
       super_admin: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

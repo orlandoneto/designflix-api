@@ -30,6 +30,15 @@ function getForgotRedirectUrl() {
   return FORGOT_REDIRECT_URL.test_url;
 }
 
+/** URL do painel admin (links de redefinição de senha do admin). */
+function getAdminPanelUrl() {
+  if (process.env.ADMIN_PANEL_URL) {
+    return String(process.env.ADMIN_PANEL_URL).trim().replace(/\/$/, "");
+  }
+  if (process.env.NODE_ENV === "production") return "https://admin.ongraph.com.br";
+  return "http://localhost:3002";
+}
+
 function createMailTransport() {
   const port = Number(process.env.EMAIL_PORT_SMTP) || 465;
   const host = process.env.EMAIL_HOST_SMTP || "localhost";
@@ -121,6 +130,7 @@ module.exports = {
   createMailTransport,
   getEmailFrom,
   getForgotRedirectUrl,
+  getAdminPanelUrl,
   isMailpitMode,
   ensureMailpitReady,
 };
