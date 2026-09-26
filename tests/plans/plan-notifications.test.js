@@ -29,7 +29,7 @@ describe('buildPlanNotice', () => {
     });
 
     expect(notice.ok).toBe(true);
-    expect(notice.subject).toBe('FlixDesign - Cobrança vencida');
+    expect(notice.subject).toBe('ON Graph - Cobrança vencida');
     expect(notice.context.name).toBe('Ana');
     expect(notice.context.invoiceUrl).toBe('https://asaas.com/i/123');
     expect(notice.context.message).toContain('plano Premium');
@@ -61,7 +61,7 @@ describe('buildPlanNotice', () => {
     });
 
     expect(notice.ok).toBe(true);
-    expect(notice.subject).toBe('FlixDesign - Acesso suspenso');
+    expect(notice.subject).toBe('ON Graph - Acesso suspenso');
     expect(notice.context.message).toContain('suspenso');
     expect(notice.context.nextStep).toContain('liberar o acesso');
     expect(notice.context.actionLabel).toBe('Pagar fatura');
@@ -75,7 +75,7 @@ describe('buildPlanNotice', () => {
     });
 
     expect(notice.ok).toBe(true);
-    expect(notice.subject).toBe('FlixDesign - Plano encerrado');
+    expect(notice.subject).toBe('ON Graph - Plano encerrado');
     expect(notice.context.message).toContain('plano gratuito');
     expect(notice.context.nextStep).toContain('assine um plano');
   });
@@ -89,7 +89,7 @@ describe('buildPlanNotice', () => {
     });
 
     expect(notice.ok).toBe(true);
-    expect(notice.subject).toBe('FlixDesign - Cancelamento confirmado');
+    expect(notice.subject).toBe('ON Graph - Cancelamento confirmado');
     expect(notice.context.message).toContain('cancelamento');
     expect(notice.context.nextStep).toContain('07/10/2026');
     expect(notice.context.accessUntil).toBe('07/10/2026');
@@ -183,7 +183,7 @@ describe('sendPlanNotice', () => {
     const [paramsEmail, templateName, context] = sendEmail.mock.calls[0];
     expect(paramsEmail).toEqual({
       email: 'ana@example.com',
-      title: 'FlixDesign - Acesso suspenso',
+      title: 'ON Graph - Acesso suspenso',
       description: expect.stringContaining('suspenso'),
     });
     expect(templateName).toBe(PLAN_NOTICE_TEMPLATE);

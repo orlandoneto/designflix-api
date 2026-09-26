@@ -68,7 +68,7 @@ function resolveInvoiceUrl(invoiceUrl) {
 
 function buildPastDueTexts(planPhrase, invoiceUrl) {
   return {
-    subject: 'FlixDesign - Cobrança vencida',
+    subject: 'ON Graph - Cobrança vencida',
     headline: 'A cobrança do seu plano venceu',
     message: `Não identificamos o pagamento da última cobrança do seu ${planPhrase}. Seu acesso continua liberado por alguns dias enquanto aguardamos a confirmação.`,
     nextStep: invoiceUrl
@@ -80,7 +80,7 @@ function buildPastDueTexts(planPhrase, invoiceUrl) {
 
 function buildSuspendedTexts(planPhrase, invoiceUrl) {
   return {
-    subject: 'FlixDesign - Acesso suspenso',
+    subject: 'ON Graph - Acesso suspenso',
     headline: 'Seu acesso foi suspenso',
     message: `Seu acesso ao ${planPhrase} foi suspenso porque a cobrança em aberto não foi paga. Seus dados e downloads continuam salvos.`,
     nextStep: invoiceUrl
@@ -92,7 +92,7 @@ function buildSuspendedTexts(planPhrase, invoiceUrl) {
 
 function buildExpiredTexts(planPhrase) {
   return {
-    subject: 'FlixDesign - Plano encerrado',
+    subject: 'ON Graph - Plano encerrado',
     headline: 'O período pago do seu plano terminou',
     message: `O período já pago do seu ${planPhrase} chegou ao fim e sua conta voltou para o plano gratuito.`,
     nextStep:
@@ -103,7 +103,7 @@ function buildExpiredTexts(planPhrase) {
 
 function buildCanceledTexts(planPhrase, accessUntilLabel) {
   return {
-    subject: 'FlixDesign - Cancelamento confirmado',
+    subject: 'ON Graph - Cancelamento confirmado',
     headline: 'Seu cancelamento foi confirmado',
     message: `Confirmamos o cancelamento do seu ${planPhrase}. Você não será cobrado novamente.`,
     nextStep: accessUntilLabel

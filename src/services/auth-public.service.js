@@ -210,7 +210,7 @@ module.exports = class AuthPublicService {
       const paramsEmail = {
         email,
         name: fullName,
-        title: "FlixDesign - Conta criada",
+        title: "ON Graph - Conta criada",
         description: "Sua conta foi criada com sucesso!",
       };
 
@@ -245,8 +245,8 @@ module.exports = class AuthPublicService {
 
       const paramsEmail = {
         email,
-        name: "FlixDesign",
-        title: "FlixDesign - Código de Verificação",
+        name: "ON Graph",
+        title: "ON Graph - Código de verificação",
         description: `Seu código é: ${otp}`,
       };
 
@@ -326,7 +326,7 @@ module.exports = class AuthPublicService {
       await sendEmail(
         {
           email: user.email,
-          title: "Redefinição de senha — Flix Design",
+          title: "Redefinição de senha — ON Graph",
           description: `Redefina sua senha: ${resetLink}`,
         },
         "forgot",

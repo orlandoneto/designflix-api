@@ -15,7 +15,7 @@ Como a plataforma manda e-mail (código de cadastro, redefinição de senha, avi
 
 ## 1. Objetivo
 
-- Todo e-mail que a plataforma envia sai **de `Designflix <contato@ongraph.com.br>`**, do domínio próprio, autenticado (SPF + DKIM + DMARC) para não cair em spam nem ser rejeitado.
+- Todo e-mail que a plataforma envia sai **de `ON Graph <contato@ongraph.com.br>`**, do domínio próprio, autenticado (SPF + DKIM + DMARC) para não cair em spam nem ser rejeitado.
 - Quem responde ou escreve para `contato@ongraph.com.br` recebe a mensagem no Gmail do Orlando (`orlandoneto23@gmail.com`).
 - Custo zero: Brevo Free (envio) + Cloudflare Email Routing (recebimento).
 
@@ -85,7 +85,9 @@ Todos passam por `sendEmail()` em [`src/utils/emailService.js`](../src/utils/ema
 
 `renewPlan.hbs` existe em `src/views/` mas nenhum código usa hoje.
 
-Os links dos e-mails usam `FRONTEND_URL` (site) e `ADMIN_PANEL_URL` (painel); as imagens usam `API_URL`.
+Os links dos e-mails usam `FRONTEND_URL` (site; sem ela, produção usa `https://www.ongraph.com.br` de `src/utils/constants/constants.js`) e `ADMIN_PANEL_URL` (painel); as imagens usam `API_URL`.
+
+**Marca nos e-mails:** `ON Graph` — o mesmo nome do site (título, logo e textos de www.ongraph.com.br) — em assunto, cabeçalho, corpo, rodapé e nome do remetente. O cabeçalho usa o logo do site (`public/brand/logo-ongraph.png`, texto branco para o fundo escuro, 192 px), servido pela API em `{API_URL}/brand/logo-ongraph.png`. `sendEmail()` preenche `baseUrl` e `year` (rodapé) por padrão. Até a 1.1.1 os e-mails diziam "FlixDesign" / "Flix Design", e o link de "esqueci a senha" do site caía em `flixdesign.com.br`.
 
 ## 5. Onde fica cada configuração
 

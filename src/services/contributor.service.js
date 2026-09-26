@@ -36,7 +36,7 @@ function notifyApply(user, application) {
   const paramsEmail = {
     email: user.email,
     name: user.name,
-    title: "Solicitação de Contribuidor - FlixDesign",
+    title: "Solicitação de Contribuidor - ON Graph",
     description: "Recebemos sua solicitação para ser um contribuidor!",
   };
   const contextParams = {
@@ -52,7 +52,7 @@ function notifyApply(user, application) {
       {
         email: modEmail,
         name: user.name,
-        title: "Nova Solicitação de Contribuidor - FlixDesign",
+        title: "Nova Solicitação de Contribuidor - ON Graph",
         description: `O usuário ${user.name} (${user.email}) solicitou ser contribuidor.`,
       },
       "contributorRequestAdmin",

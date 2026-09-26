@@ -4,7 +4,7 @@ Como a API de produção envia e-mail (código de verificação do cadastro, res
 
 Relacionados: **[email-arquitetura.md](./email-arquitetura.md) (visão geral, diagrama, lista de e-mails)** · [email-cloudflare.md](./email-cloudflare.md) (DNS, Email Routing, autenticação do domínio) · [deploy-oracle.md](./deploy-oracle.md) · [oci-ssh-access.md](./oci-ssh-access.md) · [producao-urls.md](./producao-urls.md) · dev local: [LOCAL-MAILPIT.md](./LOCAL-MAILPIT.md)
 
-**Configurado em:** 2026-09-26 · **Remetente de produção:** `Designflix <contato@ongraph.com.br>` (domínio autenticado)
+**Configurado em:** 2026-09-26 · **Remetente de produção:** `ON Graph <contato@ongraph.com.br>` (domínio autenticado)
 
 ---
 
@@ -42,7 +42,7 @@ Se passar de 300/dia, os envios excedentes falham até o dia seguinte → avalia
 | `EMAIL_PORT_SMTP` | `587` | STARTTLS → `secure=false` (automático: `secure` só quando porta 465) |
 | `EMAIL_USER_SMTP` | `bb3c5…@smtp-brevo.com` | login SMTP da conta (valor completo no `.env.production` / painel) |
 | `EMAIL_PASS_SMTP` | chave SMTP **`designflix-vm`** | **segredo** — ver seção 4 |
-| `EMAIL_FROM` | `"Designflix <contato@ongraph.com.br>"` | remetente verificado; domínio autenticado (seção 6) |
+| `EMAIL_FROM` | `"ON Graph <contato@ongraph.com.br>"` | remetente verificado; domínio autenticado (seção 6). O nome de exibição vem daqui (desde 1.1.2), não do cadastro do remetente no Brevo |
 
 Código que usa: [`src/utils/mailTransport.js`](../src/utils/mailTransport.js) (`createMailTransport()` + `getEmailFrom()`).
 
@@ -76,7 +76,7 @@ Se a chave vazar (ex.: commit acidental): **revogar no Brevo imediatamente** e g
 
 ## 6. Remetente e domínio
 
-**Estado atual (2026-09-26):** domínio `ongraph.com.br` **Authenticated** no Brevo (TXT `brevo-code`, DKIM `brevo1`/`brevo2._domainkey` como CNAME DNS only, SPF com `include:spf.brevo.com`, DMARC `p=reject` existente). Remetente **`Designflix <contato@ongraph.com.br>`** verificado e em uso em produção (`EMAIL_FROM`).
+**Estado atual (2026-09-26):** domínio `ongraph.com.br` **Authenticated** no Brevo (TXT `brevo-code`, DKIM `brevo1`/`brevo2._domainkey` como CNAME DNS only, SPF com `include:spf.brevo.com`, DMARC `p=reject` existente). Remetente **`contato@ongraph.com.br`** verificado (cadastrado no Brevo com o nome "Designflix"); em produção sai como **`ON Graph <contato@ongraph.com.br>`** (`EMAIL_FROM`, desde 1.1.2).
 
 Registros, Email Routing (receber `contato@`) e como reverter: **[email-cloudflare.md](./email-cloudflare.md)**.
 

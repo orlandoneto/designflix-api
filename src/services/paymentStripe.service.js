@@ -466,7 +466,7 @@ module.exports = class {
         await this.handleCustomerSubscriptionCreated(
           eventData,
           "customerSubscriptionCreated",
-          "Bem-vindo ao FlixDesign!"
+          "Bem-vindo à ON Graph!"
         );
         break;
 
@@ -543,7 +543,7 @@ module.exports = class {
         email: emailUser,
         name: userName,
         title: emailTitle,
-        description: `Obrigado por se tornar um assinante do FlixDesign!`,
+        description: `Obrigado por se tornar um assinante da ON Graph!`,
       };
 
       const contextParams = {

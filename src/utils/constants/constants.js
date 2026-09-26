@@ -38,7 +38,7 @@ const PLAN_VALUES = {
 const FORGOT_REDIRECT_URL = {
   test_url: "http://localhost:3001",
   dev_url: "http://localhost:3001",
-  prod_url: "https://flixdesign.com.br",
+  prod_url: "https://www.ongraph.com.br",
 };
 
 const PALN_COMMISSION = {

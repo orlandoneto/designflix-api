@@ -28,7 +28,7 @@
       padding: 20px;
     }
     .header img {
-      width: 275px;
+      width: 192px;
     }
     .content {
       color: #455056;
@@ -67,14 +67,14 @@
 <body>
   <div class="container">
     <div class="header">
-      <img src="{{baseUrl}}/logo.png" title="FlixDesign" alt="FlixDesign">
+      <img src="{{baseUrl}}/brand/logo-ongraph.png" width="192" alt="ON Graph" style="display:block;margin:0 auto;width:192px;max-width:100%;height:auto;border:0;" />
     </div>
     <div class="content">
       <p>Olá {{name}},</p>
       
       <div class="urgency-level">{{urgencyMessage}}</div>
 
-      <p>Seu plano <strong>{{planName}}</strong> no FlixDesign {{expirationMessage}} <span class="highlight">{{daysText}}</span> ({{expirationDate}}).</p>
+      <p>Seu plano <strong>{{planName}}</strong> na ON Graph {{expirationMessage}} <span class="highlight">{{daysText}}</span> ({{expirationDate}}).</p>
 
       {{#if isExpired}}
       <p>Seu acesso aos recursos premium foi temporariamente desativado. Todos os seus dados foram preservados.</p>
@@ -94,10 +94,10 @@
       <p>Se você já renovou, por favor desconsidere este e-mail.</p>
       {{/if}}
 
-      <p>Atenciosamente,<br>Equipe FlixDesign</p>
+      <p>Atenciosamente,<br>Equipe ON Graph</p>
     </div>
     <div class="footer">
-      <p>&copy; 2024 FlixDesign. Todos os direitos reservados.</p>
+      <p>&copy; {{year}} ON Graph. Todos os direitos reservados.</p>
     </div>
   </div>
 </body>

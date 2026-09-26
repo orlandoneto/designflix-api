@@ -230,7 +230,7 @@ class AdminService {
     return sendEmail(
       {
         email: admin.email,
-        title: "Redefinição de senha — Admin Designflix",
+        title: "Redefinição de senha — Admin ON Graph",
         description: `Redefina sua senha de administrador (válido por ${expiresInLabel}): ${resetLink}`,
       },
       "adminResetPassword",

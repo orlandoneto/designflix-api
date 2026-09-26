@@ -48,6 +48,9 @@ const sendEmail = async (
       text: paramsEmail.description,
       template: templateName,
       context: {
+        // Padrões para todos os templates (logo e © do rodapé).
+        baseUrl: process.env.API_URL,
+        year: new Date().getFullYear(),
         ...context,
       },
     };
