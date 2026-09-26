@@ -14,7 +14,7 @@ Decisões (“por quê”): [decisions/](./decisions/).
 | Cache | Redis | search/facets (opcional em dev) |
 | Busca | Meilisearch (`auto` → fallback MySQL) | |
 | Storage | S3 ou local (`STORAGE_TYPE`) | Signed URL no download |
-| Auth | JWT (RS256) | Perfis user / admin |
+| Auth | JWT (RS256) | Perfis user / admin; chave privada via env `JWT_PRIVATE_KEY` ([`src/utils/jwtKeys.js`](../../src/utils/jwtKeys.js)) |
 
 ## Princípios
 

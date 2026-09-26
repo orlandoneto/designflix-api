@@ -2,9 +2,9 @@
 
 Como a API de produção envia e-mail (código de verificação do cadastro, reset de senha, avisos de plano) e onde está cada configuração.
 
-Relacionados: [deploy-oracle.md](./deploy-oracle.md) · [oci-ssh-access.md](./oci-ssh-access.md) · [producao-urls.md](./producao-urls.md) · dev local: [LOCAL-MAILPIT.md](./LOCAL-MAILPIT.md)
+Relacionados: [email-cloudflare.md](./email-cloudflare.md) (DNS, Email Routing, autenticação do domínio) · [deploy-oracle.md](./deploy-oracle.md) · [oci-ssh-access.md](./oci-ssh-access.md) · [producao-urls.md](./producao-urls.md) · dev local: [LOCAL-MAILPIT.md](./LOCAL-MAILPIT.md)
 
-**Configurado em:** 2026-09-26
+**Configurado em:** 2026-09-26 · **Remetente de produção:** `Designflix <contato@ongraph.com.br>` (domínio autenticado)
 
 ---
 
@@ -42,7 +42,7 @@ Se passar de 300/dia, os envios excedentes falham até o dia seguinte → avalia
 | `EMAIL_PORT_SMTP` | `587` | STARTTLS → `secure=false` (automático: `secure` só quando porta 465) |
 | `EMAIL_USER_SMTP` | `bb3c5…@smtp-brevo.com` | login SMTP da conta (valor completo no `.env.production` / painel) |
 | `EMAIL_PASS_SMTP` | chave SMTP **`designflix-vm`** | **segredo** — ver seção 4 |
-| `EMAIL_FROM` | `"Designflix <orlandoneto23@gmail.com>"` | precisa ser remetente verificado (seção 6) |
+| `EMAIL_FROM` | `"Designflix <contato@ongraph.com.br>"` | remetente verificado; domínio autenticado (seção 6) |
 
 Código que usa: [`src/utils/mailTransport.js`](../src/utils/mailTransport.js) (`createMailTransport()` + `getEmailFrom()`).
 
@@ -75,19 +75,13 @@ Se a chave vazar (ex.: commit acidental): **revogar no Brevo imediatamente** e g
 
 ## 6. Remetente e domínio
 
-**Hoje:** o único remetente verificado é `orlandoneto23@gmail.com` → `EMAIL_FROM="Designflix <orlandoneto23@gmail.com>"`.
+**Estado atual (2026-09-26):** domínio `ongraph.com.br` **Authenticated** no Brevo (TXT `brevo-code`, DKIM `brevo1`/`brevo2._domainkey` como CNAME DNS only, SPF com `include:spf.brevo.com`, DMARC `p=reject` existente). Remetente **`Designflix <contato@ongraph.com.br>`** verificado e em uso em produção (`EMAIL_FROM`).
 
-**Pendente — autenticar `ongraph.com.br`** para enviar como `contato@ongraph.com.br` (melhor entregabilidade, menos spam):
+Registros, Email Routing (receber `contato@`), "Enviar como" no Gmail e como reverter: **[email-cloudflare.md](./email-cloudflare.md)**.
 
-1. Brevo → **Senders, Domains & Dedicated IPs → Domains → Add a domain** → `ongraph.com.br`.
-2. O Brevo mostra os registros DNS. No **Cloudflare** (DNS de `ongraph.com.br`), criar como **DNS only** (nuvem cinza):
-   - **TXT** `brevo-code` de verificação (valor dado pelo Brevo);
-   - **DKIM** (TXT/CNAME `…._domainkey` dado pelo Brevo);
-   - **SPF**: um único TXT na raiz `v=spf1 include:spf.brevo.com ~all` (se já existir SPF, **acrescentar** o `include:` no mesmo registro — nunca dois SPF);
-   - **DMARC**: TXT `_dmarc` → `v=DMARC1; p=none; rua=mailto:<seu-email>` (começar com `p=none`, endurecer depois).
-3. Voltar no Brevo → **Authenticate** / verificar até ficar tudo verde.
-4. Adicionar o remetente `contato@ongraph.com.br` (Senders).
-5. Trocar no `.env.production`: `EMAIL_FROM="Designflix <contato@ongraph.com.br>"` → `npm run deploy:oracle` → testar.
+Também verificado (legado/teste): `orlandoneto23@gmail.com`.
+
+Trocar o remetente: o endereço precisa ser `@ongraph.com.br` (domínio autenticado) ou estar verificado em Brevo → **Senders**; depois atualizar `EMAIL_FROM` no `.env.production` e rodar `npm run deploy:oracle`.
 
 ---
 
@@ -102,12 +96,13 @@ Se a chave vazar (ex.: commit acidental): **revogar no Brevo imediatamente** e g
    EMAIL_PORT_SMTP=587
    EMAIL_USER_SMTP=<login SMTP Brevo>
    EMAIL_PASS_SMTP=<chave designflix-vm>
-   EMAIL_FROM="Designflix <orlandoneto23@gmail.com>"
+   EMAIL_FROM="Designflix <orlandoneto23@gmail.com>"   # valor inicial; hoje contato@ongraph.com.br (item 6)
    ```
 
 3. `pm2 restart designflix-api --update-env`.
 4. Teste com `src/utils/mailTransport.js` → `250 … queued`; e-mail recebido. Health 200.
 5. O `.env` da VM foi copiado para `C:\projetos\designflix-api\.env.production` (gitignored) — daqui para frente o deploy parte dele.
+6. Após a autenticação do domínio: `EMAIL_FROM="Designflix <contato@ongraph.com.br>"` no `.env.production` → `npm run deploy:oracle` (1.0.14). E-mail de teste via `mailTransport` de `contato@` → `250 … queued`.
 
 Nada de firewall / SSH / Security List foi alterado.
 
@@ -180,6 +175,7 @@ grep -E '^EMAIL_' /home/opc/designflix-api/.env | sed -E 's/^(EMAIL_PASS_SMTP=).
 | Timeout em `:587` | Rede de saída | Testar: `timeout 5 bash -c '</dev/tcp/smtp-relay.brevo.com/587' && echo aberto \|\| echo fechado` |
 | `wrong version number` / erro TLS | `secure=true` na 587 | 587 = STARTTLS (`secure=false`); só 465 usa TLS direto |
 | `Sender not valid` / e-mail não chega | `EMAIL_FROM` não verificado no Brevo | Usar remetente verificado (seção 6) |
+| Cai no spam / rejeitado (`p=reject`) | DKIM/SPF quebrados (ex.: CNAME `brevo*._domainkey` com proxy laranja, SPF duplicado) | Conferir DNS em [email-cloudflare.md](./email-cloudflare.md); Brevo → Domains deve mostrar Authenticated |
 | Parou de enviar no fim do dia | Limite 300/dia do plano Free | Brevo → estatísticas; esperar ou mudar de plano |
 
 Logs da API:
@@ -195,6 +191,6 @@ No Brevo: **Transactional → Logs** mostra cada envio (entregue, bounce, bloque
 
 ## 11. Receber e-mail (caixa de entrada) — não é Brevo
 
-O Brevo só **envia**. Não existe caixa `contato@ongraph.com.br` para **receber** respostas.
+O Brevo só **envia**. O recebimento de `contato@ongraph.com.br` é feito pelo **Cloudflare Email Routing**, que encaminha para `orlandoneto23@gmail.com` — ver [email-cloudflare.md](./email-cloudflare.md).
 
-Quando precisar: **Zoho Mail** (plano Forever Free, até 5 usuários, domínio próprio) — cria registros **MX** (+ SPF do Zoho no mesmo TXT do SPF: `v=spf1 include:spf.brevo.com include:zoho.com ~all`) no Cloudflare. Alternativa simples: Cloudflare Email Routing (só encaminha para o Gmail). Enquanto isso, respostas vão para o remetente atual (`orlandoneto23@gmail.com`).
+Se um dia precisar de caixa postal de verdade no domínio (vários usuários, IMAP): **Zoho Mail** (Forever Free, até 5 usuários) — exige trocar os MX do Cloudflare pelos do Zoho e acrescentar `include:zoho.com` no **mesmo** SPF.

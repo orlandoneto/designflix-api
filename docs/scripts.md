@@ -138,12 +138,11 @@ CI no GitHub: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — `npm
 | Comando | O quê |
 |---|---|
 | `npm start` | Produção: setEnv + `node src/main.js`. |
-| `npm run build` | Babel `src` → `dist` + copia `private.key`. |
+| `npm run build` | Babel `src` → `dist` (a chave JWT vem do env `JWT_PRIVATE_KEY`; nada de `private.key`). |
 | `npm run build-stg` | setEnv development + Babel + minify. |
 | `npm run build-prd` | setEnv production + Babel + minify. |
 | `npm run minify` | Uglify dos `.js` em `dist/` (precisa do build antes). |
-| `npm run copy-keys` | Copia `private.key` para `dist/middleware/`. |
-| `npm run deploy:oracle` | **Deploy de produção** (VM Oracle): código commitado (`git archive`) + `.env.production` local → VM, `pm2 reload`. `npm run deploy:oracle -- -DryRun` só confere. Ver [deploy-oracle.md](./deploy-oracle.md). |
+| `npm run deploy:oracle` | **Deploy de produção** (VM Oracle): código commitado (`git archive`) + `.env.production` local → VM, `pm2 reload`. `npm run deploy:oracle -- -DryRun` só confere; `-Rollback [-BackupTs <TS>]` volta ao backup anterior. Ver [deploy-oracle.md](./deploy-oracle.md). |
 | `npm run deploy-stg` | **Legado** (VPS antigo `46.202.146.92`) — PM2 deploy staging. Não usar. |
 | `npm run deploy-prd` | **Legado** (VPS antigo `46.202.146.92`) — PM2 deploy production. Não usar. |
 | `npm run deploy` | **Legado** — staging + production do VPS antigo. |
